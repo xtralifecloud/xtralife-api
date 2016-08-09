@@ -1,0 +1,59 @@
+{
+  "name": "xtralife-api",
+  "version": "3.2.0",
+  "description": "Xtralife.cloud business logic shared between components",
+  "main": "src/index.coffee",
+  "scripts": {
+    "test": "mocha test/test_*.coffee"
+  },
+  "keywords": [
+    "backend",
+    "game"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xtralifecloud/xtralife-api.git"
+  },
+  "author": "devteam <devteam@xtralife.cloud>",
+  "license": "(C) Xtralife.cloud, 2015",
+  "engines": {
+    "node": ">=6.2.2"
+  },
+  "dependencies": {
+    "apn": "^1.7.7",
+    "async": "<2",
+    "aws-sdk": "*",
+    "bluebird": "*",
+    "check-types": "*",
+    "coffee-script": "*",
+    "coffee-script-mapped": "*",
+    "dtimer": "*",
+    "elasticsearch": "11",
+    "extend": "*",
+    "fbgraph": "*",
+    "flat": "*",
+    "iap": "*",
+    "moment": "*",
+    "mongodb": "2.1",
+    "node-gcm": "^0.14.4",
+    "randomstring": "*",
+    "redlock": "*",
+    "request": "*",
+    "statsd-client": "*",
+    "superagent": "*",
+    "underscore": "*",
+    "underscore-contrib": "*",
+    "url": "^0.11.0",
+    "winston": "*",
+    "xtralife-env": "<3.3",
+    "xtralife-msg": "<3.3"
+  },
+  "devDependencies": {
+    "mocha": "*",
+    "redis": "*",
+    "should": "*",
+    "q": "<2",
+    "jayschema": "*"
+  },
+  "readmeFilename": "readme.md"
+}

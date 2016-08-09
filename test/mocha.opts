@@ -1,0 +1,4 @@
+--reporter Spec
+--require coffee-script/register
+-t 2000
+-s 0
