@@ -57,7 +57,7 @@ module.exports = {
 			"use strict";
 
 			var self = this;
-			var user_id = params.user_id;
+			var {user_id} = params;
 
 			console.log("Called !");
 
@@ -65,14 +65,14 @@ module.exports = {
 				timerId: "timerId",
 				expirySeconds: 2,
 				description: "description",
-				customData: {}
+				customData: {test: "hello"}
 			};
 
 			return self.timer.add(self.game.getPrivateDomain(), user_id, timerObject, "testRecursiveTimer")
-				.then(function (result) {
+				.then(result => {
 					return mod.debug(result);
 				})
-				.catch(function (err) {
+				.catch(err => {
 					return mod.debug(err);
 				});
 		}

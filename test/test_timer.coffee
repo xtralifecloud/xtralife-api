@@ -178,7 +178,6 @@ describe "Xtralife timer module", ()->
 
 	after "should remove the recursive timer", ->
 		xtralife.api.timer.delete context, domain, user_id, 'timerId' # timerId is the timer name
-		.tap console.log
 
 describe.skip "test then catch then", ->
 
