@@ -4,7 +4,7 @@ xtralifeerrors = require './errors.coffee'
 checktypes = require 'check-types'
 
 checktypes.objectid = (id)->
-	id isnt null and id._bsontype is 'ObjectID'
+	id?._bsontype is 'ObjectID'
 
 shouldRunPreconditions = process.env.NODE_ENV isnt "production"
 _ = require 'underscore'
@@ -46,6 +46,7 @@ class AbstractAPI
 				errorsMessages = (errorsMessage for errorsMessage, passed of fn(checktypes) when not passed)
 				if errorsMessages.length then throw new xtralifeerrors.PreconditionError(errorsMessages)
 			catch err
+				console.error err
 				logger.error 'Exception when checking preconditions', {stack: err.stack}
 				throw new xtralifeerrors.PreconditionError(['Exception when checking preconditions'])
 

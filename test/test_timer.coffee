@@ -28,7 +28,7 @@ describe "Xtralife timer module", ()->
 			context = {game}
 			done()
 
-	it 'should create a new gamer', (done)->
+	before 'should create a new gamer', (done)->
 		profile =
 			displayName : "Test user"
 			lang: "en"
@@ -170,6 +170,15 @@ describe "Xtralife timer module", ()->
 		this.timeout 5000
 		xtralife.api.game.runBatch context, domain, 'testTimer', {user_id}
 		setTimeout done, 2500
+
+	it "should run recursive timers", (done)->
+		this.timeout 5000
+		xtralife.api.game.runBatch context, domain, 'testRecursiveTimer', {user_id}
+		setTimeout done, 4500
+
+	after "should remove the recursive timer", ->
+		xtralife.api.timer.delete context, domain, user_id, 'timerId' # timerId is the timer name
+		.tap console.log
 
 describe.skip "test then catch then", ->
 

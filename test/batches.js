@@ -52,6 +52,29 @@ module.exports = {
 					resolve();
 				}, 250);
 			});
+		},
+		__testRecursiveTimer: function (params, customData, mod) {
+			"use strict";
+
+			var self = this;
+			var user_id = params.user_id;
+
+			console.log("Called !");
+
+			var timerObject = {
+				timerId: "timerId",
+				expirySeconds: 2,
+				description: "description",
+				customData: {}
+			};
+
+			return self.timer.add(self.game.getPrivateDomain(), user_id, timerObject, "testRecursiveTimer")
+				.then(function (result) {
+					return mod.debug(result);
+				})
+				.catch(function (err) {
+					return mod.debug(err);
+				});
 		}
 	}
 };
