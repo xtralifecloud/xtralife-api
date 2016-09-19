@@ -198,7 +198,7 @@ class GameAPI extends AbstractAPI
 			if user_id.length > (xlenv.options.maxReceptientsForEvent)
 				return Q.reject new Error("Can't send a message to more than #{xlenv.options.maxUsersForEvent} users")
 
-			Q.all (xlenv.broker.sendVolatile(domain, eachUser.toString(), message) for eashUser in user_id)
+			Q.all (xlenv.broker.sendVolatile(domain, eachUser.toString(), message) for eachUser in user_id)
 		else
 			xlenv.broker.sendVolatile domain, user_id.toString(), message
 
