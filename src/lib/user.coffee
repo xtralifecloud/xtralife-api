@@ -14,6 +14,8 @@ AbstractAPI = require "../AbstractAPI.coffee"
 Q = require 'bluebird'
 crypto = require 'crypto'
 
+jwt = require 'jsonwebtoken'
+
 class UserAPI extends AbstractAPI
 	constructor: ()->
 		super()
@@ -200,6 +202,11 @@ class UserAPI extends AbstractAPI
 			changeEmail: (user_id, email)=>
 				changeAsync = Q.promisify @xtralifeapi.connect.changeEmail, context: @xtralifeapi.connect
 				changeAsync(user_id, email)
+
+			getJWToken: (user_id, domain, secret, payload, expiresIn="2m" ) =>
+				key = crypto.createHash('sha256').update(xlenv.privateKey + secret + domain).digest('hex')
+
+				return jwt.sign {user_id: user_id.toString(), domain: domain, payload: payload}, key, {expiresIn, issuer: "xtralife-api", subject: "auth"}
 
 		profile:
 			read:  (user_id, included)=>

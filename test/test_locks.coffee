@@ -17,7 +17,7 @@ user_id = null
 context = null
 Redlock = require 'redlock'
 
-describe "Xtralife batch with lock", ()->
+describe.skip "Xtralife batch with lock", ()->
 
 	before 'configure Xtralife', (done)->
 		this.timeout 5000
