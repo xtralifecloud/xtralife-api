@@ -20,6 +20,9 @@ token = null
 
 jwt = require 'jsonwebtoken'
 
+secret = "this is a game specific secret"
+
+
 describe.only "Xtralife JWT token issuance", ()->
 
 	before 'configure Xtralife', (done)->
@@ -42,9 +45,9 @@ describe.only "Xtralife JWT token issuance", ()->
 	it 'should issue a jwt token for a gamer', ()->
 
 		# issue and remember token
-		token = xtralife.api.user.sandbox().account.getJWToken user_id, domain, "this is a game specific secret", {hello: "world", isThePayload: true}
+		token = xtralife.api.user.sandbox(context).account.getJWToken user_id, domain, secret, {hello: "world", isThePayload: true}
 
-		key = crypto.createHash('sha256').update(xlenv.privateKey + "this is a game specific secret" + domain).digest('hex')
+		key = crypto.createHash('sha256').update(secret + domain).digest('hex')
 
 		decoded = jwt.verify token, key
 
@@ -57,16 +60,7 @@ describe.only "Xtralife JWT token issuance", ()->
 
 	it 'should fail with invalid secret', (done)->
 
-		key = crypto.createHash('sha256').update(xlenv.privateKey + "WRONG SECRET" + domain).digest('hex')
-
-		try
-			jwt.verify(token, key)
-		catch JsonWebTokenError
-			done()
-
-	it 'should fail with invalid privateKey', (done)->
-
-		key = crypto.createHash('sha256').update("WRONG PRIVATE KEY" + "this is a game specific secret" + domain).digest('hex')
+		key = crypto.createHash('sha256').update("WRONG SECRET" + domain).digest('hex')
 
 		try
 			jwt.verify(token, key)
@@ -75,7 +69,7 @@ describe.only "Xtralife JWT token issuance", ()->
 
 	it 'should fail with invalid domain', (done)->
 
-		key = crypto.createHash('sha256').update(xlenv.privateKey + "this is a game specific secret" + "INVALID DOMAIN").digest('hex')
+		key = crypto.createHash('sha256').update(secret + "INVALID DOMAIN").digest('hex')
 
 		try
 			jwt.verify(token, key)

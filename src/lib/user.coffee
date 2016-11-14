@@ -204,7 +204,10 @@ class UserAPI extends AbstractAPI
 				changeAsync(user_id, email)
 
 			getJWToken: (user_id, domain, secret, payload, expiresIn="2m" ) =>
-				key = crypto.createHash('sha256').update(xlenv.privateKey + secret + domain).digest('hex')
+				if not @xtralifeapi.game.checkDomainSync context.game.appid, domain
+					throw new errors.BadArgument("Your game doesn't have access to this domain")
+
+				key = crypto.createHash('sha256').update(secret + domain).digest('hex')
 
 				return jwt.sign {user_id: user_id.toString(), domain: domain, payload: payload}, key, {expiresIn, issuer: "xtralife-api", subject: "auth"}
 
