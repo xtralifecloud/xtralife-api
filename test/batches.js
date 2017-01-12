@@ -75,6 +75,20 @@ module.exports = {
 				.catch(err => {
 					return mod.debug(err);
 				});
-		}
+		},
+
+		"__auth_customNetwork_comclanofthecloudcloudbuilder": function (params, customData, mod) {
+			var {user_id, user_token} = params;
+			return {verified : user_token == user_id};
+		},
+
+		"__auth_http_comclanofthecloudcloudbuilder": function (params, customData, mod) {
+			var {user_id, user_token} = params;
+			return this.game.http.get("http://localhost:4444/auth?id="+user_id+"&token="+user_token)
+					.then((res)=> { 
+						return {verified : res.body.valid==true}
+					});
+		},
+
 	}
 };

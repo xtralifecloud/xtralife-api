@@ -189,6 +189,34 @@ class ConnectAPI extends AbstractAPI
 
 			cb err, result.result.n
 
+	loginExternal: (game, external, id, token, options, cb)->
+		return cb new errors.BadArgument unless id?
+		return cb new errors.BadArgument unless token?
+		return cb new errors.BadArgument unless external?
+
+		_check_auth = (external,  id, token, cb)=>
+			@handleHook "__auth_#{external}_#{game.appid.replace(/[^0-9a-z]/gi,'')}", {game}, "#{game.appid}.#{game.apisecret}",
+				user_id: id
+				user_token: token
+			.then (status)=>
+				cb null, status
+			.catch (err)=>
+				cb err
+
+		@collusers().findOne {network:external, networkid:id}, (err, user)=>
+			return cb err if err?
+			_check_auth external, id, token, (err, status)=>
+				console.log "status", status
+				return cb err if err?
+				return cb new errors.BadUserCredentials unless status?
+				return cb new errors.BadUserCredentials unless status.verified == true
+				return cb null, user, false if user?
+
+				return cb new errors.PreventRegistration(id), null, false if options?.preventRegistration
+				# create account
+				@register game, external, id, token, {displayName:id, lang:"en"}, (err, user)->
+					cb err, user, true
+
 
 	login: (game, email, sha_pass, options, cb)->
 		return cb new errors.BadArgument unless email?

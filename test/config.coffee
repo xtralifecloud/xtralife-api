@@ -63,7 +63,7 @@ xlenv.override null,
 			enable: true
 			listen: true
 
-		hostnameBlacklist: ['localhost', '127.0.0.1'] # used to restrict this.game.http.* apis
+		hostnameBlacklist: [] # used to restrict this.game.http.* apis
 
 	mailer: null # CONFIGURE HERE
 

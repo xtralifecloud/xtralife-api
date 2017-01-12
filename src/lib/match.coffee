@@ -508,7 +508,7 @@ class MatchAPI extends AbstractAPI
 
 	list: (domain, skip, limit, hideFinished, withGamer_id, customProperties)->
 		filter = {domain: domain}
-		filter.status = {$ne: 'finished'} if hideFinished
+		filter.status = {$ne: 'finished'} if hideFinished==true
 		filter.players = ObjectID(withGamer_id) if withGamer_id? and withGamer_id.length == 24
 		# https://github.com/clutchski/coffeelint/issues/189
 		try

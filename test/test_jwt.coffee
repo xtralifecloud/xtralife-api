@@ -23,7 +23,7 @@ jwt = require 'jsonwebtoken'
 secret = "this is a game specific secret"
 
 
-describe.only "Xtralife JWT token issuance", ()->
+describe "Xtralife JWT token issuance", ()->
 
 	before 'configure Xtralife', (done)->
 		this.timeout 5000
