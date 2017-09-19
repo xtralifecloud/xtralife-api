@@ -119,7 +119,7 @@ class ConnectAPI extends AbstractAPI
 				@rc.del key , (err, done)=> # token must be used only once !
 					cb null, loginfo.user_id
 
-	sendPassword: (game, email, from, title, body, cb)->
+	sendPassword: (game, email, from, title, body, html, cb)->
 		@existInNetwork 'email', email, (err, user)=>
 			return cb err if err?
 			privatedomain = @xtralifeapi.game.getPrivateDomain(game.appid)
@@ -132,6 +132,9 @@ class ConnectAPI extends AbstractAPI
 					to: email
 					subject: title
 					text: body.replace /\[\[SHORTCODE\]\]/gi, token
+
+				if html?
+					mail.html =  html.replace /\[\[SHORTCODE\]\]/gi, token
 
 				xlenv.mailer.sendMail mail, (err, info)=>
 					return cb err if err?
