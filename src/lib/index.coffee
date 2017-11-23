@@ -101,4 +101,7 @@ class IndexAPI extends AbstractAPI
 			else
 				throw new errors.BadArgument("Your game doesn't have access to this domain")
 
+		getClient: ()=> # OpenSource version ONLY, not available in the hosted edition
+			@elastic
+
 module.exports = new IndexAPI()
