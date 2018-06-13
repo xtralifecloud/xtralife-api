@@ -30,6 +30,8 @@ validToken = (token, callback)->
 			business.avatar = business.picture.data.url if business.picture?.data?.url?
 			callback error, business
 		else
+			graph.setAccessToken token
+			graph.setVersion "2.5"
 			graph.get "me?fields=#{FIELDS}", (err, res)->
 				if err?
 					err.source = "facebook"
