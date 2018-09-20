@@ -10,8 +10,10 @@ util = require 'util'
 Redlock = require 'redlock'
 
 superagent = require 'superagent'
+jwt = require 'jsonwebtoken'
 
 url = require 'url'
+nodemailer = require 'nodemailer'
 
 class GameAPI extends AbstractAPI
 
@@ -252,6 +254,8 @@ class GameAPI extends AbstractAPI
 			else
 				throw new errors.BadArgument("Your game doesn't have access to this domain")
 
+		jwt: jwt
+
 		http:
 			get: (_url)->
 				_checkUrl _url
@@ -264,6 +268,14 @@ class GameAPI extends AbstractAPI
 			put: (_url)->
 				_checkUrl _url
 				superagent.put(_url)
+		
+			del: (_url)=>
+				_checkUrl _url
+				superagent.del(_url)
+
+		nodemailer: nodemailer
+
+		redlock: ()=> @redlock
 
 module.exports = new GameAPI()
 

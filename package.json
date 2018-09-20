@@ -36,6 +36,7 @@
     "jsonwebtoken": "^7.1.9",
     "moment": "*",
     "mongodb": "2.1",
+    "nodemailer": "*",
     "node-gcm": "^0.14.4",
     "randomstring": "*",
     "redlock": "*",

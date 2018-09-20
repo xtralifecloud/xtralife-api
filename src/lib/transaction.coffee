@@ -63,7 +63,7 @@ class TransactionAPI extends AbstractAPI
 				transaction: transaction
 				description: description
 				balanceBefore: balance
-				balanceAfter: balance
+				balanceAfter: adjustedBalance
 			.then => # now insert Tx
 				insertedTx = {_id: new ObjectID(), domain: domain, userid: user_id, ts: new Date(), tx: transaction, desc: description}
 				@txColl.insert insertedTx
