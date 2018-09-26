@@ -62,6 +62,16 @@ class UserAPI extends AbstractAPI
 	getProfile: (user, cb)->
 		cb null, user.profile
 
+	updateProfileAsync: (user_id, profile)->
+		updated = {}
+		for key of profile
+			if ["email", "displayName", "lang", "firstName", "lastName", "addr1", "addr2", "addr3", "avatar"].indexOf(key) != -1
+				updated["profile.#{key}"] = profile[key]
+
+		@collusers().update {_id : user_id} , {$set : updated}
+		.then (res)=>
+			res.result
+
 	_checktype: (value)->
 		switch typeof value
 			when "number", "string", "boolean"
@@ -217,6 +227,9 @@ class UserAPI extends AbstractAPI
 				if included?
 					fields[i] = 1 for i in included
 				@xtralifeapi.connect.readProfileAsync user_id, fields
+
+			write: (user_id, fields)=>
+				@updateProfileAsync user_id, fields
 
 		properties:
 			read: (domain, user_id, key)=>
