@@ -74,8 +74,6 @@ class AchievementAPI extends AbstractAPI
 						triggeredAchievements: triggeredAchievements
 						runTransactions: transactions
 					.then (beforeData)=>
-						console.log "transactions"
-						console.log transactions
 						if transactions? and transactions.length > 0
 							# we'll build a promise chain to run transactions in series to prevent race conditions
 							promiseChain = Q.resolve(null)
