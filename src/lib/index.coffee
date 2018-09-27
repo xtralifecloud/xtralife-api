@@ -30,7 +30,6 @@ class IndexAPI extends AbstractAPI
 			type: indexName
 			id: objectId
 			body: document
-			routing: domain
 			refresh: true
 			consistency: "one"
 
@@ -40,7 +39,6 @@ class IndexAPI extends AbstractAPI
 			index: domain.toLowerCase()
 			type: indexName
 			id: objectId
-			routing: domain
 
 	# q : http://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-query-string-query.html
 	# sort: ['field1', 'field2']
@@ -53,7 +51,6 @@ class IndexAPI extends AbstractAPI
 			sort: sort
 			from: from
 			size: max
-			routing: domain
 
 	# query : https://www.elastic.co/guide/en/elasticsearch/guide/current/full-body-search.html
 	query: (domain, indexName, query, from, max) ->
@@ -63,7 +60,6 @@ class IndexAPI extends AbstractAPI
 			body: query
 			from: from
 			size: max
-			routing: domain
 
 
 	delete: (domain, indexName, objectId)->
@@ -71,7 +67,6 @@ class IndexAPI extends AbstractAPI
 			index: domain.toLowerCase()
 			type: indexName
 			id: objectId
-			routing: domain
 
 	sandbox: (context)->
 		index: (domain, indexName, objectId, properties, payload) =>
