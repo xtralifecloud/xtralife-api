@@ -172,7 +172,7 @@ class VirtualfsAPI extends AbstractAPI
 	_getDownloadUrl: (domain, user_id, key, secret)->
 		"https://s3-#{xlenv.AWS.S3.credentials.region}.amazonaws.com/#{xlenv.AWS.S3.bucket}/#{domain}/#{user_id}/#{key}-#{secret}"
 
-	createSignedURL: (domain, user_id, key)->
+	createSignedURL: (domain, user_id, key, contentType=null)->
 		@pre (check)->
 			"domain must be a valid domain": check.nonEmptyString(domain)
 
@@ -181,6 +181,8 @@ class VirtualfsAPI extends AbstractAPI
 		# forbids checking type of user_id
 		secret = generateHash user_id, key
 		params = {Bucket: xlenv.AWS.S3.bucket, Key: "#{domain}/#{user_id}/#{key}-#{secret}"}
+		if contentType?
+			params.ContentType = contentType
 		@s3bucket.getSignedUrlAsync 'putObject', params
 		.then (url) =>
 			[url, @_getDownloadUrl(domain, user_id, key, secret)]

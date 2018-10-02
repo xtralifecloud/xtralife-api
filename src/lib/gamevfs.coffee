@@ -95,11 +95,15 @@ class GameVFSAPI extends AbstractAPI
 		.then (results)=>
 			results.value.fs
 
-	createSignedURL: (domain, key, callback)->
+	createSignedURL: (domain, key, contentType=null, callback)->
 		@pre (check)->
 			"domain must be a valid domain": check.nonEmptyString(domain)
 
-		@parent.virtualfs.createSignedURL domain, "GAME", key
+		unless callback?
+			callback = contentType
+			contentType = null
+
+		@parent.virtualfs.createSignedURL domain, "GAME", key, contentType
 		.spread (signedURL, getURL)-> callback null, signedURL, getURL
 		.catch callback
 		.done()
