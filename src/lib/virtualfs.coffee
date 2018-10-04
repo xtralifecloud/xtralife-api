@@ -224,4 +224,17 @@ class VirtualfsAPI extends AbstractAPI
 			else
 				throw new errors.BadArgument("Your game doesn't have access to this domain")
 
+		createSignedURL: (domain, user_id, key, contentType=null)=>
+			if @parent.game.checkDomainSync context.game.appid, domain
+				@createSignedURL domain, user_id.toString(), key, contentType
+				.spread (putURL, getURL) -> {putURL, getURL}
+			else
+				throw new errors.BadArgument("Your game doesn't have access to this domain")
+
+		deleteURL: (domain, user_id, key)=>
+			if @parent.game.checkDomainSync context.game.appid, domain
+				@deleteUrl domain, user_id.toString(), key
+			else
+				throw new errors.BadArgument("Your game doesn't have access to this domain")
+
 module.exports = new VirtualfsAPI()
