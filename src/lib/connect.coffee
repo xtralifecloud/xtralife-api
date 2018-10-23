@@ -123,7 +123,7 @@ class ConnectAPI extends AbstractAPI
 		@existInNetwork 'email', email, (err, user)=>
 			return cb err if err?
 			privatedomain = @xtralifeapi.game.getPrivateDomain(game.appid)
-			ttl = 86400*2 # 2 days
+			ttl = xlenv.options['sendPasswordTTL'] or (86400*2) # 2 days
 			@createShortLoginCode privatedomain, user._id, ttl, (err, token)=>
 				return cb err if err?
 				
