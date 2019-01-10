@@ -179,6 +179,19 @@ class UserAPI extends AbstractAPI
 				.then (afterData)->
 					result.result.n
 
+	nuke: (context, gamer_id)=>
+		appid = context.game.appid
+		@collusers.findOne({_id: gamer_id, "game.appid": appid})
+		.then player =>
+			new Q (resolve, reject)=>
+				if player?
+					@xtralifeapi.onDeleteUser player._id, (err)=>
+						if err? then reject err
+						else resolve {nuked: true, dead: 'probably'}
+					, appid
+				else
+					reject new Error("Player not found")
+
 	# Deprecated since 2.11
 	# use indexing API instead
 	matchProperties: (context, domain, user_id, query, cb)->
@@ -192,6 +205,9 @@ class UserAPI extends AbstractAPI
 
 	sandbox: (context)->
 		account:
+			nuke: (user_id)=>
+				@nuke context, user_id
+
 			# conversionOptions can contain updatedGamer to return the updated gamer instead of just one (in case of success).
 			convert: (user_id, network, token, options, conversionOptions)=>
 				conversionPromise =

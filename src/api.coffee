@@ -2,7 +2,7 @@ async = require "async"
 extend = require "extend"
 _ = require "underscore"
 _errors = require './errors.coffee'
-
+Q = require "bluebird"
 
 class XtralifeAPI
 	constructor: ->
@@ -67,17 +67,32 @@ class XtralifeAPI
 			cb err
 
 	# remove common data
-	onDeleteUser: (userid, cb)->
+	onDeleteUser: (userid, cb, appid)->
 		unless xlenv.options.removeUser then return cb null
 
-		# Call onDeleteUser for each of the submodules
-		tasks = []
-		for module in @modules
-			do (module)=>
-				tasks.push (callback)=> module.onDeleteUser userid, callback
+		@game.handleHook "before-nuking-user", {game: {appid}}, 'private',
+			userid: userid
+			user_id: userid
+		.then =>
 
-		tasks.reverse()
-		async.series tasks, (err)=> cb err
+			# Call onDeleteUser for each of the submodules
+			tasks = []
+			for module in @modules
+				do (module)=>
+					tasks.push (callback)=> module.onDeleteUser userid, callback
+
+			tasks.reverse()
+
+			new Q (resolve, reject) =>
+				async.series tasks, (err)=> 
+					if err? then reject err
+					else resolve err
+		.then =>
+			@game.handleHook "after-nuking-user", {game: {appid}}, 'private',
+			userid: userid
+			user_id: userid
+		.then cb
+		.catch cb
 
 	sandbox: (context)->
 		context.runsFromClient = false
