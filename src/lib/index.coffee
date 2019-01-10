@@ -120,14 +120,14 @@ class IndexAPI extends AbstractAPI
 
 		# q : http://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-query-string-query.html
 		# sort: ['field1', 'field2']
-		search: (domain, indexName, q, sort=[], from=0, max=10)=>
+		search: (domain, indexName, q, sort=[], from=0, max=10, search_type='query_then_fetch')=>
 			if @parent.game.checkDomainSync context.game.appid, domain
 				@search context, domain, indexName, q, sort, from, max, search_type
 			else
 				throw new errors.BadArgument("Your game doesn't have access to this domain")
 
 		# query : https://www.elastic.co/guide/en/elasticsearch/guide/current/full-body-search.html
-		query: (domain, indexName, query, from=0, max=10)=>
+		query: (domain, indexName, query, from=0, max=10, search_type='query_then_fetch')=>
 			if @parent.game.checkDomainSync context.game.appid, domain
 				@query context, domain, indexName, query, from, max, search_type
 			else
