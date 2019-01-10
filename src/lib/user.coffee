@@ -182,7 +182,7 @@ class UserAPI extends AbstractAPI
 	nuke: (context, gamer_id)=>
 		appid = context.game.appid
 		@collusers().findOne({_id: gamer_id, "game.appid": appid})
-		.then player =>
+		.then (player) =>
 			new Q (resolve, reject)=>
 				if player?
 					@xtralifeapi.onDeleteUser player._id, (err)=>
