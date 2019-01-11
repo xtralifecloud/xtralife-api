@@ -181,7 +181,7 @@ class UserAPI extends AbstractAPI
 
 	nuke: (context, gamer_id)=>
 		appid = context.game.appid
-		@collusers().findOne({_id: gamer_id, "game.appid": appid})
+		@collusers().findOne({_id: gamer_id, "games.appid": appid})
 		.then (player) =>
 			new Q (resolve, reject)=>
 				if player?
