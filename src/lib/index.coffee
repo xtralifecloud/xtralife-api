@@ -19,80 +19,123 @@ class IndexAPI extends AbstractAPI
 
 			callback err, {}
 
-	index: (domain, indexName, objectId, properties, contents) ->
+	index: (context, domain, indexName, objectId, properties, contents) ->
 
 		document = properties
 
 		document.payload = contents
 
-		@elastic.index
-			index: domain.toLowerCase()
-			type: indexName
-			id: objectId
-			body: document
-			refresh: true
-			consistency: "one"
+		@handleHook "before-index", context, domain,
+			domain: domain
+			user_id: context.gamer_id
+			gamer_id: context.gamer_id
+			indexName: indexName
+			objectId: objectId
+			properties: properties
+			contents: contents
+		.then =>
+			@elastic.index
+				index: domain.toLowerCase()
+				type: indexName
+				id: objectId
+				body: document
+				refresh: true
+				consistency: "one"
 
-	get: (domain, indexName, objectId) ->
+	get: (context, domain, indexName, objectId) ->
 
-		@elastic.get
-			index: domain.toLowerCase()
-			type: indexName
-			id: objectId
+		@handleHook "before-index-get", context, domain,
+			domain: domain
+			user_id: context.gamer_id
+			gamer_id: context.gamer_id
+			indexName: indexName
+			objectId: objectId
+		.then =>
+			@elastic.get
+				index: domain.toLowerCase()
+				type: indexName
+				id: objectId
 
 	# q : http://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-query-string-query.html
 	# sort: ['field1', 'field2']
-	search: (domain, indexName, q, sort, from, max) ->
-		@elastic.search
-			index: domain.toLowerCase()
-			type: indexName
+	search: (context, domain, indexName, q, sort, from, max, search_type='query_then_fetch') ->
+		@handleHook "before-index-search", context, domain,
+			domain: domain
+			user_id: context.gamer_id
+			gamer_id: context.gamer_id
+			indexName: indexName
 			q: q
-			defaultOperator: 'AND'
 			sort: sort
 			from: from
-			size: max
+			max: max
+		.then =>
+			@elastic.search
+				index: domain.toLowerCase()
+				type: indexName
+				q: q
+				defaultOperator: 'AND'
+				sort: sort
+				from: from
+				size: max
+				search_type: search_type
 
 	# query : https://www.elastic.co/guide/en/elasticsearch/guide/current/full-body-search.html
-	query: (domain, indexName, query, from, max) ->
-		@elastic.search
-			index: domain.toLowerCase()
-			type: indexName
-			body: query
+	query: (context, domain, indexName, query, from, max, search_type='query_then_fetch') ->
+		@handleHook "before-index-query", context, domain,
+			domain: domain
+			user_id: context.gamer_id
+			gamer_id: context.gamer_id
+			indexName: indexName
+			query: query
 			from: from
-			size: max
+			max: max
+		.then =>
+			@elastic.search
+				index: domain.toLowerCase()
+				type: indexName
+				body: query
+				from: from
+				size: max
+				search_type: search_type
 
-
-	delete: (domain, indexName, objectId)->
-		@elastic.delete
-			index: domain.toLowerCase()
-			type: indexName
-			id: objectId
+	delete: (context, domain, indexName, objectId)->
+		@handleHook "before-index-delete", context, domain,
+			domain: domain
+			user_id: context.gamer_id
+			gamer_id: context.gamer_id
+			indexName: indexName
+			objectId: objectId
+		.then =>
+			@elastic.delete
+				index: domain.toLowerCase()
+				type: indexName
+				id: objectId
 
 	sandbox: (context)->
 		index: (domain, indexName, objectId, properties, payload) =>
 			if @parent.game.checkDomainSync context.game.appid, domain
-				@index domain, indexName, objectId, properties, payload
+				@index context, domain, indexName, objectId, properties, payload
 			else
 				throw new errors.BadArgument("Your game doesn't have access to this domain")
 
 		# q : http://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-query-string-query.html
 		# sort: ['field1', 'field2']
-		search: (domain, indexName, q, sort=[], from=0, max=10)=>
+		search: (domain, indexName, q, sort=[], from=0, max=10, search_type='query_then_fetch')=>
 			if @parent.game.checkDomainSync context.game.appid, domain
-				@search domain, indexName, q, sort, from, max
+				@search context, domain, indexName, q, sort, from, max, search_type
 			else
 				throw new errors.BadArgument("Your game doesn't have access to this domain")
 
 		# query : https://www.elastic.co/guide/en/elasticsearch/guide/current/full-body-search.html
-		query: (domain, indexName, query, from=0, max=10)=>
+		query: (domain, indexName, query, from=0, max=10, search_type='query_then_fetch')=>
 			if @parent.game.checkDomainSync context.game.appid, domain
-				@query domain, indexName, query, from, max
+				@query context, domain, indexName, query, from, max, search_type
 			else
 				throw new errors.BadArgument("Your game doesn't have access to this domain")
 
 		delete: (domain, indexName, objectId)=>
 			if @parent.game.checkDomainSync context.game.appid, domain
-				@delete domain, indexName, objectId
+				@delete context, domain, indexName, objectId
 			else
 				throw new errors.BadArgument("Your game doesn't have access to this domain")
 
