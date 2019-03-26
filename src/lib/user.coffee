@@ -257,6 +257,52 @@ class UserAPI extends AbstractAPI
 				else
 					throw new errors.BadArgument("Your game doesn't have access to this domain")
 
+			blacklist: (domain, user_id)=>
+				if @xtralifeapi.game.checkDomainSync context.game.appid, domain
+					@xtralifeapi.social.getBlacklistedUsersAsync context, domain, user_id
+				else
+					throw new errors.BadArgument("Your game doesn't have access to this domain")
+
+			setFriendStatus: (domain, user_id, friend_id, status, osn)=>
+				if @xtralifeapi.game.checkDomainSync context.game.appid, domain
+					setFriendStatus = Q.promisify @xtralifeapi.social.setFriendStatus, context: @xtralifeapi.social
+					setFriendStatus domain, user_id, friend_id, status, osn
+				else
+					throw new errors.BadArgument("Your game doesn't have access to this domain")
+
+			godfather:
+				set: (domain, user_id, godfather, options)=>
+					if @xtralifeapi.game.checkDomainSync context.game.appid, domain
+						asyncFn = Q.promisify @xtralifeapi.social.setGodfather, context: @xtralifeapi.social
+						asyncFn(context, domain, user_id, godfather, options)
+
+					else
+						throw new errors.BadArgument("Your game doesn't have access to this domain")
+
+				get: (domain, user_id)=>
+					if @xtralifeapi.game.checkDomainSync context.game.appid, domain
+						asyncFn = Q.promisify @xtralifeapi.social.getGodfather, context: @xtralifeapi.social
+						asyncFn(context, domain, user_id)
+
+					else
+						throw new errors.BadArgument("Your game doesn't have access to this domain")
+
+				getCode: (domain, user_id)=>
+					if @xtralifeapi.game.checkDomainSync context.game.appid, domain
+						asyncFn = Q.promisify @xtralifeapi.social.godfatherCode, context: @xtralifeapi.social
+						asyncFn(domain, user_id)
+
+					else
+						throw new errors.BadArgument("Your game doesn't have access to this domain")
+
+				getChildren: (domain, user_id)=>
+					if @xtralifeapi.game.checkDomainSync context.game.appid, domain
+						asyncFn = Q.promisify @xtralifeapi.social.getGodchildren, context: @xtralifeapi.social
+						asyncFn(context, domain, user_id)
+
+					else
+						throw new errors.BadArgument("Your game doesn't have access to this domain")
+
 
 # BACKOFFICE ###########################################################################
 
