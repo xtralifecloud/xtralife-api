@@ -35,7 +35,7 @@
     "iap": "*",
     "jsonwebtoken": "^7.1.9",
     "moment": "^2.24.0",
-    "mongodb": "2.1",
+    "mongodb": "^2.2.36",
     "node-gcm": "^0.14.4",
     "nodemailer": "*",
     "randomstring": "*",

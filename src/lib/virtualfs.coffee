@@ -32,7 +32,7 @@ class VirtualfsAPI extends AbstractAPI
 		if xlenv.AWS?
 			AWS.config.update xlenv.AWS.S3.credentials
 			@s3bucket = new AWS.S3 {params: {Bucket: xlenv.AWS.S3.bucket}}
-			Q.promisifyAll @s3bucket
+			#Q.promisifyAll @s3bucket
 
 	onDeleteUser: (user_id, cb)->
 		logger.debug "delete user #{user_id} for virtualfs"

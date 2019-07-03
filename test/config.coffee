@@ -55,6 +55,9 @@ xlenv.override null,
 		cb null, client
 
 	options:
+
+		useMongodbPushall: false
+
 		notifyUserOnBrokerTimeout: true
 
 		removeUser: true

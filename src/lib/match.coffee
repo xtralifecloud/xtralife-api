@@ -167,12 +167,16 @@ class MatchAPI extends AbstractAPI
 					_id: new ObjectID()
 					count: count
 			update =
-				$set:
+				'$set':
 					shoeIndex: match.shoeIndex
 					lastEventId: event.event._id
-				$push:
+				'$push':
 					events: event
-			update.$pushAll = {shoe: additionalShoeItems} if additionalShoeItems.length > 0
+
+			if xlenv.options.useMongodbPushall? and xlenv.options.useMongodbPushall
+				update.$pushAll = {shoe: additionalShoeItems} if additionalShoeItems.length > 0
+			else
+				update['$push'].shoe = {'$each': additionalShoeItems} if additionalShoeItems.length > 0
 
 			@handleHook "before-match-drawfromshoe", context, match.domain,
 				user_id: gamer_id
