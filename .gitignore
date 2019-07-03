@@ -7,3 +7,4 @@ bench/bench_lb.js
 bench/bench_tx.js
 bench/bench_vfs.js
 bench/0_init.js
+package-lock.json

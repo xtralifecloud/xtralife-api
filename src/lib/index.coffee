@@ -7,8 +7,8 @@ Q = require 'bluebird'
 
 class IndexAPI extends AbstractAPI
 	constructor: ()->
-		@elastic = null
 		super()
+		@elastic = null
 
 	configure: (@parent, callback)->
 

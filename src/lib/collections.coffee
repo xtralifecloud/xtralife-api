@@ -2,6 +2,7 @@ AbstractAPI = require '../AbstractAPI.coffee'
 
 class CollectionsAPI extends AbstractAPI
 	constructor: ()->
+		super()
 		@mongoCx = null
 		@db = null
 

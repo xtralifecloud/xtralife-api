@@ -88,8 +88,7 @@ class GameVFSAPI extends AbstractAPI
 			domain: domain
 
 		field = {"fs.#{key}" : 1}
-		update = 
-			 "$inc" : {"fs.#{key}": amount}
+		update = {"$inc" : {"fs.#{key}": amount} }
 
 		@domains.findOneAndUpdate query, update, {returnOriginal: false, projection: field}
 		.then (results)=>

@@ -56,7 +56,9 @@ class InvalidLastEventId extends XLAPIError
 	xtralifecode : 1
 
 class ExternalStoreError extends XLAPIError
-	constructor: (@serverresponse) -> @message = "There was an error communicating with the external store, code: #{@serverresponse}"; super()
+	constructor: (@serverresponse) -> 
+		super()
+		@message = "There was an error communicating with the external store, code: #{@serverresponse}"
 	name: "ExternalStoreError"
 	xtralifecode : 1
 
@@ -147,14 +149,17 @@ class tooLateRegistering extends XLAPIError
 
 class PurchaseNotConfirmed extends XLAPIError
 	constructor: (@serverresponse, detail) ->
+		super()
 		@message = "The purchase has not been verified, code: #{@serverresponse}"
 		@message = "#{@message}. #{detail}." if detail
-		super()
 	name: "PurchaseNotConfirmed"
 	xtralifecode : 12
 
 class ExternalStoreEnvironmentError extends XLAPIError
-	constructor: (@serverresponse) -> @message= "You are trying to purchase an item from the sandbox in prod or vice versa, code : #{@serverresponse}"; super()
+	constructor: (@serverresponse) -> 
+		super()
+		@message= "You are trying to purchase an item from the sandbox in prod or vice versa, code : #{@serverresponse}"
+
 	name: "ExternalStoreEnvironmentError"
 	xtralifecode : 12
 
