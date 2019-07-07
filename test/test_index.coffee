@@ -31,10 +31,9 @@ describe "Xtralife Index module", ()->
 			result.created.should.eql true
 
 	it "should have stored the document", ->
-		xtralife.api.index.search context, domain, indexName, "a:1 AND b:2", ["a"]
+		xtralife.api.index.search context, domain, indexName, "_id: firstDocumentId AND a:1 AND b:2", ["a"]
 		.then (result)->
 			result.hits.total.should.eql 1
-
 
 	it "should delete the document", ->
 		xtralife.api.index.delete context, domain, indexName, "firstDocumentId"

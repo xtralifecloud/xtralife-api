@@ -119,8 +119,7 @@ class KVStoreAPI extends AbstractAPI
 		.get 'result'
 
 	# used by BACKOFFICE only !
-	list: (constext, domain, query, skip, limit)->
-		console.log "=========================="
+	list: (context, domain, query, skip, limit)->
 
 		@pre (check)=>
 			"domain is not a valid domain": check.nonEmptyString(domain)
@@ -130,8 +129,6 @@ class KVStoreAPI extends AbstractAPI
 			skip : skip
 			limit: limit
 		).toArray()
-
-
 
 	# apply a default ACL if missing acl component
 	_defaults: (acl, defaultACL = '*')->

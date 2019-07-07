@@ -17,7 +17,7 @@
   "author": "devteam <devteam@xtralife.cloud>",
   "license": "(C) Xtralife.cloud, 2015",
   "engines": {
-    "node": ">=6.2.2"
+    "node": ">=8.14"
   },
   "dependencies": {
     "apn": "^1.7.7",
@@ -33,9 +33,9 @@
     "fbgraph": "^1.4.4",
     "flat": "*",
     "iap": "*",
-    "jsonwebtoken": "^7.1.9",
+    "jsonwebtoken": "^8.5.1",
     "moment": "^2.24.0",
-    "mongodb": "^2.2.36",
+    "mongodb": "^3.2.7",
     "node-gcm": "^0.14.4",
     "nodemailer": "*",
     "randomstring": "*",
@@ -47,14 +47,13 @@
     "underscore-contrib": "*",
     "url": "^0.11.0",
     "winston": "^3.2.1",
-    "xtralife-env": "<3.3",
-    "xtralife-msg": "<3.3"
+    "xtralife-env": "*",
+    "xtralife-msg": "*"
   },
   "devDependencies": {
     "mocha": "*",
     "redis": "*",
     "should": "*",
-    "q": "<2",
     "jayschema": "*"
   },
   "readmeFilename": "readme.md"
