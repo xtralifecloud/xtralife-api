@@ -95,6 +95,8 @@ xlenv.override null,
 							key: ''
 					socialSettings:
 						facebookAppToken : ''
+						gameCenterBundleIdRE: /^not.the.correct.bundleId$/
+
 
 			"com.clanofthecloud.cloudbuilder": 
 				apikey:"cloudbuilder-key"
@@ -118,6 +120,7 @@ xlenv.override null,
 							key: ''
 					socialSettings:
 						facebookAppToken : ''
+						gameCenterBundleIdRE: /^cloud\.xtralife\..*$/
 
 
 	AWS: null # this is not used for xtralife-api tests but may in the future

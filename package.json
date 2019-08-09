@@ -32,6 +32,7 @@
     "extend": "*",
     "fbgraph": "^1.4.4",
     "flat": "*",
+    "gamecenter-identity-verifier": "xtralifecloud/node-gamecenter-identity-verifier#publicKeyCaching",
     "iap": "*",
     "jsonwebtoken": "^8.5.1",
     "moment": "^2.24.0",

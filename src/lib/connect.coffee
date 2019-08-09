@@ -1,5 +1,3 @@
-
-
 async = require "async"
 extend = require 'extend'
 rs = require "randomstring"
@@ -9,6 +7,7 @@ ObjectID = require("mongodb").ObjectID
 
 facebook = require "./network/facebook.coffee"
 google = require "./network/google.coffee"
+gamecenter = require 'gamecenter-identity-verifier'
 errors = require "./../errors.coffee"
 
 AbstractAPI = require "../AbstractAPI.coffee"
@@ -266,15 +265,22 @@ class ConnectAPI extends AbstractAPI
 				@register game, "googleplus", me.id, null, @_buildGooglePlusProfile(me), (err, user)=>
 					cb err, user, true
 
-	logingc: (game, id, options, cb)->
-		@collusers().findOne  {network: "gamecenter", networkid: id}, (err, user)=>
+	logingc: (game, id, secret, options, cb)->
+		if id isnt secret.playerId then return cb new Error("token is not for this player")
+		unless game.config.socialSettings?.gameCenterBundleIdRE then return cb new Error("socialSettings.gameCenterBundleIdRE must be set for GameCenter login")
+		unless secret.bundleId.match(game.config.socialSettings.gameCenterBundleIdRE) then return cb new Error("Invalid bundleId")
+		
+		gamecenter.verify secret, (err, token) => 
 			return cb err if err?
-			return cb null, user, false if user?
-			return cb new errors.PreventRegistration(options?.gamecenter || {}), null, false if options?.preventRegistration
 
-			# create account
-			@register game, "gamecenter", id, null, @_buildGameCenterProfile(options), (err, user)=>
-				cb err, user, true
+			@collusers().findOne  {network: "gamecenter", networkid: id}, (err, user)=>
+				return cb err if err?
+				return cb null, user, false if user?
+				return cb new errors.PreventRegistration(options?.gamecenter || {}), null, false if options?.preventRegistration
+
+				# create account
+				@register game, "gamecenter", id, null, @_buildGameCenterProfile(options), (err, user)=>
+					cb err, user, true
 
 	convertAccountToEmail: (user_id, email, sha_password)->
 		return Q.reject new errors.BadArgument unless /^[^@ ]+@[^\.@ ]+\.[^@ ]+$/.test email
