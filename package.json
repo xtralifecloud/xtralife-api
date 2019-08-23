@@ -1,6 +1,6 @@
 {
   "name": "xtralife-api",
-  "version": "3.3.3",
+  "version": "3.3.4",
   "description": "Xtralife.cloud business logic shared between components",
   "main": "src/index.coffee",
   "scripts": {
