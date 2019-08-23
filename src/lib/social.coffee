@@ -31,13 +31,13 @@ class SocialAPI extends AbstractAPI
 		if xlenv.options.removeUser
 			return async.parallel [
 				(cb)=>
-					@colldomains.ensureIndex {"relations.friends":1}, cb
+					@colldomains.createIndex {"relations.friends":1}, cb
 				(cb)=>
-					@colldomains.ensureIndex {"relations.blacklist":1}, cb
+					@colldomains.createIndex {"relations.blacklist":1}, cb
 				(cb)=>
-					@colldomains.ensureIndex {godchildren:1}, cb
+					@colldomains.createIndex {godchildren:1}, cb
 				(cb)=>
-					@colldomains.ensureIndex {godfather:1}, cb
+					@colldomains.createIndex {godfather:1}, cb
 			], (err)->
 				if err? then return callback(err)
 				logger.info "Social initialized"
@@ -54,13 +54,13 @@ class SocialAPI extends AbstractAPI
 	onDeleteUser: (userid, cb)->
 		logger.debug "delete user #{userid} for social"
 		# remove references to user ALL DOMAINS affected !
-		@colldomains.update {"relations.friends" : userid}, {$pull: {"relations.friends" : userid}}, {multi: true}, (err)=>
+		@colldomains.updateMany {"relations.friends" : userid}, {$pull: {"relations.friends" : userid}}, (err)=>
 			if err? then return cb err
-			@colldomains.update {"relations.blacklist" : userid}, {$pull: {"relations.blacklist" : userid}}, {multi: true}, (err)=>
+			@colldomains.updateMany {"relations.blacklist" : userid}, {$pull: {"relations.blacklist" : userid}}, (err)=>
 				if err? then return cb err
-				@colldomains.update {"relations.godchildren" : userid}, {$pull: {"relations.godchildren" : userid}}, {multi: true}, (err)=>
+				@colldomains.updateMany {"relations.godchildren" : userid}, {$pull: {"relations.godchildren" : userid}}, (err)=>
 					if err? then return cb err
-					@colldomains.update {"relations.godfather" : userid}, {$unset: {"relations.godfather" : null}}, {multi: true}, (err)=>
+					@colldomains.updateMany {"relations.godfather" : userid}, {$unset: {"relations.godfather" : null}}, (err)=>
 						if err? then return cb err
 						cb null
 
@@ -111,7 +111,7 @@ class SocialAPI extends AbstractAPI
 		@pre (check)->
 			"domain must be a valid domain": check.nonEmptyString(domain)
 
-		@colldomains.findOne {domain: domain, user_id : user_id}, {"relations.godfather":1},  (err, doc)=>
+		@colldomains.findOne {domain: domain, user_id : user_id}, {projection:{"relations.godfather":1}},  (err, doc)=>
 			return cb err if err?
 			#return cb new errors.gamerDoesntHaveGodfather unless doc?.godfather?
 			return cb null, null unless doc?.relations?.godfather?
@@ -127,10 +127,10 @@ class SocialAPI extends AbstractAPI
 			return cb new errors.unknownGodfatherCode unless user?
 			return cb new errors.cantBeSelfGodchild if user.user_id.toString() == user_id.toString()
 
-			@collusers.findOne {_id : user_id}, {games : 1, profile: 1} , (err, usergames)=>
+			@collusers.findOne {_id : user_id}, {projection:{games : 1, profile: 1}} , (err, usergames)=>
 				return cb err if err?
 
-				@colldomains.findOne {domain: domain, user_id : user_id}, {"relations.godfather":1},  (err, doc)=>
+				@colldomains.findOne {domain: domain, user_id : user_id}, {projection:{"relations.godfather":1}},  (err, doc)=>
 					return cb err if err?
 					return cb new errors.alreadyGodchild if doc?.relations?.godfather?
 
@@ -145,9 +145,9 @@ class SocialAPI extends AbstractAPI
 						# sponsoring is acceted or there is no hook !
 						reward = afterData?.reward or options.reward
 						logger.debug reward
-						@colldomains.update {domain: domain, user_id : user_id} , { $set : { "relations.godfather" : user.user_id}}, {upsert : true}, (err, result)=>
+						@colldomains.updateOne {domain: domain, user_id : user_id} , { $set : { "relations.godfather" : user.user_id}}, {upsert : true}, (err, result)=>
 							return cb err if err?
-							@colldomains.update {domain: domain, user_id : user.user_id} , { $addToSet : { "relations.godchildren" : user_id}} , {upsert : true}, (err, result)=>
+							@colldomains.updateOne {domain: domain, user_id : user.user_id} , { $addToSet : { "relations.godchildren" : user_id}} , {upsert : true}, (err, result)=>
 								return cb err if err?
 								if reward? and reward.transaction?
 									@xtralifeapi.transaction.transaction context, domain, user.user_id, reward.transaction, reward.description
@@ -179,12 +179,12 @@ class SocialAPI extends AbstractAPI
 		@pre (check)->
 			"domain must be a valid domain": check.nonEmptyString(domain)
 
-		@colldomains.findOne {domain: domain, user_id : user_id}, {"relations.godfatherCode":1},  (err, doc)=>
+		@colldomains.findOne {domain: domain, user_id : user_id}, {projection:{"relations.godfatherCode":1}},  (err, doc)=>
 			return cb err if err?
 			return cb null, doc.relations.godfatherCode if doc?.relations?.godfatherCode?
 
 			code = rs.generate(8)
-			@colldomains.update {domain: domain, user_id : user_id} , {$set : { "relations.godfatherCode" : code}}, {upsert : true}, (err, result)=>
+			@colldomains.updateOne {domain: domain, user_id : user_id} , {$set : { "relations.godfatherCode" : code}}, {upsert : true}, (err, result)=>
 				#console.log err
 				return cb err, code
 
@@ -192,7 +192,7 @@ class SocialAPI extends AbstractAPI
 		@pre (check)->
 			"domain must be a valid domain": check.nonEmptyString(domain)
 
-		@colldomains.findOne {domain: domain, user_id : user_id}, {"relations.godchildren":1},  (err, doc)=>
+		@colldomains.findOne {domain: domain, user_id : user_id}, {projection:{"relations.godchildren":1}},  (err, doc)=>
 			return cb err if err?
 			return cb null, [] unless doc?.relations?.godchildren?
 			@describeUsersList context, domain, doc.relations.godchildren, cb
@@ -202,7 +202,7 @@ class SocialAPI extends AbstractAPI
 		@pre (check)->
 			"domain must be a valid domain": check.nonEmptyString(domain)
 
-		@colldomains.findOne {domain: domain, user_id : user_id} , { "relations.friends" : 1},  (err, user)=>
+		@colldomains.findOne {domain: domain, user_id : user_id} , {projection:{ "relations.friends" : 1}},  (err, user)=>
 			return cb err if err?
 			return cb null, [] unless user?.relations?.friends?
 			@describeUsersList context, domain, user.relations.friends, cb
@@ -211,7 +211,7 @@ class SocialAPI extends AbstractAPI
 		@pre (check)->
 			"domain must be a valid domain": check.nonEmptyString(domain)
 
-		@colldomains.findOne {domain: domain, user_id : user_id} , {"relations.blacklist" : 1 }, (err, user)=>
+		@colldomains.findOne {domain: domain, user_id : user_id} , {projection:{"relations.blacklist" : 1 }}, (err, user)=>
 			return cb err if err?
 			return cb null, [] unless user?.relations?.blacklist?
 			@describeUsersList context, domain, user.relations.blacklist, cb
@@ -219,26 +219,26 @@ class SocialAPI extends AbstractAPI
 	_setStatus: (domain, user_id, friend_id, status, cb)->
 		switch status
 			when "add"
-				@colldomains.findOne {domain: domain, user_id : user_id, "relations.blacklist" : friend_id }, {user_id : 1}, (err, blacklisted)=>
+				@colldomains.findOne {domain: domain, user_id : user_id, "relations.blacklist" : friend_id }, {projection:{user_id : 1}}, (err, blacklisted)=>
 					return cb err if err?
 					if blacklisted? then return cb null, {done : 0} 
-					@colldomains.update {domain: domain, user_id : user_id} , {$addToSet : { "relations.friends" : friend_id} }, {upsert : true}, (err, result)=>
+					@colldomains.updateOne {domain: domain, user_id : user_id} , {$addToSet : { "relations.friends" : friend_id} }, {upsert : true}, (err, result)=>
 						return cb err, {done : result.result.n}
 
 			when "forget"
 				# TODO a single update can pull from both friends and blacklist at once
 				# it will change the semantics of the return value...
-				@colldomains.update {domain: domain, user_id : user_id} , {$pull : { "relations.blacklist" : friend_id} }, {upsert : true}, (err, result)=>
+				@colldomains.updateOne {domain: domain, user_id : user_id} , {$pull : { "relations.blacklist" : friend_id} }, {upsert : true}, (err, result)=>
 					return cb err if err?
-					@colldomains.update {domain: domain, user_id : user_id} , {$pull : { "relations.friends" : friend_id} }, {upsert : true}, (err, other)=>
+					@colldomains.updateOne {domain: domain, user_id : user_id} , {$pull : { "relations.friends" : friend_id} }, {upsert : true}, (err, other)=>
 						return cb err, {done : result.result.n || other.result.n}
 				
 			when "blacklist"
 				# TODO a single update can add/pull from both friends and blacklist at once
 				# it will change the semantics of the return value...
-				@colldomains.update {domain: domain, user_id : user_id} , {$addToSet : { "relations.blacklist" : friend_id} }, {upsert : true}, (err, result)=>
+				@colldomains.updateOne {domain: domain, user_id : user_id} , {$addToSet : { "relations.blacklist" : friend_id} }, {upsert : true}, (err, result)=>
 					return cb err if err?
-					@colldomains.update {domain: domain, user_id : user_id} , {$pull : { "relations.friends" : friend_id} }, {upsert : true}, (err, other)=>
+					@colldomains.updateOne {domain: domain, user_id : user_id} , {$pull : { "relations.friends" : friend_id} }, {upsert : true}, (err, other)=>
 						return cb err, {done : result.result.n}
 
 	setFriendStatus: (domain, user_id, friend_id, status, osn, cb)->
@@ -271,7 +271,7 @@ class SocialAPI extends AbstractAPI
 			return cb err if err?
 			query = {"network": network, "networkid" : {"$in" : Object.keys(friends)} }
 			@collusers.find(query).toArray (err, doc)=>
-				@colldomains.findOne {domain: domain, user_id : user_id} , { relations : 1},  (err, r)=>
+				@colldomains.findOne {domain: domain, user_id : user_id} , {projection:{ relations : 1}},  (err, r)=>
 					return cb err if err?
 					for f in doc
 						f.relation = "friend" if r?.relations?.friends? && @_indexOfId(r.relations.friends, f._id)!=-1 
@@ -303,7 +303,7 @@ class SocialAPI extends AbstractAPI
 			query = { "$or" : [query1, query2] } 
 			@collusers.find(query).toArray (err, doc)=>
 				return cb err if err?
-				@colldomains.findOne {domain: domain, user_id : user_id} , { relations : 1},  (err, r)=>
+				@colldomains.findOne {domain: domain, user_id : user_id} , {projection:{ relations : 1}},  (err, r)=>
 					return cb err if err?
 					#console.log "-------------- doc :"
 					#console.log doc

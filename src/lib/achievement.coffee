@@ -13,7 +13,7 @@ class AchievementAPI extends AbstractAPI
 	configure: (@xtralifeApi, callback)->
 		async.parallel [
 			(cb)=>
-				@coll('achievements').ensureIndex({domain:1}, {unique: true}, cb)
+				@coll('achievements').createIndex({domain:1}, {unique: true}, cb)
 		], (err)->
 			return callback err if err?
 			logger.info "Achievements initialized"
@@ -64,7 +64,7 @@ class AchievementAPI extends AbstractAPI
 				setQuery["achievements.#{name}.status.obtained"] = true for name, each of triggeredAchievements
 				incQuery = {}
 				incQuery["achievements.#{name}.status.count"] = 1 for name, each of triggeredAchievements
-				@coll('domains').update {domain: domain, user_id: user_id}, {"$set": setQuery, "$inc": incQuery}, {upsert: true, multi: false}
+				@coll('domains').updateOne {domain: domain, user_id: user_id}, {"$set": setQuery, "$inc": incQuery}, {upsert: true, multi: false}
 				.then (result)=>
 					# Run associated transactions if any
 					transactions = (each.config.rewardTx for name, each of triggeredAchievements when each.config?.rewardTx?)
@@ -96,7 +96,7 @@ class AchievementAPI extends AbstractAPI
 
 		@loadAchievementsDefinitions domain
 		.then (achievements)=>
-			@coll('domains').findOne {domain: domain, user_id: user_id}, {achievements: 1, balance: 1}
+			@coll('domains').findOne {domain: domain, user_id: user_id}, {projection: {achievements: 1, balance: 1}}
 			.then (domain)=>
 				resultAchievements = {}
 				resultAchievements[name] = @_enrichAchievementDefinitionForUser(name, ach, domain) for name, ach of achievements
@@ -124,10 +124,9 @@ class AchievementAPI extends AbstractAPI
 			query = {}
 			query["achievements.#{achName}.gamerData.#{key}"] = value for key, value of gamerData
 			# Update the achievements field for the domain in DB
-			@coll('domains').findAndModify {domain: domain, user_id: user_id},
-				{},
+			@coll('domains').findOneAndUpdate {domain: domain, user_id: user_id},
 				{"$set": query},
-				{new: true, upsert: true}
+				{upsert: true, returnOriginal: false}
 			.then (result)=>
 				@handleHook "after-achievement-userdata-modified", context, domain,
 					domain: domain
@@ -141,7 +140,7 @@ class AchievementAPI extends AbstractAPI
 		@pre (check)->
 			"domain must be a valid domain": check.nonEmptyString(domain)
 
-		@coll('domains').update {domain: domain, user_id: user_id}, {"$unset": {"achievements": ""}}, {upsert: true}
+		@coll('domains').updateOne {domain: domain, user_id: user_id}, {"$unset": {"achievements": ""}}, {upsert: true}
 
 	# Add or replace achievements for a domain
 	saveAchievementsDefinitions: (domain, achievements)->
@@ -149,14 +148,9 @@ class AchievementAPI extends AbstractAPI
 			"domain must be a valid domain": check.nonEmptyString(domain)
 
 		achColl = @coll('achievements')
-		achColl.findOne {domain: domain}
-		.then (foundAchievements)->
-			unless foundAchievements? then foundAchievements={domain:domain}
-			foundAchievements.definitions = achievements
-
-			achColl.save foundAchievements
-			.then (insertedAch)=>
-				return foundAchievements
+		achColl.findOneAndUpdate {domain:domain}, {$set: {definitions: achievements}}, {upsert: true, returnOriginal: false}
+		.then (result)=>
+			return result.value
 
 	# Takes an achievement definition as well as a domain and makes something returnable to the user when querying the status of achievements
 	# Efficient method to be used whenever possible. A simpler _enrichAchievements exist though.

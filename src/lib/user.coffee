@@ -50,13 +50,13 @@ class UserAPI extends AbstractAPI
 				needUpdate = true
 
 		if needUpdate
-			@collusers().update {_id : user._id} , {$set : updated}, (err, result)=>
+			@collusers().updateOne {_id : user._id} , {$set : updated}, (err, result)=>
 				cb err, { done : result.result.n, profile : user.profile }
 		else
 			cb null, {done : 0}
 
 	updateProfile: (user_id, profile, cb)->
-		@collusers().update {_id : user_id} , {$set : {profile: profile}}, (err, result)=>
+		@collusers().updateOne {_id : user_id} , {$set : {profile: profile}}, (err, result)=>
 			cb err, { done : result.result.n, profile : profile }
 
 	getProfile: (user, cb)->
@@ -68,7 +68,7 @@ class UserAPI extends AbstractAPI
 			if ["email", "displayName", "lang", "firstName", "lastName", "addr1", "addr2", "addr3", "avatar"].indexOf(key) != -1
 				updated["profile.#{key}"] = profile[key]
 
-		@collusers().update {_id : user_id} , {$set : updated}
+		@collusers().updateOne {_id : user_id} , {$set : updated}
 		.then (res)=>
 			res.result
 
@@ -101,7 +101,7 @@ class UserAPI extends AbstractAPI
 			field = {}
 			field[unless key? then 'properties' else "properties.#{key}"] = 1
 
-			@domains.findOne query, field
+			@domains.findOne query, {projection:field}
 			.then (value)=>
 				@handleHook "after-properties-read", context, domain,
 					domain: domain
@@ -140,7 +140,7 @@ class UserAPI extends AbstractAPI
 			set = {}
 			set[unless key? then 'properties' else "properties.#{key}"] = value
 
-			@domains.update query, {$set: set}, { upsert: true }
+			@domains.updateOne query, {$set: set}, { upsert: true }
 
 		.then (result)=>
 			@handleHook "after-properties-write", context, domain,
@@ -170,7 +170,7 @@ class UserAPI extends AbstractAPI
 			unset = {}
 			unset[unless key? then 'properties' else "properties.#{key}"] = ""
 
-			@domains.update query, {$unset: unset}, {upsert: true}
+			@domains.updateOne query, {$unset: unset}, {upsert: true}
 			.then (result)=>
 				@handleHook "after-properties-delete", context, domain,
 					domain: domain
@@ -334,7 +334,7 @@ class UserAPI extends AbstractAPI
 			@collusers().find( filter,
 				skip : options.skip
 				limit: options.limit
-				fields :
+				projection :
 					password : 0
 					networksecret : 0
 			).toArray (err, docs)->
@@ -347,7 +347,7 @@ class UserAPI extends AbstractAPI
 		cursor = @collusers().find query,
 			limit: limit
 			skip: skip
-			fields:
+			projection:
 				password : 0
 				networksecret : 0
 		cursor.count (err, count)->

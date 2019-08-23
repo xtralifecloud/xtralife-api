@@ -13,7 +13,7 @@ class KVStoreAPI extends AbstractAPI
 	configure: (@xtralifeapi, callback)->
 		@kvColl = @coll 'kvstore'
 
-		@kvColl.ensureIndex({domain:1, key: 1}, {unique: true}, callback)
+		@kvColl.createIndex({domain:1, key: 1}, {unique: true}, callback)
 
 	onDeleteUser: (userid, cb)->
 		cb null
@@ -38,7 +38,7 @@ class KVStoreAPI extends AbstractAPI
 			"acl must be a valid ACL": @_validACL(acl)
 
 		cdate = Date.now()
-		@kvColl.insert {domain, key, value, acl, cdate, udate: cdate}
+		@kvColl.insertOne {domain, key, value, acl, cdate, udate: cdate}
 		.get 'result'
 
 	# change the ACL of a key (must have 'a' right to do so)
@@ -55,7 +55,7 @@ class KVStoreAPI extends AbstractAPI
 		query = {domain, key}
 		if user_id? then query['$or']= [{'acl.a':'*'}, {'acl.a': user_id}]
 		udate = Date.now()
-		@kvColl.update query, {$set: {acl, udate}}
+		@kvColl.updateOne query, {$set: {acl, udate}}
 		.get 'result'
 
 	# set the value of a key (must have 'w' right to do so)
@@ -71,7 +71,7 @@ class KVStoreAPI extends AbstractAPI
 		if user_id? then query['$or']= [{'acl.w':'*'}, {'acl.w': user_id}]
 		if udate? then query.udate = udate
 
-		@kvColl.update query, {$set: {value, udate: Date.now()}}
+		@kvColl.updateOne query, {$set: {value, udate: Date.now()}}
 		.get 'result'
 
 	# updateObject allows incremental changes to JS objects stored in value
@@ -89,7 +89,7 @@ class KVStoreAPI extends AbstractAPI
 
 		set = {udate: Date.now()}
 		set["value.#{k}"] = v for k, v of value
-		@kvColl.update query, {$set: set}
+		@kvColl.updateOne query, {$set: set}
 		.get 'result'
 
 
@@ -115,7 +115,7 @@ class KVStoreAPI extends AbstractAPI
 
 		query = {domain, key}
 		if user_id? then query['$or']= [{'acl.a':'*'}, {'acl.a': user_id}]
-		@kvColl.remove {domain, key, $or: [{'acl.a':'*'}, {'acl.a': user_id}]}
+		@kvColl.deleteOne {domain, key, $or: [{'acl.a':'*'}, {'acl.a': user_id}]}
 		.get 'result'
 
 	# used by BACKOFFICE only !

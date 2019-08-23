@@ -23,7 +23,7 @@ class VirtualfsAPI extends AbstractAPI
 
 		@domains = @coll('domains')
 
-		@domains.ensureIndex {domain:1, user_id: 1}, {unique: true}, (err)->
+		@domains.createIndex {domain:1, user_id: 1}, {unique: true}, (err)->
 			if err? then return callback err
 			logger.info "Virtualfs initialized"
 
@@ -74,7 +74,7 @@ class VirtualfsAPI extends AbstractAPI
 			else
 				field[unless key? then 'fs' else "fs.#{key}"] = 1
 
-			@domains.findOne query, field
+			@domains.findOne query, {projection: field}
 			.then (value)=>
 				@handleHook "after-gamervfs-read", context, domain,
 					user_id: user_id
@@ -107,7 +107,7 @@ class VirtualfsAPI extends AbstractAPI
 			else
 				set["fs.#{k}"] = value for k, value of key
 
-			@domains.update query, {$set: set}, { upsert: true }
+			@domains.updateOne query, {$set: set}, { upsert: true }
 
 		.then (result)=>
 			@handleHook "after-gamervfs-write", context, domain,
@@ -135,7 +135,7 @@ class VirtualfsAPI extends AbstractAPI
 			unset = {}
 			unset[unless key? then 'fs' else "fs.#{key}"] = ""
 
-			@domains.update query, {$unset: unset}, {upsert: true}
+			@domains.updateOne query, {$unset: unset}, {upsert: true}
 			.then (result)=>
 				@handleHook "after-gamervfs-delete", context, domain,
 					user_id: user_id
@@ -161,7 +161,7 @@ class VirtualfsAPI extends AbstractAPI
 		if included?
 			fields[i] = 1 for i in included
 
-		cursor = @domains.find query, fields
+		cursor = @domains.find query, {projection: fields}
 		cursor.toArray().then (values)=>
 			for v in values
 				v.gamer_id = v.user_id

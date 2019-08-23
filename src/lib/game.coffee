@@ -38,7 +38,7 @@ class GameAPI extends AbstractAPI
 		xlenv.inject ["xtralife.games"], (err, xtralifeGames)=>
 			cb err if err?
 
-			@collgame().ensureIndex {appid: 1}, { unique: true }, (err)=>
+			@collgame().createIndex {appid: 1}, { unique: true }, (err)=>
 				return cb err if err?
 
 
@@ -72,7 +72,7 @@ class GameAPI extends AbstractAPI
 			@eventedDomains[domain] = true 
 			xlenv.broker.start domain
 
-		@coll('games').update {appid}, {"$set": {appid, config: game.config}}, {upsert: true}
+		@coll('games').updateOne {appid}, {"$set": {appid, config: game.config}}, {upsert: true}
 		.then (query)=>
 			if query.result.upserted?
 				query.result.upserted[0]._id
@@ -120,7 +120,7 @@ class GameAPI extends AbstractAPI
 		@collgame().findOne {appid : appid}, (err, game)=>
 			if err? then return cb err
 
-			@collDomainDefinition.findOne {domain: domain}, {leaderboards: 1}, (err, domainDefinition)->
+			@collDomainDefinition.findOne {domain: domain}, {projection:{leaderboards: 1}}, (err, domainDefinition)->
 				if err? then return cb err
 				game.leaderboards = domainDefinition?.leaderboards || {}
 				cb null, game

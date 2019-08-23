@@ -20,7 +20,7 @@ class StoreAPI extends AbstractAPI
 	configure: (@xtralifeApi, callback)->
 		async.parallel [
 			(cb)=>
-				@coll('productDefinition').ensureIndex({appid:1}, {unique: true}, cb)
+				@coll('productDefinition').createIndex({appid:1}, {unique: true}, cb)
 		], (err)->
 			return callback err if err?
 			logger.info "#{moduleName} initialized"
@@ -41,18 +41,18 @@ class StoreAPI extends AbstractAPI
 				return cb new errors.DuplicateProduct()
 
 			# Add the new entry
-			@coll('productDefinition').update {appid: game.appid}, {$push: {products: product}}, {upsert: true}, (err, result)->
+			@coll('productDefinition').updateOne {appid: game.appid}, {$push: {products: product}}, {upsert: true}, (err, result)->
 				return cb err if err?
 				cb null, result.result.n
 
 	# BO only
 	deleteProduct: (game, productId, cb)->
-		@coll('productDefinition').update {appid: game.appid}, {$pull: {products: {productId: productId}}}, (err, result)->
+		@coll('productDefinition').updateOne {appid: game.appid}, {$pull: {products: {productId: productId}}}, (err, result)->
 			return cb err if err?
 			cb null, result.result.n
 
 	getPurchaseHistory: (game, user_id, cb)->
-		@coll('domains').findOne {domain: privateDomain(game), user_id : user_id}, {purchases: 1}, (err, doc)=>
+		@coll('domains').findOne {domain: privateDomain(game), user_id : user_id}, {projection:{purchases: 1}}, (err, doc)=>
 			cb err, doc?.purchases
 
 	listProducts: (game, skip, limit, cb)->
@@ -61,17 +61,17 @@ class StoreAPI extends AbstractAPI
 			cb null, products.length, products[skip..(skip+limit-1)]
 
 	setProducts: (game, products, cb)->
-		@coll('productDefinition').update {appid: game.appid}, {$set: products: products}, {upsert: true}, (err, result)->
+		@coll('productDefinition').updateOne {appid: game.appid}, {$set: products: products}, {upsert: true}, (err, result)->
 			return cb err if err?
 			cb null, result.result.n
 
 # Only for tests
 	TEST_clearStoreTransaction: (storeTransaction, cb)->
-		@coll('storeTransaction').remove {_id: storeTransaction}, (err, result)->
+		@coll('storeTransaction').deleteOne {_id: storeTransaction}, (err, result)->
 			cb err
 
 	TEST_setProductDefinitions: (appid, productDefinitions, cb)->
-		@coll('productDefinition').update {appid: appid}, {$set: {products: productDefinitions}}, {upsert: true}, (err, result)->
+		@coll('productDefinition').updateOne {appid: appid}, {$set: {products: productDefinitions}}, {upsert: true}, (err, result)->
 			cb err
 
 	# BO only
@@ -90,7 +90,7 @@ class StoreAPI extends AbstractAPI
 			if @_hasProductDuplicate(checkedProduct, products) > 0
 				return cb new errors.DuplicateProduct()
 
-			@coll('productDefinition').update {appid: game.appid, "products.productId": productId}
+			@coll('productDefinition').updateOne {appid: game.appid, "products.productId": productId}
 			, {$set: {"products.$": product}}, (err, result)->
 				return cb err if err?
 				cb null, result.result.n
@@ -108,7 +108,7 @@ class StoreAPI extends AbstractAPI
 			# Store the fact that the transaction was denied
 			if err?
 				if err instanceof errors.PurchaseNotConfirmed or err instanceof errors.ExternalStoreEnvironmentError
-					return @coll('domains').update {domain: privateDomain(game), user_id : user_id}, {$push: {deniedPurchases: purchase}}, {upsert: true}, (callerr, doc)->
+					return @coll('domains').updateOne {domain: privateDomain(game), user_id : user_id}, {$push: {deniedPurchases: purchase}}, {upsert: true}, (callerr, doc)->
 						return callback err
 				else
 					return callback err
@@ -118,13 +118,13 @@ class StoreAPI extends AbstractAPI
 			# the notification required to consume the product. Thus we simply won't play the transaction again.
 			purchase.storeTransactionId = "#{transactionId}"
 			txId = "#{storeType}.#{transactionId}"
-			@coll('storeTransaction').update {_id: txId}, {_id: txId, storeResponse: storeResponseJson}, {upsert: true, multi: false}, (err, result)=>
+			@coll('storeTransaction').updateOne {_id: txId}, $set: {storeResponse: storeResponseJson}, {upsert: true}, (err, result)=>
 				return callback err if err?
 
 				# Needs process the transaction
 				if result.result.nModified > 0 or result.result.upserted?
 					# Store in purchase history
-					@coll('domains').update {domain: privateDomain(game), user_id : user_id}, {$push: {purchases: purchase}}, {upsert: true}, (err, doc)=>
+					@coll('domains').updateOne {domain: privateDomain(game), user_id : user_id}, {$push: {purchases: purchase}}, {upsert: true}, (err, doc)=>
 						return callback err if err?
 
 						# Run the actual transaction
@@ -174,7 +174,7 @@ class StoreAPI extends AbstractAPI
 					callback errors.BadArgument
 
 	_fetchProducts: (appid, cb)->
-		@coll('productDefinition').findOne {appid: appid}, {products: 1}, (err, result)=>
+		@coll('productDefinition').findOne {appid: appid}, {projection:{products: 1}}, (err, result)=>
 			return cb err if err?
 			cb null, result?.products or []
 

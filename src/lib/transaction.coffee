@@ -17,15 +17,15 @@ class TransactionAPI extends AbstractAPI
 
 		async.parallel [
 			(cb)=>
-				@domainsColl.ensureIndex({domain:1, user_id: 1}, {unique: true}, cb)
+				@domainsColl.createIndex({domain:1, user_id: 1}, {unique: true}, cb)
 			(cb)=>
-				@txColl.ensureIndex({domain:1, userid: 1, ts: -1}, cb)
+				@txColl.createIndex({domain:1, userid: 1, ts: -1}, cb)
 
 		], callback
 
 	# remove common data
 	onDeleteUser: (userid, cb)->
-		@txColl.remove {userid: userid}, (err, result)=>
+		@txColl.deleteMany {userid: userid}, (err, result)=>
 			logger.warn "removed transactions #{userid} : #{result.result.n} , #{err} "
 			cb null
 
@@ -56,7 +56,6 @@ class TransactionAPI extends AbstractAPI
 				return throw new errors.BalanceInsufficient()
 
 			adjustedBalance = @_adjustBalance(balance, transaction)
-
 			@handleHook "before-transaction", context, domain,
 				domain: domain
 				user_id: user_id
@@ -66,17 +65,15 @@ class TransactionAPI extends AbstractAPI
 				balanceAfter: adjustedBalance
 			.then => # now insert Tx
 				insertedTx = {_id: new ObjectID(), domain: domain, userid: user_id, ts: new Date(), tx: transaction, desc: description}
-				@txColl.insert insertedTx
+				@txColl.insertOne insertedTx
 				.then =>
-
 					# update the balance if the lastTx is the one read just before into balObj
 					# upsert : insert new balance if not already present
-					@domainsColl.findAndModify { domain: domain, user_id: user_id, lastTx: lastTx }
-						, {}
+					@domainsColl.findOneAndUpdate { domain: domain, user_id: user_id, lastTx: lastTx }
 						, { $set: {balance: adjustedBalance, lastTx: insertedTx._id }}
-						, { multi: false, safe: true, upsert: true, new: true}
+						, { upsert: true, returnOriginal: false}
 				.then (status)=>
-					if status.lastErrorObject.n != 1 # count = 0 and err == null means race condition
+					if not status.ok
 						logger.warn(err, 'error in transaction/balance.update, race condition (count=' + status.result.n + ')')
 						throw new errors.ConcurrentModification
 
@@ -99,7 +96,7 @@ class TransactionAPI extends AbstractAPI
 						adjustedBalance: adjustedBalance
 						triggeredAchievements: triggeredAchievements
 					.return [adjustedBalance, triggeredAchievements]
-
+					
 	# callback(err, balance)
 	balance: (context, domain, user_id)->
 		@pre (check)->
@@ -128,7 +125,7 @@ class TransactionAPI extends AbstractAPI
 	# use @_get(..).spread (balance, lastTx_id, achievements)=>
 	_getDomain: (domain, user_id, fields) ->
 
-		@domainsColl.findOne {domain: domain, user_id: user_id}, fields
+		@domainsColl.findOne {domain: domain, user_id: user_id}, {projection:fields}
 		.then (domain)->
 			if domain? and domain.balance?
 				[domain.balance, domain.lastTx, domain.achievements]

@@ -72,7 +72,7 @@ class TimerAPI extends AbstractAPI
 			@dtimer.join()
 			.then ()=>
 				@timersColl = @coll 'timers'
-				@timersColl.ensureIndex {domain:1, user_id: 1}, {unique: true}
+				@timersColl.createIndex {domain:1, user_id: 1}, {unique: true}
 				.then ()=>
 					callback null
 			.catch callback
@@ -205,7 +205,7 @@ class TimerAPI extends AbstractAPI
 	# we must know if there's a message in a queue for each timer, so we store the info in mongodb
 	_setAlreadyPublished: (domain, user_id, timerId, alreadyPublished)->
 		toSet = { "#{timerId}.alreadyScheduled": alreadyPublished }
-		@timersColl.update {domain, user_id}, {'$set': toSet}, {returnOriginal: false, upsert: false}
+		@timersColl.updateOne {domain, user_id}, {'$set': toSet}, {returnOriginal: false, upsert: false}
 
 	# publish the message with the specified timeout
 	# will resolve to null, or reject if an error occurs

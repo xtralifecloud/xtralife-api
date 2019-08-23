@@ -15,15 +15,15 @@ class MatchAPI extends AbstractAPI
 		logger.info "Matches initialized"
 		async.parallel [
 			(cb)=>
-				@coll('matches').ensureIndex {domain: 1}, {unique: false}, cb
+				@coll('matches').createIndex {domain: 1}, {unique: false}, cb
 			(cb)=>
-				@coll('matches').ensureIndex {status: 1}, {unique: false}, cb
+				@coll('matches').createIndex {status: 1}, {unique: false}, cb
 			(cb)=>
-				@coll('matches').ensureIndex {players: 1}, {unique: false}, cb
+				@coll('matches').createIndex {players: 1}, {unique: false}, cb
 			(cb)=>
-				@coll('matches').ensureIndex {invitees: 1}, {unique: false}, cb
+				@coll('matches').createIndex {invitees: 1}, {unique: false}, cb
 			(cb)=>
-				@coll('matches').ensureIndex {full: 1}, {unique: false}, cb
+				@coll('matches').createIndex {full: 1}, {unique: false}, cb
 		], (err)->
 			callback err
 
@@ -90,7 +90,7 @@ class MatchAPI extends AbstractAPI
 				user_id: user_id
 				match: toInsert
 			.then =>
-				@coll('matches').insert toInsert
+				@coll('matches').insertOne toInsert
 				.then (result)=>
 					throw new errors.BadArgument if result.result.n isnt 1
 					# Success
@@ -116,7 +116,7 @@ class MatchAPI extends AbstractAPI
 				match: match
 			.then =>
 				query['status'] = 'finished'
-				matchColl.remove query
+				matchColl.deleteOne query
 			.tap (result)=>
 				@handleHook "after-match-delete", context, match.domain,
 					user_id: creator_gamer_id
@@ -125,8 +125,8 @@ class MatchAPI extends AbstractAPI
 				return result.result.n
 
 	dismissInvitation: (context, match_id, gamer_id)->
-		@coll('matches').findAndModify {_id: match_id, invitees: gamer_id},
-		{}, {$pull: {invitees: gamer_id}}, {new: true, upsert: false}
+		@coll('matches').findOneAndUpdate {_id: match_id, invitees: gamer_id},
+		{$pull: {invitees: gamer_id}}, {upsert: false, returnOriginal: false}
 		.then (result)=>
 			match = result.value
 			throw new errors.BadMatchID unless match?
@@ -183,7 +183,7 @@ class MatchAPI extends AbstractAPI
 				match: match
 				drawnItems: drawnItems
 			.then =>
-				@coll('matches').findAndModify query, {}, update, {new: true, upsert: false}
+				@coll('matches').findOneAndUpdate query, update, {upsert: false, returnOriginal: false}
 				.then (result)=>
 					updatedMatch = result.value
 					@_broadcastEvent(gamer_id, updatedMatch, event, eventOsn)
@@ -250,7 +250,7 @@ class MatchAPI extends AbstractAPI
 				user_id: caller_gamer_id
 				match: match
 			.then =>
-				@coll('matches').findAndModify query, {}, replacement, {new: true, upsert: false}
+				@coll('matches').findOneAndUpdate query, replacement, {upsert: false, returnOriginal: false}
 				.then (result)=>
 					match = result.value
 					throw new errors.BadArgument unless match?
@@ -301,7 +301,7 @@ class MatchAPI extends AbstractAPI
 						match: match
 						invitee_id: invitee_id
 					.then =>
-						@coll('matches').findAndModify query, {}, update, {new: true, upsert: false}
+						@coll('matches').findOneAndUpdate query, update, {upsert: false, returnOriginal: false}
 						.then (result)=>
 							match = result.value
 							throw new errors.BadArgument unless match?
@@ -357,7 +357,7 @@ class MatchAPI extends AbstractAPI
 					user_id: gamer_id
 					match: match
 				.then =>
-					matchColl.findAndModify query, {}, update, {new: true, upsert: false}
+					matchColl.findOneAndUpdate query, update, {upsert: false, returnOriginal: false}
 				.then (result)=>
 					modified = result.value
 					throw new errors.ConcurrentModification unless modified?
@@ -428,7 +428,7 @@ class MatchAPI extends AbstractAPI
 				match: match
 				move: moveData
 			.then =>
-				@coll('matches').findAndModify query, {}, update, {new: true, upsert: false}
+				@coll('matches').findOneAndUpdate query, update, {upsert: false, returnOriginal: false}
 			.then (result)=>
 				modified = result.value
 				throw new errors.BadMatchID unless modified?
@@ -468,7 +468,7 @@ class MatchAPI extends AbstractAPI
 			return matches
 
 	_forceDeleteMatch: (match_id, callback)->
-		@coll('matches').remove {_id: match_id}, (err, writeResult)->
+		@coll('matches').deleteOne {_id: match_id}, (err, writeResult)->
 			return callback err if err?
 			return callback new errors.BadMatchID if writeResult.result.n is 0
 			callback null
@@ -488,7 +488,7 @@ class MatchAPI extends AbstractAPI
 			update['$push'] = {events: optional_event}
 			update['$set'] = {lastEventId: optional_event.event._id}
 
-		@coll('matches').findAndModify query, {}, update, {new: true, upsert: false}
+		@coll('matches').findOneAndUpdate query, update, {upsert: false, returnOriginal: false}
 		.then (result)=>
 			modified = result.value
 			throw new errors.BadMatchID unless modified?
@@ -534,7 +534,7 @@ class MatchAPI extends AbstractAPI
 				return [count, docs]
 
 	updateMatch: (matchId, updatedMatch)->
-		@coll('matches').findAndModify {_id: matchId}, {}, {$set: updatedMatch}, {new: true, upsert: false}
+		@coll('matches').findOneAndUpdate {_id: matchId}, {$set: updatedMatch}, {upsert: false, returnOriginal: false}
 		.then (result)->
 			return result?.value
 

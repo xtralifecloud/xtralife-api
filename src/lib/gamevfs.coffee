@@ -17,7 +17,7 @@ class GameVFSAPI extends AbstractAPI
 		@readAsync = Q.promisify this.read, context: this
 		@writeAsync = Q.promisify this.write, context: this
 
-		@domains.ensureIndex {domain:1}, (err)->
+		@domains.createIndex {domain:1}, (err)->
 			if err? then return callback err
 			logger.info "Gamevfs initialized"
 			callback err, {}
@@ -41,7 +41,7 @@ class GameVFSAPI extends AbstractAPI
 		else
 			field[unless key? then 'fs' else "fs.#{key}"] = 1
 
-		@domains.findOne query, field , (err, value)=>
+		@domains.findOne query, {projection: field} , (err, value)=>
 			return callback err if err?
 			callback null, (if value? and value.fs? then value.fs else {})
 
@@ -61,7 +61,7 @@ class GameVFSAPI extends AbstractAPI
 		else
 			set["fs.#{k}"] = value for k, value of key
 
-		@domains.update query, {$set: set}, { upsert: true }, (err, result)=>
+		@domains.updateOne query, {$set: set}, { upsert: true }, (err, result)=>
 			return callback err if err?
 			callback null, result.result.n
 
@@ -74,7 +74,7 @@ class GameVFSAPI extends AbstractAPI
 
 		unset = {}
 		unset[unless key? then 'fs' else "fs.#{key}"] = ""
-		@domains.update query, {$unset: unset}, (err, result)=>
+		@domains.updateOne query, {$unset: unset}, (err, result)=>
 			return callback err if err?
 
 			callback null, result.result.n

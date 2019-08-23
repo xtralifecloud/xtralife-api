@@ -20,7 +20,7 @@ class LeaderboardAPI extends AbstractAPI
 
 		async.parallel [
 			(cb)=>
-				@domainDefinition.ensureIndex {domain:1}, {unique: true}, cb
+				@domainDefinition.createIndex {domain:1}, {unique: true}, cb
 			(cb)=>
 				xlenv.inject ["=redisClient"], (err, @rc)=>
 					return cb err if err?
@@ -69,7 +69,7 @@ class LeaderboardAPI extends AbstractAPI
 			user_id : 1
 		fields["lb.#{board}"] = 1
 
-		@colldomains.find( query , fields ).toArray (err, userscores)=>
+		@colldomains.find( query , {projection:fields} ).toArray (err, userscores)=>
 			return cb err if err?
 			return cb null , [] unless userscores?
 
@@ -140,7 +140,7 @@ class LeaderboardAPI extends AbstractAPI
 
 		# we should really cache this, to avoid writing each time... except if mongodb skips the write already
 		# it does grow the oplog with no reason, make replication slower, cause SSD access, etc...
-		@domainDefinition.update {domain: domain}, {$set: set}, {upsert: true}, (err, result)=>
+		@domainDefinition.updateOne {domain: domain}, {$set: set}, {upsert: true}, (err, result)=>
 			return cb err if err?
 
 			newscore = {}
@@ -157,14 +157,14 @@ class LeaderboardAPI extends AbstractAPI
 			field["lb.#{board}"] = 1
 
 			#console.log "board=#{board}, order=#{order}, score=#{score}, info=#{info}"
-			@colldomains.findOne query, field, (err, doc)=>
+			@colldomains.findOne query, {projection:field}, (err, doc)=>
 				return cb err if err?
 				if (not force) and (doc?.lb?[board]?.score? and ((order == "hightolow" && doc.lb[board].score >= score) or (order == "lowtohigh" && doc.lb[board].score <= score)))
 					key = "#{domain}:leaderboards:#{board}"
 					@_getRank key, score, order, (err, rank)=>
 						return cb null, { done : 0, msg: "this is not the highest score", rank: rank} 
 				else
-					@colldomains.update query, {$set: newscore}, { upsert : true }, (err, doc)=>
+					@colldomains.updateOne query, {$set: newscore}, { upsert : true }, (err, doc)=>
 						return cb err if err?
 						key = "#{domain}:leaderboards:#{board}"
 						@rc.zadd key, score, user_id.toString(), (err, out)=>
@@ -185,7 +185,7 @@ class LeaderboardAPI extends AbstractAPI
 			"score must be number" : check.number(score)
 			"callback must be a function": check.function(cb)
 
-		@domainDefinition.findOne {domain: domain}, {"leaderboards" : 1}, (err, _domainDefinition)=>
+		@domainDefinition.findOne {domain: domain}, {projection:{"leaderboards" : 1}}, (err, _domainDefinition)=>
 			return cb err if err?
 
 			return cb new errors.MissingScore unless _domainDefinition?
@@ -208,7 +208,7 @@ class LeaderboardAPI extends AbstractAPI
 		delscore = {}
 		delscore["lb.#{board}"] = ""
 
-		@colldomains.update {domain: domain, user_id : user_id}, {$unset: delscore},{ upsert : true }, (err, doc)=>
+		@colldomains.updateOne {domain: domain, user_id : user_id}, {$unset: delscore},{ upsert : true }, (err, doc)=>
 			return cb err if err?
 			key = "#{domain}:leaderboards:#{board}"
 			@rc.zrem key, user_id.toString(), (err, out)=>
@@ -244,13 +244,13 @@ class LeaderboardAPI extends AbstractAPI
 			# 2) Remove the board from the game
 			deldomain = {}
 			deldomain["leaderboards.#{board}"] = ""
-			@domainDefinition.update {domain: domain}, {$unset: deldomain}, {multi: true}, (err, result)=>
+			@domainDefinition.updateMany {domain: domain}, {$unset: deldomain}, (err, result)=>
 				return cb err if err?
 
 				# 3) Remove the board from all players
 				delscore = {}
 				delscore["lb.#{board}"] = ""
-				@colldomains.update {domain: domain}, {$unset: delscore}, (err, result)=>
+				@colldomains.updateOne {domain: domain}, {$unset: delscore}, (err, result)=>
 					return cb err if err?
 					cb null, {done : 1}
 
@@ -288,7 +288,7 @@ class LeaderboardAPI extends AbstractAPI
 			"page must be a postive or -1 number": check.positive(page) or page==-1
 			"count must be a postive": check.positive(count)
 
-		@domainDefinition.findOne {domain: domain}, {"leaderboards" : 1}, (err, _domainDefinition)=>
+		@domainDefinition.findOne {domain: domain}, {projection:{"leaderboards" : 1}}, (err, _domainDefinition)=>
 			return cb err if err?
 
 			return cb new errors.MissingScore unless _domainDefinition?
@@ -340,7 +340,7 @@ class LeaderboardAPI extends AbstractAPI
 		resp = {}
 		resp[board] = []
 
-		@domainDefinition.findOne {domain: domain}, {"leaderboards" : 1}, (err, _domainDefinition)=>
+		@domainDefinition.findOne {domain: domain}, {projection:{"leaderboards" : 1}}, (err, _domainDefinition)=>
 			return cb err if err?
 
 			return cb new errors.MissingScore unless _domainDefinition?
@@ -398,7 +398,7 @@ class LeaderboardAPI extends AbstractAPI
 		resp = {}
 		resp[board] = []
 
-		@domainDefinition.findOne {domain: domain}, {"leaderboards" : 1}, (err, _domainDefinition)=>
+		@domainDefinition.findOne {domain: domain}, {projection:{"leaderboards" : 1}}, (err, _domainDefinition)=>
 			return cb err if err?
 
 			return cb new errors.MissingScore unless _domainDefinition?
@@ -446,11 +446,11 @@ class LeaderboardAPI extends AbstractAPI
 			"domain must be a valid domain": check.nonEmptyString(domain)
 			"user_id must be an ObjectID": check.objectid(user_id)
 
-		@colldomains.findOne {domain: domain, user_id : user_id}, {lb: 1}, (err, doc)=>
+		@colldomains.findOne {domain: domain, user_id : user_id}, {projection:{lb: 1}}, (err, doc)=>
 			return cb err if err?
 			return cb null, {} unless doc?.lb?
 
-			@domainDefinition.findOne {domain: domain}, {"leaderboards" : 1}, (err, gamelb)=>
+			@domainDefinition.findOne {domain: domain}, {projection:{"leaderboards" : 1}}, (err, gamelb)=>
 				return cb err if err?
 				async.forEach Object.keys(doc.lb)
 					, (board, localcb) =>

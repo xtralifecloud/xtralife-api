@@ -33,17 +33,17 @@ class ConnectAPI extends AbstractAPI
 			async.parallel [
 					# data related to user
 					(cb)=>
-						@collusers().ensureIndex({network:1, networkid: 1}, { unique: true }, cb)
+						@collusers().createIndex({network:1, networkid: 1}, { unique: true }, cb)
 					(cb)=>
-						@collusers().ensureIndex {'profile.displayName':1}, { unique: false }, cb
+						@collusers().createIndex {'profile.displayName':1}, { unique: false }, cb
 					(cb)=>
-						@collusers().ensureIndex {'profile.email':1}, { unique: false }, cb
+						@collusers().createIndex {'profile.email':1}, { unique: false }, cb
 				], (err)=>
 					logger.info "Connect initialized"
 					callback err
 
 	onDeleteUser: (userid, cb)->
-		@collusers().remove {_id: userid}, (err, result)->
+		@collusers().deleteOne {_id: userid}, (err, result)->
 			logger.warn "removed #{userid} : #{result.result.n} , #{err} "
 			cb err
 
@@ -73,7 +73,7 @@ class ConnectAPI extends AbstractAPI
 				g.appid == appid
 
 			return cb err, user	 if authg?.lastlogin?.getTime()==logtime.getTime()
-			@collusers().update {_id: id, "games.appid" : appid }, {'$set' : {"games.$.lastlogin" : logtime}}, (err, result)=>
+			@collusers().updateOne {_id: id, "games.appid" : appid }, {'$set' : {"games.$.lastlogin" : logtime}}, (err, result)=>
 				cb err, user
 
 
@@ -141,7 +141,7 @@ class ConnectAPI extends AbstractAPI
 					cb null, {done : 1}
 
 	changePassword: (user_id, sha_pass, cb)->
-		@collusers().update {_id : user_id}, { $set: { networksecret : sha_pass}}, (err, result)=>
+		@collusers().updateOne {_id : user_id}, { $set: { networksecret : sha_pass}}, (err, result)=>
 			logger.debug "password changed for #{user_id}" unless err?
 			cb err, result.result.n
 
@@ -149,7 +149,7 @@ class ConnectAPI extends AbstractAPI
 		@collusers().findOne {network:"email", networkid:email}, (err, user)=>
 			return cb err if err?
 			return cb new errors.ConnectError("UserExists", "#{email} already exists") if user?
-			@collusers().update {_id : user_id}, { $set: { networkid : email}}, (err, result)=>
+			@collusers().updateOne {_id : user_id}, { $set: { networkid : email}}, (err, result)=>
 				logger.debug "email changed for #{user_id}" unless err?
 				cb err, result.result.n
 
@@ -167,7 +167,7 @@ class ConnectAPI extends AbstractAPI
 				lastlogin: new Date(Math.floor(Date.now() / 86400000) * 86400000)
 			}]
 			profile : profile
-		@collusers().insert newuser, (err)=>
+		@collusers().insertOne newuser, (err)=>
 			if err?
 				if err.code == 11000
 					key = err.err.substring(err.err.indexOf('$')+1, err.err.indexOf('_1'))
@@ -186,7 +186,7 @@ class ConnectAPI extends AbstractAPI
 		newgame =
 			appid : game.appid
 			ts : new Date()
-		@collusers().update {_id : user._id}, { $addToSet: { games : newgame}}, (err, result)=>
+		@collusers().updateOne {_id : user._id}, { $addToSet: { games : newgame}}, (err, result)=>
 			logger.debug "#{game.appid} added to #{user.gamer_id}" unless err?
 
 			cb err, result.result.n
@@ -291,7 +291,7 @@ class ConnectAPI extends AbstractAPI
 				networkid: email
 				networksecret: sha_password
 				profile: @_buildEmailProfile(email)
-			@collusers().findAndModify {_id : user_id}, {}, modification, {new: true}
+			@collusers().findOneAndUpdate {_id : user_id}, modification, {returnOriginal: false}
 		.then (result)->
 			logger.debug "converted to e-mail account for #{user_id}"
 			return result?.value
@@ -306,7 +306,7 @@ class ConnectAPI extends AbstractAPI
 					networkid: me.id
 					networksecret: null
 					profile: @_buildFacebookProfile(me)
-				@collusers().findAndModify {_id : user_id}, {}, modification, {new: true}
+				@collusers().findOneAndUpdate {_id : user_id}, modification, {returnOriginal: false}
 			.then (result)->
 				logger.debug "converted to facebook account for #{me.id}" unless err?
 				return result?.value
@@ -321,7 +321,7 @@ class ConnectAPI extends AbstractAPI
 					networkid: me.id
 					networksecret: null
 					profile: @_buildGooglePlusProfile(me)
-				@collusers().findAndModify {_id : user_id}, {}, modification, {new: true}
+				@collusers().findOneAndUpdate {_id : user_id}, modification, {returnOriginal: false}
 			.then (result)->
 				logger.debug "converted to google+ account for #{me.id}" unless err?
 				return result?.value
@@ -334,7 +334,7 @@ class ConnectAPI extends AbstractAPI
 				networkid: id
 				networksecret: null
 				profile: @_buildGameCenterProfile(options)
-			@collusers().findAndModify {_id : user_id}, {}, modification, {new: true}
+			@collusers().findOneAndUpdate {_id : user_id}, modification, {returnOriginal: false}
 		.then (result)->
 			logger.debug "converted to game center account for #{user_id}" unless err?
 			return result?.value
@@ -354,7 +354,7 @@ class ConnectAPI extends AbstractAPI
 				updated["profile.avatar"] = me.avatar  unless user.profile.avatar?
 				updated["profile.displayName"] = me.name  unless user.profile.displayName?
 				updated["profile.lang"] = me.locale.substr(0,2)  unless user.profile.lang?
-				@collusers().update {_id: user._id}, {$set: updated}, (err, result)=>
+				@collusers().updateOne {_id: user._id}, {$set: updated}, (err, result)=>
 					cb err, { done: result.result.n}
 
 	linkAccountWithGoogle: (user, token, cb)->
@@ -373,20 +373,20 @@ class ConnectAPI extends AbstractAPI
 				updated["profile.firstName"] = me.name.givenName if me.name? and not user.profile.firstName?
 				updated["profile.lastName"] = me.name.familyName if me.name? and not user.profile.lastName?
 
-				@collusers().update {_id: user._id}, {$set: updated}, (err, result)=>
+				@collusers().updateOne {_id: user._id}, {$set: updated}, (err, result)=>
 					cb err, { done: result.result.n}
 
 	unlink: (user, network, cb)->
 		return cb new errors.ConnectError("Not linked to #{network}") unless user.links?[network]?
 		unset = {}
 		unset["links.#{network}"] = ""
-		@collusers().update {_id: user._id}, {$unset: unset}, (err, result)=>
+		@collusers().updateOne {_id: user._id}, {$unset: unset}, (err, result)=>
 			cb err, {done : result.result.n}
 
 	trackDevice: (user_id, device)->
 		return unless device?.id?
 
-		@collusers().findOne {_id: user_id, "devices.id" : device.id}, {_id:1, devices:1}, (err, user)=>
+		@collusers().findOne {_id: user_id, "devices.id" : device.id}, {projection:{_id:1, devices:1}}, (err, user)=>
 			if err? then return logger.error err.message, {stack: err.stack}
 			if user? && user.devices?
 				deviceExists = each for each in user.devices when each.id is device.id
@@ -395,15 +395,15 @@ class ConnectAPI extends AbstractAPI
 					return if (deviceExists?.version or 0)>=device.version
 				
 					logger.debug "user #{user_id} update device #{JSON.stringify(device)}"
-					@collusers().update {_id: user_id, "devices.id" : device.id } , { $set: { "devices.$" : device } }, (err, result)=>
+					@collusers().updateOne {_id: user_id, "devices.id" : device.id } , { $set: { "devices.$" : device } }, (err, result)=>
 						if err? then logger.error err.message, {stack: err.stack}
 				else
 					logger.debug "user #{user_id} adding device #{JSON.stringify(device)}"
-					@collusers().update {_id: user_id} , { $push: { "devices" : device } }, (err, result)=>
+					@collusers().updateOne {_id: user_id} , { $push: { "devices" : device } }, (err, result)=>
 						if err? then logger.error err.message, {stack: err.stack}
 			else
 				logger.debug "user #{user_id} owns #{JSON.stringify(device)}"
-				@collusers().update {_id: user_id} , { $addToSet: { devices : device } }, (err, result)=>
+				@collusers().updateOne {_id: user_id} , { $addToSet: { devices : device } }, (err, result)=>
 					if err? then logger.error err.message, {stack: err.stack}
 
 	registerToken: (user, os, token , domain, cb)->
@@ -411,11 +411,11 @@ class ConnectAPI extends AbstractAPI
 			os : os
 			token : token
 		#TODO: remove previous version with no domain TO BE REMOVED LATER
-		@collusers().update {_id : user._id}, { $pull: { tokens : device}}, (err, result)=>
+		@collusers().updateOne {_id : user._id}, { $pull: { tokens : device}}, (err, result)=>
 			return cb err if err?
 			device.domain = domain
 			# add current version with domain
-			@collusers().update {_id : user._id}, { $addToSet: { tokens : device}}, (err, result)=>
+			@collusers().updateOne {_id : user._id}, { $addToSet: { tokens : device}}, (err, result)=>
 				return cb err if err?
 				#logger.info "user: #{user._id}, token: #{token}, count : #{count}"
 				cb null, result.result.n
@@ -425,11 +425,11 @@ class ConnectAPI extends AbstractAPI
 			os : os
 			token : token
 		#TODO: remove previous version with no domain TO BE REMOVED LATER
-		@collusers().update {_id : user._id}, { $pull: { tokens : device}}, (err, result)=>
+		@collusers().updateOne {_id : user._id}, { $pull: { tokens : device}}, (err, result)=>
 			return cb err if err?
 			device.domain = domain
 			# remove current version with domain
-			@collusers().update {_id : user._id}, { $pull: { tokens : device}}, (err, result)=>
+			@collusers().updateOne {_id : user._id}, { $pull: { tokens : device}}, (err, result)=>
 				return cb err if err?
 				cb null, result.result.n
 
@@ -437,7 +437,7 @@ class ConnectAPI extends AbstractAPI
 		@pre (check)->
 			"domain must be a valid domain": check.nonEmptyString(domain)
 
-		@collusers().findOne {_id : new ObjectID(user_id)}, { "profile.lang": 1, tokens : 1}, (err, user)=>
+		@collusers().findOne {_id : new ObjectID(user_id)}, {projection:{ "profile.lang": 1, tokens : 1}}, (err, user)=>
 			return cb err if err?
 			return cb null, null unless user?.tokens?
 			 
@@ -450,7 +450,7 @@ class ConnectAPI extends AbstractAPI
 			query =
 				_id: user_id
 
-			@collusers().findOne query, fields
+			@collusers().findOne query, {projection:fields}
 			.then (value)=>
 				if value?
 					delete value._id

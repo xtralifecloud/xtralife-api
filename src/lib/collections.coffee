@@ -26,7 +26,7 @@ class CollectionsAPI extends AbstractAPI
 			@_cache[name] = coll
 
 	onDeleteUser: (userid, cb)->
-		@coll("domains").remove {user_id: userid}, (err, result)=>
+		@coll("domains").deleteOne {user_id: userid}, (err, result)=>
 			logger.warn "removed domains #{userid} : #{result.result.n} , #{err} "
 			cb()
 
