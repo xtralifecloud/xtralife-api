@@ -38,15 +38,15 @@ class LeaderboardAPI extends AbstractAPI
 		callback null
 
 	onDeleteUser: (userid, cb)->
-		logger.debug "delete user #{userid} for leaderboard"
+		logger.debug "delete user #{userid.toString()} for leaderboard"
 		@colldomains.find({user_id : userid, lb: { "$exists" : true}}, {domain: 1, lb: 1}).toArray (err, docs)=>
 			unless docs? then return cb err
 			return cb err if err?
 			async.forEach docs, (item, localcb) =>
 				async.forEach Object.keys(item.lb), (board, innercb) =>
 					key = "#{item.domain}:leaderboards:#{board}"
-					@rc.zrem key, userid, (err, out)=>
-						logger.warn "delete lb.#{board} for user #{userid} : #{out}, #{err} "
+					@rc.zrem key, userid.toString(), (err, out)=>
+						logger.warn "delete lb.#{board} for user #{userid.toString()} : #{out}, #{err} "
 						innercb err
 				, (err)->
 					localcb err
