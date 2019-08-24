@@ -364,7 +364,7 @@ class LeaderboardAPI extends AbstractAPI
 				key = "#{domain}:leaderboards:#{board}"
 				if order == "hightolow" then cmd = "zrevrank" else cmd = "zrank"				
 				list = []
-				(list.push [cmd, key, each.user_id] ) for each in userscores
+				(list.push [cmd, key, each.user_id.toString()] ) for each in userscores
 				@rc.multi(list).exec (err, replies)=>
 					return cb err if err?
 					return cb new errors.MissingScore unless replies?
@@ -422,7 +422,7 @@ class LeaderboardAPI extends AbstractAPI
 				key = "#{domain}:leaderboards:#{board}"
 				if order == "hightolow" then cmd = "zrevrank" else cmd = "zrank"				
 				list = []
-				(list.push [cmd, key, each.user_id] ) for each in userscores
+				(list.push [cmd, key, each.user_id.toString()] ) for each in userscores
 				@rc.multi(list).exec (err, replies)=>
 					return cb err if err?
 					return cb new errors.MissingScore unless replies?
