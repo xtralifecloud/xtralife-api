@@ -40,7 +40,6 @@ class IndexAPI extends AbstractAPI
 				id: objectId
 				body: document
 				refresh: true
-				consistency: "one"
 
 	get: (context, domain, indexName, objectId) ->
 
