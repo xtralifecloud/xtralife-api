@@ -14,7 +14,6 @@ AbstractAPI = require "../AbstractAPI.coffee"
 
 Q = require 'bluebird'
 
-
 class ConnectAPI extends AbstractAPI
 	constructor: ()->
 		super()
@@ -348,12 +347,14 @@ class ConnectAPI extends AbstractAPI
 				return cb new errors.ConnectError("Already linked to facebook") if user.links?.facebook?
 				updated = {}
 				updated["links.facebook"] = me.id
-				updated["profile.email"] = me.email  unless user.profile.email?
-				updated["profile.firstName"] = me.first_name  unless user.profile.firstName?
-				updated["profile.lastName"] = me.last_name  unless user.profile.lastName?
-				updated["profile.avatar"] = me.avatar  unless user.profile.avatar?
 				updated["profile.displayName"] = me.name  unless user.profile.displayName?
-				updated["profile.lang"] = me.locale.substr(0,2)  unless user.profile.lang?
+				if not xlenv.options.profileFields?
+					updated["profile.email"] = me.email  unless user.profile.email?
+					updated["profile.firstName"] = me.first_name  unless user.profile.firstName?
+					updated["profile.lastName"] = me.last_name  unless user.profile.lastName?
+					updated["profile.avatar"] = me.avatar  unless user.profile.avatar?
+					updated["profile.lang"] = me.locale.substr(0,2)  unless user.profile.lang?
+
 				@collusers().updateOne {_id: user._id}, {$set: updated}, (err, result)=>
 					cb err, { done: result.result.n}
 
@@ -367,11 +368,12 @@ class ConnectAPI extends AbstractAPI
 				updated = {}
 				updated["links.googleplus"] = me.id
 				updated["profile.displayName"] = me.displayName unless user.profile.displayName?
-				updated["profile.lang"] = me.language unless user.profile.lang?
-				updated["profile.avatar"] = me.image.url if me.image? and not user.profile.avatar?
-				updated["profile.email"] = me.emails[0].value if me.emails?[0].value?  and not user.profile.email?
-				updated["profile.firstName"] = me.name.givenName if me.name? and not user.profile.firstName?
-				updated["profile.lastName"] = me.name.familyName if me.name? and not user.profile.lastName?
+				if not xlenv.options.profileFields?
+					updated["profile.lang"] = me.language unless user.profile.lang?
+					updated["profile.avatar"] = me.image.url if me.image? and not user.profile.avatar?
+					updated["profile.email"] = me.emails[0].value if me.emails?[0].value?  and not user.profile.email?
+					updated["profile.firstName"] = me.name.givenName if me.name? and not user.profile.firstName?
+					updated["profile.lastName"] = me.name.familyName if me.name? and not user.profile.lastName?
 
 				@collusers().updateOne {_id: user._id}, {$set: updated}, (err, result)=>
 					cb err, { done: result.result.n}
@@ -464,6 +466,8 @@ class ConnectAPI extends AbstractAPI
 			email: email
 			displayName : email.slice 0, email.indexOf("@")
 			lang : "en"
+		if xlenv.options.profileFields?
+			profile = _.pick(profile, xlenv.options.profileFields)
 		return profile
 
 	_buildFacebookProfile: (me)->
@@ -474,6 +478,8 @@ class ConnectAPI extends AbstractAPI
 			avatar: me.avatar
 			displayName : me.name
 			lang : me.locale.substr(0,2) if me.locale?
+		if xlenv.options.profileFields?
+			profile = _.pick(profile, xlenv.options.profileFields)
 		return profile
 
 	_buildGameCenterProfile: (options)->
@@ -481,6 +487,8 @@ class ConnectAPI extends AbstractAPI
 			displayName: options?.gamecenter?.gcdisplayname || ""
 			firstName: options?.gamecenter?.gcalias || ""
 			lang: "en"
+		if xlenv.options.profileFields?
+			profile = _.pick(profile, xlenv.options.profileFields)
 		return profile
 
 	_buildGooglePlusProfile: (me)->
@@ -491,6 +499,8 @@ class ConnectAPI extends AbstractAPI
 		profile.email = me.emails[0].value if me.emails?[0].value?
 		profile.firstName = me.name.givenName if me.name?
 		profile.lastName = me.name.familyName if me.name?
+		if xlenv.options.profileFields?
+			profile = _.pick(profile, xlenv.options.profileFields)
 		return profile
 
 	_checkAccountForConversion: (network, user_id, networkid)->

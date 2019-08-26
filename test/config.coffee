@@ -68,6 +68,8 @@ xlenv.override null,
 
 		hostnameBlacklist: [] # used to restrict this.game.http.* apis
 
+		#profileFields: ['displayName'] # show nothing but displayName in profile
+
 	mailer: null # CONFIGURE HERE
 
 
