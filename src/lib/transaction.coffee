@@ -46,7 +46,7 @@ class TransactionAPI extends AbstractAPI
 			"skipAchievementsCheck must be a boolean": check.boolean(skipAchievementsCheck)
 
 		Q.try => # Check transaction is a valid tx object
-			unless @_checkTransaction(transaction) then throw new errors.BadArgument
+			unless @_checkTransaction(transaction) then throw new errors.PreconditionError(["transaction must be a valid transaction"])
 			@_getDomain(domain, user_id, {balance:1, lastTx:1, achievements: 1})
 		.spread (balance, lastTx, user_achievements)=>
 			(transaction[unit] = (-balance[unit] or 0)) for unit, value of transaction when value is '-auto'
