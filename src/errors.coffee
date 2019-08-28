@@ -137,6 +137,12 @@ class unknownGodfatherCode extends XLAPIError
 	message: "the godfather code is not found"
 	xtralifecode : 9
 
+class GameCenterError extends XLAPIError
+	constructor: (@message) ->
+		super()
+	name: "GameCenterLoginError"
+	xtralifecode : 99
+
 class BadToken extends XLAPIError
 	name: "BadToken"
 	message: "The short login code is invalid"
@@ -240,4 +246,5 @@ module.exports = {XLAPIError, XLAPIRetryableError, InternalError
 , BadToken, RestrictedDomain
 , QueryError, PreconditionError
 , PurchaseNotConfirmed, ExternalStoreError, ExternalStoreEnvironmentError
-, ConcurrentModification, HookRecursionError, HookError, ExternalServerTempError}
+, ConcurrentModification, HookRecursionError, HookError, ExternalServerTempError
+, GameCenterError}

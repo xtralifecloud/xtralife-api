@@ -265,12 +265,16 @@ class ConnectAPI extends AbstractAPI
 					cb err, user, true
 
 	logingc: (game, id, secret, options, cb)->
-		if id isnt secret.playerId then return cb new Error("token is not for this player")
-		unless game.config.socialSettings?.gameCenterBundleIdRE then return cb new Error("socialSettings.gameCenterBundleIdRE must be set for GameCenter login")
-		unless secret.bundleId.match(game.config.socialSettings.gameCenterBundleIdRE) then return cb new Error("Invalid bundleId")
+		# TODO replace new Error with proper Nasa Errors
+		if id isnt secret.playerId then return cb new errors.GameCenterError("token is not for this player")
+		unless game.config.socialSettings?.gameCenterBundleIdRE then return cb new errors.GameCenterError("socialSettings.gameCenterBundleIdRE must be set for GameCenter login")
+		unless secret.bundleId.match(game.config.socialSettings.gameCenterBundleIdRE) then return cb new errors.GameCenterError("Invalid bundleId")
+		# TODO check secret expiry against optional options.expireGCtoken seconds
+		if xlenv.options.GameCenterTokenMaxage? and (Date.now() - secret.timestamp > 1000 * xlenv.options.GameCenterTokenMaxage)
+			return cb new errors.GameCenterError('Expired gamecenter token')
 		
 		gamecenter.verify secret, (err, token) => 
-			return cb err if err?
+			return cb new errors.GameCenterError(err.message) if err?
 
 			@collusers().findOne  {network: "gamecenter", networkid: id}, (err, user)=>
 				return cb err if err?
