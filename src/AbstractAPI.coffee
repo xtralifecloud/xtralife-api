@@ -42,13 +42,12 @@ class AbstractAPI
 
 	pre: (fn)->
 		if shouldRunPreconditions
-			try
-				errorsMessages = try
-					(errorsMessage for errorsMessage, passed of fn(checktypes) when not passed)
-				catch err
-					["Exception when checking preconditions (#{err.stack})"]
+			errorsMessages = try
+				(errorsMessage for errorsMessage, passed of fn(checktypes) when not passed)
+			catch err
+				["Exception when checking preconditions (#{err.stack})"]
 
-				if errorsMessages.length then throw new xtralifeerrors.PreconditionError(errorsMessages)
+			if errorsMessages.length then throw new xtralifeerrors.PreconditionError(errorsMessages)
 
 	handleHook: (hookName, context, domain, params)->
 		@pre (check)->
