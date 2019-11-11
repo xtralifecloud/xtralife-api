@@ -502,5 +502,25 @@ class LeaderboardAPI extends AbstractAPI
 			else
 				throw new errors.BadArgument("Your game doesn't have access to this domain")
 
+		getrank : (domain, board, score) =>
+			if @xtralifeapi.game.checkDomainSync context.game.appid, domain
+				getrankAsync = Q.promisify(@getrank, context: @)
+				getrankAsync domain, board, score
+			else
+				throw new errors.BadArgument("Your game doesn't have access to this domain")
+
+		deleteScore: (domain, user_id, board) =>
+			if @xtralifeapi.game.checkDomainSync context.game.appid, domain
+				deleteScoreAsync = Q.promisify(@deleteScore, context: @)
+				deleteScoreAsync domain, user_id, board
+			else
+				throw new errors.BadArgument("Your game doesn't have access to this domain")
+
+		deleteLeaderboard: (domain, board) =>
+			if @xtralifeapi.game.checkDomainSync context.game.appid, domain
+				deleteLeaderboardAsync = Q.promisify(@deleteLeaderboard, context: @)
+				deleteLeaderboardAsync domain, board
+			else
+				throw new errors.BadArgument("Your game doesn't have access to this domain")
 
 module.exports = new LeaderboardAPI()

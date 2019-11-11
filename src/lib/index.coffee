@@ -117,6 +117,12 @@ class IndexAPI extends AbstractAPI
 			else
 				throw new errors.BadArgument("Your game doesn't have access to this domain")
 
+		get: (domain, indexName, objectId) =>
+			if @parent.game.checkDomainSync context.game.appid, domain
+				@get context, domain, indexName, objectId
+			else
+				throw new errors.BadArgument("Your game doesn't have access to this domain")
+
 		# q : http://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-query-string-query.html
 		# sort: ['field1', 'field2']
 		search: (domain, indexName, q, sort=[], from=0, max=10, search_type='query_then_fetch')=>
