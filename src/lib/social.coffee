@@ -118,6 +118,14 @@ class SocialAPI extends AbstractAPI
 			@describeUsersList context, domain, [doc.relations.godfather], (err, arr)=>
 				cb err, arr[0]
 
+	findGodfatherFromCode: (context, domain, godfatherCode)=>
+		@pre (check)->
+			"domain must be a valid domain": check.nonEmptyString(domain)
+
+		@colldomains.findOne {domain, "relations.godfatherCode" : godfatherCode}
+		.then (godfather)=>
+			godfather?.user_id
+
 	setGodfather : (context, domain, user_id, godfather, options, cb)->
 		@pre (check)->
 			"domain must be a valid domain": check.nonEmptyString(domain)

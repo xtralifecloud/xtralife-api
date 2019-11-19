@@ -319,6 +319,11 @@ class UserAPI extends AbstractAPI
 					else
 						throw new errors.BadArgument("Your game doesn't have access to this domain")
 
+				getGodfatherFromCode: (domain, godfatherCode)=>
+					if @xtralifeapi.game.checkDomainSync context.game.appid, domain
+						@xtralifeapi.social.findGodfatherFromCode(context, domain, godfatherCode)
+					else
+						throw new errors.BadArgument("Your game doesn't have access to this domain")
 
 # BACKOFFICE ###########################################################################
 
