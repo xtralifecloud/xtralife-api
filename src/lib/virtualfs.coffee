@@ -200,6 +200,12 @@ class VirtualfsAPI extends AbstractAPI
 		@s3bucket.deleteObjectAsync params
 
 	sandbox: (context)->
+		AWS: 
+			S3: (options) => 
+				if (not options.accessKeyId?) or (not options.secretAccessKey?)
+					throw new Error("accessKeyID or secretAccessKey missing from options")
+				new AWS.S3 options
+
 		read: (domain, user_id, key)=>
 			if @parent.game.checkDomainSync context.game.appid, domain
 				@read context, domain, user_id, key
