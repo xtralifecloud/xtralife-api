@@ -1,0 +1,367 @@
+/*
+ * decaffeinate suggestions:
+ * DS101: Remove unnecessary use of Array.from
+ * DS102: Remove unnecessary code created because of implicit returns
+ * DS205: Consider reworking code to avoid use of IIFEs
+ * DS207: Consider shorter variations of null checks
+ * Full docs: https://github.com/decaffeinate/decaffeinate/blob/master/docs/suggestions.md
+ */
+const AbstractAPI = require('../AbstractAPI.js');
+const async = require('async');
+const {
+    ObjectID
+} = require('mongodb');
+const moment = require("moment");
+const _ = require('underscore-contrib');
+const Q = require('bluebird');
+const errors = require('../errors.js');
+const util = require('util');
+
+const Redlock = require('redlock');
+
+const superagent = require('superagent');
+const jwt = require('jsonwebtoken');
+
+const url = require('url');
+const nodemailer = require('nodemailer');
+
+class GameAPI extends AbstractAPI {
+
+	constructor() {
+		super();
+		this.dynGames = {};
+		this.appsForDomain = {};
+		this.eventedDomains = {};
+	}
+
+	// helpers
+	collgame(){
+		return this.coll("games");
+	}
+
+	configure(parent, cb){
+		this.parent = parent;
+		this.collDomainDefinition = this.coll("domainDefinition");
+
+		this.gamesByApiKey = {};
+
+		// start with the contents of xlenv.hooks.definitions
+		this.hooks = _.clone(xlenv.hooks.definitions);
+
+		return xlenv.inject(["xtralife.games"], (err, xtralifeGames)=> {
+			if (err != null) { cb(err); }
+
+			return this.collgame().createIndex({appid: 1}, { unique: true }, err=> {
+				if (err != null) { return cb(err); }
+
+
+				for (let appid in xtralifeGames) { const game = xtralifeGames[appid]; this.dynGames[appid] = game; }
+				this.appsForDomain = {};
+
+				this.eventedDomains = {};
+
+				Q.promisifyAll(this.coll('hookLog'));
+
+				xlenv.inject(['redisClient'], (err, client)=> {
+					return this.redlock = new Redlock([client], {driftFactor: 0.01, retryCount:  3, retryDelay:  200});
+			});
+
+				return async.eachSeries(((() => {
+					const result = [];
+					for (let each in xtralifeGames) {
+						result.push(each);
+					}
+					return result;
+				})()), (game, localcb)=> {
+					return this.configureGame(game, err=> {
+						return localcb(err);
+					}
+					, true);
+				} // silent
+				, err => cb(err));
+			});
+		});
+	}
+
+	configureGame(appid, cb, silent){
+		if (silent == null) { silent = false; }
+		const game = this.dynGames[appid];
+		game.appid = appid;
+		this.gamesByApiKey[game.apikey] = game;
+		if (!silent) { logger.info(`added ${appid}`); }
+
+		// needed to initiate the llop on timed out event !
+		xlenv.broker.start(`${appid}.${game.apisecret}`);
+		this.eventedDomains[this.getPrivateDomain(appid)] = true;
+		if (game.config.eventedDomains != null) { for (let domain of Array.from(game.config.eventedDomains)) {
+			this.eventedDomains[domain] = true; 
+			xlenv.broker.start(domain);
+		} }
+
+		return this.coll('games').updateOne({appid}, {"$set": {appid, config: game.config}}, {upsert: true})
+		.then(query=> {
+			if (query.result.upserted != null) {
+				return query.result.upserted[0]._id;
+			} else {
+				return this.coll('games').findOne({appid})
+				.then(agame => agame._id);
+			}
+	}).then(function(_id){
+			game._id = _id;
+			return cb(null);}).catch(cb);
+	}
+
+	onDeleteUser(userid, cb){
+		logger.debug(`delete user ${userid} for game`);
+		return cb(null);
+	}
+
+	existsKey(apikey, cb){
+		return cb(null, this.gamesByApiKey[apikey]);
+	}
+
+	getPrivateDomain(appid){
+		const game = this.dynGames[appid];
+		return `${appid}.${game.apisecret}`;
+	}
+
+	checkAppCredentials(apikey, apisecret, cb){
+		const game = this.gamesByApiKey[apikey];
+		if (game == null) { return cb(new Error('Invalid ApiKey')); }
+		if ((game.apisecret === apisecret) && game.config.enable) {
+			return cb(null, game);
+		} else {
+			return cb(new Error("Invalid App Credentials"), null);
+		}
+	}
+
+	checkDomain(game, domain, cb){
+		return cb(null,  game.config.domains && (game.config.domains.indexOf(domain)!==-1));
+	}
+
+	checkDomainSync(appid, domain){
+		const game = this.dynGames[appid];
+		return (this.getPrivateDomain(appid) === domain) || (game.config.domains && (game.config.domains.indexOf(domain) !== -1));
+	}
+
+	getGame(appid, domain, cb){
+		//keep ascending compatibility
+		if (cb == null) {
+			cb = domain;
+			domain = this.getPrivateDomain(appid);
+		}
+
+		return this.collgame().findOne({appid}, (err, game)=> {
+			if (err != null) { return cb(err); }
+
+			return this.collDomainDefinition.findOne({domain}, {projection:{leaderboards: 1}}, function(err, domainDefinition){
+				if (err != null) { return cb(err); }
+				game.leaderboards = (domainDefinition != null ? domainDefinition.leaderboards : undefined) || {};
+				return cb(null, game);
+			});
+		});
+	}
+
+	getCerts(appid, cb){
+		const empty = {
+			android: {
+				enable: false,
+				senderID: '',
+				apikey: ''
+			},
+			ios: {
+				enable: false,
+				cert: '',
+				key: ''
+			},
+			macos: {
+				enable: false,
+				cert: '',
+				key: ''
+			}
+		};
+		const game = this.dynGames[appid];
+		return cb(null, game.config.certs || empty);
+	}
+
+
+	hasListener(domain){
+		return this.eventedDomains[domain] === true;
+	}
+
+	getAppsWithDomain(domain, cb){
+
+		if (this.appsForDomain[domain] != null) {
+			return cb(null, this.appsForDomain[domain]);
+		}
+		
+		let appid = undefined;
+		for (let key in this.gamesByApiKey) {
+			if (domain === `${this.gamesByApiKey[key].appid}.${this.gamesByApiKey[key].apisecret}`) {
+				({
+                    appid
+                } = this.gamesByApiKey[key]);
+			}
+		}
+		
+		if (appid == null) { return cb(null, null); }
+
+		const game = this.dynGames[appid];
+		this.appsForDomain[domain] = {appid, certs : game.config.certs};
+		return cb(null, this.appsForDomain[domain]);
+	}
+
+
+	runBatch(context, domain, hookName, params){
+		if (hookName.slice(0, 2) !== '__') { hookName = '__'+hookName; }
+
+		return this.handleHook(hookName, context, domain, params);
+	}
+
+	runBatchWithLock(context, domain, hookName, params, resource=null){
+		if (hookName.slice(0, 2) !== '__') { hookName = '__'+hookName; }
+
+		if (resource == null) { resource = hookName; }
+		const lockName = `${domain}.${resource}`;
+
+		return this.redlock.lock(lockName, 200).then(lock=> {
+			return this.handleHook(hookName, context, domain, params)
+			.timeout(200)
+			.tap(result=> {
+				return lock.unlock();
+		}).catch(err=> {
+				lock.unlock();
+				throw err;
+			});
+		});
+	}
+
+	sendEvent(context, domain, user_id, message){
+		if (!this.hasListener(domain)) {
+			throw new errors.NoListenerOnDomain(domain);
+		}
+
+		if (util.isArray(user_id)) {
+			if (user_id.length > (xlenv.options.maxReceptientsForEvent)) {
+				return Q.reject(new Error(`Can't send a message to more than ${xlenv.options.maxUsersForEvent} users`));
+			}
+
+			return Q.all((Array.from(user_id).map((eachUser) => xlenv.broker.send(domain, eachUser.toString(), message))));
+		} else {
+			return xlenv.broker.send(domain, user_id.toString(), message);
+		}
+	}
+
+	sendVolatileEvent(context, domain, user_id, message){
+		if (util.isArray(user_id)) {
+			if (user_id.length > (xlenv.options.maxReceptientsForEvent)) {
+				return Q.reject(new Error(`Can't send a message to more than ${xlenv.options.maxUsersForEvent} users`));
+			}
+
+			return Q.all((Array.from(user_id).map((eachUser) => xlenv.broker.sendVolatile(domain, eachUser.toString(), message))));
+		} else {
+			return xlenv.broker.sendVolatile(domain, user_id.toString(), message);
+		}
+	}
+
+	getHooks(game, domain){
+		if (!this.checkDomainSync(game.appid, domain)) { return Q.reject(new errors.RestrictedDomain("Invalid domain access")); }
+
+		return Q.resolve((
+			(this.hooks[domain] == null) ? null
+			: this.hooks[domain]
+		)
+		);
+	}
+
+	hookLog(game, domain, hookName, log){
+		if (!(xlenv.options.hookLog != null ? xlenv.options.hookLog.enable : undefined)) { return; }
+		if (!this.checkDomainSync(game.appid, domain)) { throw new errors.RestrictedDomain("Invalid domain access"); }
+		return logger.debug(`hookLog: ${domain}.${hookName} - ${log}`, {appid: game.appid});
+	}
+
+	sandbox(context){
+		const _checkUrl = function(_url){
+			const {
+                hostname
+            } = url.parse(_url);
+			if (xlenv.options.hostnameBlacklist == null) {
+				logger.warn('xlenv.options.hostnameBlacklist should be defined, disabling http requests');
+				throw new Error("HTTP requests have been disabled, please contact support");
+			}
+
+			if (Array.from(xlenv.options.hostnameBlacklist).includes(hostname)) {
+				throw new Error("This hostname is blacklisted for access through this.game.http.*");
+			}
+		};
+
+		return {
+			runBatch: (domain, hookName, params)=> {
+				if (this.parent.game.checkDomainSync(context.game.appid, domain)) {
+					return this.runBatch(context, domain, hookName, params);
+				} else {
+					throw new errors.BadArgument("Your game doesn't have access to this domain");
+				}
+			},
+
+			runBatchWithLock: (domain, hookName, params, resource=null)=> {
+				if (this.parent.game.checkDomainSync(context.game.appid, domain)) {
+					return this.runBatchWithLock(context, domain, hookName, params, resource);
+				} else {
+					throw new errors.BadArgument("Your game doesn't have access to this domain");
+				}
+			},
+
+			getPrivateDomain: () => {
+				return this.getPrivateDomain(context.game.appid);
+			},
+
+			sendEvent: (domain, user_id, message)=> {
+				if (this.parent.game.checkDomainSync(context.game.appid, domain)) {
+					return this.sendEvent(context, domain, user_id, message);
+				} else {
+					throw new errors.BadArgument("Your game doesn't have access to this domain");
+				}
+			},
+
+			sendVolatileEvent: (domain, user_id, message)=> {
+				if (this.parent.game.checkDomainSync(context.game.appid, domain)) {
+					return this.sendVolatileEvent(context, domain, user_id, message);
+				} else {
+					throw new errors.BadArgument("Your game doesn't have access to this domain");
+				}
+			},
+
+			jwt,
+
+			http: {
+				get(_url){
+					_checkUrl(_url);
+					return superagent.get(_url);
+				},
+
+				post(_url){
+					_checkUrl(_url);
+					return superagent.post(_url);
+				},
+
+				put(_url){
+					_checkUrl(_url);
+					return superagent.put(_url);
+				},
+		
+				del: _url=> {
+					_checkUrl(_url);
+					return superagent.del(_url);
+				}
+			},
+
+			nodemailer,
+
+			redlock: ()=> this.redlock
+		};
+	}
+}
+
+module.exports = new GameAPI();
+

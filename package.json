@@ -2,9 +2,9 @@
   "name": "xtralife-api",
   "version": "3.3.13",
   "description": "Xtralife.cloud business logic shared between components",
-  "main": "src/index.coffee",
+  "main": "src/index.js",
   "scripts": {
-    "test": "mocha test/test_*.coffee"
+    "test": "mocha test/test_*.js"
   },
   "keywords": [
     "backend",
@@ -15,9 +15,9 @@
     "url": "https://github.com/xtralifecloud/xtralife-api.git"
   },
   "author": "devteam <devteam@xtralife.cloud>",
-  "license": "(C) Xtralife.cloud, 2015",
+  "license": "(C) Xtralife.cloud, 2020",
   "engines": {
-    "node": ">=10.16"
+    "node": ">=v10.18.1"
   },
   "dependencies": {
     "apn": "^1.7.7",
