@@ -57,7 +57,7 @@ module.exports = {
 			"use strict";
 
 			var self = this;
-			var {user_id} = params;
+			var { user_id } = params;
 
 			console.log("Called !");
 
@@ -65,7 +65,7 @@ module.exports = {
 				timerId: "timerId",
 				expirySeconds: 2,
 				description: "description",
-				customData: {test: "hello"}
+				customData: { test: "hello" }
 			};
 
 			return self.timer.add(self.game.getPrivateDomain(), user_id, timerObject, "testRecursiveTimer")
@@ -77,17 +77,27 @@ module.exports = {
 				});
 		},
 
+		__testLoginExternal: function (params, customData, mod) {
+			return this.game.loginExternal("customNetwork", params.id, params.secret, {})
+				.then(gamer => {
+					return mod.debug(JSON.stringify(gamer));
+				})
+				.catch(err => {
+					return mod.debug(err);
+				});
+		},
+
 		"__auth_customNetwork_comclanofthecloudcloudbuilder": function (params, customData, mod) {
-			var {user_id, user_token} = params;
-			return {verified : user_token == user_id};
+			var { user_id, user_token } = params;
+			return { verified: user_token == user_id };
 		},
 
 		"__auth_http_comclanofthecloudcloudbuilder": function (params, customData, mod) {
-			var {user_id, user_token} = params;
-			return this.game.http.get("http://localhost:4444/auth?id="+user_id+"&token="+user_token)
-					.then((res)=> { 
-						return {verified : res.body.valid==true}
-					});
+			var { user_id, user_token } = params;
+			return this.game.http.get("http://localhost:4444/auth?id=" + user_id + "&token=" + user_token)
+				.then((res) => {
+					return { verified: res.body.valid == true }
+				});
 		},
 
 	}

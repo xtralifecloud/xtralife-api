@@ -1,5 +1,6 @@
 /*
  * decaffeinate suggestions:
+ * DS001: Remove Babel/TypeScript constructor workaround
  * DS101: Remove unnecessary use of Array.from
  * DS102: Remove unnecessary code created because of implicit returns
  * DS205: Consider reworking code to avoid use of IIFEs
@@ -29,6 +30,7 @@ class GameAPI extends AbstractAPI {
 
 	constructor() {
 		super();
+		this.sandbox = this.sandbox.bind(this);
 		this.dynGames = {};
 		this.appsForDomain = {};
 		this.eventedDomains = {};
@@ -39,8 +41,8 @@ class GameAPI extends AbstractAPI {
 		return this.coll("games");
 	}
 
-	configure(parent, cb){
-		this.parent = parent;
+	configure(xtralifeapi, cb){
+		this.xtralifeapi = xtralifeapi;
 		this.collDomainDefinition = this.coll("domainDefinition");
 
 		this.gamesByApiKey = {};
@@ -296,8 +298,27 @@ class GameAPI extends AbstractAPI {
 		};
 
 		return {
+			loginExternal: (external, id, token, options)=> {
+				const loginAsync = Q.promisify(this.xtralifeapi.connect.loginExternal, {context: this.xtralifeapi.connect});
+				const addGameAsync = Q.promisify(this.xtralifeapi.connect.addGameToUser, {context: this.xtralifeapi.connect});
+
+				return loginAsync(context.game, external, id, token, options)
+				.then((gamer, created) => {
+					return addGameAsync(context.game, gamer).then(count => {
+						const result = gamer;
+
+						result.gamer_id = gamer._id;
+						result.gamer_secret = this.xtralifeapi.user.sha_passwd(gamer._id);
+						result.servertime = new Date();
+						delete result._id;
+						delete result.networksecret;
+						return result;
+					});
+				});
+			},
+		
 			runBatch: (domain, hookName, params)=> {
-				if (this.parent.game.checkDomainSync(context.game.appid, domain)) {
+				if (this.xtralifeapi.game.checkDomainSync(context.game.appid, domain)) {
 					return this.runBatch(context, domain, hookName, params);
 				} else {
 					throw new errors.BadArgument("Your game doesn't have access to this domain");
@@ -305,7 +326,7 @@ class GameAPI extends AbstractAPI {
 			},
 
 			runBatchWithLock: (domain, hookName, params, resource=null)=> {
-				if (this.parent.game.checkDomainSync(context.game.appid, domain)) {
+				if (this.xtralifeapi.game.checkDomainSync(context.game.appid, domain)) {
 					return this.runBatchWithLock(context, domain, hookName, params, resource);
 				} else {
 					throw new errors.BadArgument("Your game doesn't have access to this domain");
@@ -317,7 +338,7 @@ class GameAPI extends AbstractAPI {
 			},
 
 			sendEvent: (domain, user_id, message)=> {
-				if (this.parent.game.checkDomainSync(context.game.appid, domain)) {
+				if (this.xtralifeapi.game.checkDomainSync(context.game.appid, domain)) {
 					return this.sendEvent(context, domain, user_id, message);
 				} else {
 					throw new errors.BadArgument("Your game doesn't have access to this domain");
@@ -325,7 +346,7 @@ class GameAPI extends AbstractAPI {
 			},
 
 			sendVolatileEvent: (domain, user_id, message)=> {
-				if (this.parent.game.checkDomainSync(context.game.appid, domain)) {
+				if (this.xtralifeapi.game.checkDomainSync(context.game.appid, domain)) {
 					return this.sendVolatileEvent(context, domain, user_id, message);
 				} else {
 					throw new errors.BadArgument("Your game doesn't have access to this domain");
@@ -364,4 +385,3 @@ class GameAPI extends AbstractAPI {
 }
 
 module.exports = new GameAPI();
-

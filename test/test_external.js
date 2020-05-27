@@ -56,10 +56,12 @@ describe("Xtralife external network", function(){
         return done();
     }));
 
-	return it('should not connect with a http custom network', done => xtralife.api.connect.loginExternal(game, "http", "good", "good", {}, (err, user, created)=> {
+	it('should not connect with a http custom network', done => xtralife.api.connect.loginExternal(game, "http", "good", "good", {}, (err, user, created)=> {
         console.log(err);
         user.network.should.eql("http");
         user.networkid.should.eql("good");
         return done();
     }));
+
+	it('should also work from a batch', () => xtralife.api.game.runBatch(context, domain, 'testLoginExternal', { id: "good", secret: "good" }));
 });
