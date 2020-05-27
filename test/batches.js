@@ -77,6 +77,16 @@ module.exports = {
 				});
 		},
 
+		__testLoginExternal: function(params, customData, mod) {
+			return this.game.loginExternal("customNetwork", params.id, params.secret, {})
+				.then(gamer => {
+					return mod.debug(JSON.stringify(gamer));
+				})
+				.catch(err => {
+					return mod.debug(err);
+				});
+	},
+
 		"__auth_customNetwork_comclanofthecloudcloudbuilder": function (params, customData, mod) {
 			var {user_id, user_token} = params;
 			return {verified : user_token == user_id};

@@ -55,3 +55,6 @@ describe "Xtralife external network", ()->
 			user.network.should.eql "http"
 			user.networkid.should.eql "good"
 			done()
+
+	it 'should also work from a batch', ->
+		xtralife.api.game.runBatch context, domain, 'testLoginExternal', { id: "good", secret: "good" }

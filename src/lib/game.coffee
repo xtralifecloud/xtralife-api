@@ -27,7 +27,7 @@ class GameAPI extends AbstractAPI
 	collgame: ()->
 		@coll("games")
 
-	configure: (@parent, cb)->
+	configure: (@xtralifeapi, cb)->
 		@collDomainDefinition = @coll("domainDefinition")
 
 		@gamesByApiKey = {}
@@ -217,7 +217,7 @@ class GameAPI extends AbstractAPI
 		throw new errors.RestrictedDomain("Invalid domain access") unless @checkDomainSync(game.appid, domain)
 		logger.debug "hookLog: #{domain}.#{hookName} - #{log}", {appid: game.appid}
 
-	sandbox: (context)->
+	sandbox: (context)=>
 		_checkUrl = (_url)->
 			hostname = url.parse(_url).hostname
 			unless xlenv.options.hostnameBlacklist?
@@ -227,14 +227,30 @@ class GameAPI extends AbstractAPI
 			if hostname in xlenv.options.hostnameBlacklist
 				throw new Error("This hostname is blacklisted for access through this.game.http.*")
 
+		loginExternal: (external, id, token, options)=>
+			loginAsync = Q.promisify @xtralifeapi.connect.loginExternal, context: @xtralifeapi.connect
+			addGameAsync = Q.promisify @xtralifeapi.connect.addGameToUser, context: @xtralifeapi.connect
+
+			loginAsync(context.game, external, id, token, options)
+			.then (gamer, created) =>
+				addGameAsync(context.game, gamer).then (count) =>
+					result = gamer
+
+					result.gamer_id = gamer._id
+					result.gamer_secret = @xtralifeapi.user.sha_passwd(gamer._id)
+					result.servertime = new Date()
+					delete result._id
+					delete result.networksecret
+					return result
+		
 		runBatch: (domain, hookName, params)=>
-			if @parent.game.checkDomainSync context.game.appid, domain
+			if @xtralifeapi.game.checkDomainSync context.game.appid, domain
 				@runBatch context, domain, hookName, params
 			else
 				throw new errors.BadArgument("Your game doesn't have access to this domain")
 
 		runBatchWithLock: (domain, hookName, params, resource=null)=>
-			if @parent.game.checkDomainSync context.game.appid, domain
+			if @xtralifeapi.game.checkDomainSync context.game.appid, domain
 				@runBatchWithLock context, domain, hookName, params, resource
 			else
 				throw new errors.BadArgument("Your game doesn't have access to this domain")
@@ -243,13 +259,13 @@ class GameAPI extends AbstractAPI
 			@getPrivateDomain(context.game.appid)
 
 		sendEvent: (domain, user_id, message)=>
-			if @parent.game.checkDomainSync context.game.appid, domain
+			if @xtralifeapi.game.checkDomainSync context.game.appid, domain
 				@sendEvent context, domain, user_id, message
 			else
 				throw new errors.BadArgument("Your game doesn't have access to this domain")
 
 		sendVolatileEvent: (domain, user_id, message)=>
-			if @parent.game.checkDomainSync context.game.appid, domain
+			if @xtralifeapi.game.checkDomainSync context.game.appid, domain
 				@sendVolatileEvent context, domain, user_id, message
 			else
 				throw new errors.BadArgument("Your game doesn't have access to this domain")
@@ -278,4 +294,3 @@ class GameAPI extends AbstractAPI
 		redlock: ()=> @redlock
 
 module.exports = new GameAPI()
-
