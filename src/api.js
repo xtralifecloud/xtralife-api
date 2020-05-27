@@ -1,3 +1,4 @@
+//@ts-check
 /*
  * decaffeinate suggestions:
  * DS101: Remove unnecessary use of Array.from
@@ -43,10 +44,12 @@ class XtralifeAPI {
 		this.modules = [this.connect, this.user, this.social, this.outline, this.transaction, this.virtualfs, this.leaderboard, this.gamevfs, this.achievement, this.match, this.store, this.index, this.timer, this.kv];
 
 		// WARNING @collections must always be first
+		// @ts-ignore
 		this.modules.unshift(this.collections);
 
 		// WARNING, surprisingly, games, should be the last to be initialized as it suscribe to a redisConfigurtion
 		// and then the callback on dynamic config could be called before the initialiation of all modules!
+		// @ts-ignore
 		this.modules.push(this.game);
 
 		return async.mapSeries(this.modules, (each, localcb)=> {

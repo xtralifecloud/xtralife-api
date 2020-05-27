@@ -1,3 +1,4 @@
+//@ts-check
 /*
  * decaffeinate suggestions:
  * DS102: Remove unnecessary code created because of implicit returns
@@ -6,8 +7,9 @@
  */
 
 class XLAPIError extends Error {
-	constructor() {
+	constructor(message) {
 		super();
+		this.message = message
 	}
 
 	isRetryable() { return false; }
@@ -26,117 +28,74 @@ class XLAPIRetryableError extends XLAPIError {
 	isRetryable() { return true; }
 }
 
-class BadArgument extends XLAPIError {
-	static initClass() {
-		this.prototype.name = "BadArgument";
-		this.prototype.message = "A passed argument is invalid";
-		this.prototype.xtralifecode = 1;
+class BadArgument extends XLAPIError { 
+	constructor(message) {
+		super(message);
 	}
 }
-BadArgument.initClass();
+BadArgument.name = "BadArgument";
+BadArgument.message = "A passed argument is invalid";
+BadArgument.xtralifecode = 1;
 
-class AlreadyJoinedMatch extends XLAPIError {
-	static initClass() {
-		this.prototype.name = "AlreadyJoinedMatch";
-		this.prototype.message = "You are already being part of this match";
-		this.prototype.xtralifecode = 1;
-	}
-}
-AlreadyJoinedMatch.initClass();
+class AlreadyJoinedMatch extends XLAPIError { }
+AlreadyJoinedMatch.name = "AlreadyJoinedMatch";
+AlreadyJoinedMatch.message = "You are already being part of this match";
+AlreadyJoinedMatch.xtralifecode = 1;
 
-class NoShoeInMatch extends XLAPIError {
-	static initClass() {
-		this.prototype.name = "NoShoeInMatch";
-		this.prototype.message = "Unable to draw from shoe unless items have been put in it at creation";
-		this.prototype.xtralifecode = 1;
-	}
-}
-NoShoeInMatch.initClass();
+class NoShoeInMatch extends XLAPIError { }
+NoShoeInMatch.name = "NoShoeInMatch";
+NoShoeInMatch.message = "Unable to draw from shoe unless items have been put in it at creation";
+NoShoeInMatch.xtralifecode = 1;
 
-class MatchNotFinished extends XLAPIError {
-	static initClass() {
-		this.prototype.name = "MatchNotFinished";
-		this.prototype.message = "This match needs to be finished in order to perform this operation";
-		this.prototype.xtralifecode = 1;
-	}
-}
-MatchNotFinished.initClass();
+class MatchNotFinished extends XLAPIError { }
+MatchNotFinished.name = "MatchNotFinished";
+MatchNotFinished.message = "This match needs to be finished in order to perform this operation";
+MatchNotFinished.xtralifecode = 1;
 
-class MatchAlreadyFinished extends XLAPIError {
-	static initClass() {
-		this.prototype.name = "MatchAlreadyFinished";
-		this.prototype.message = "This match is already finished";
-		this.prototype.xtralifecode = 1;
-	}
-}
-MatchAlreadyFinished.initClass();
+class MatchAlreadyFinished extends XLAPIError { }
+MatchAlreadyFinished.name = "MatchAlreadyFinished";
+MatchAlreadyFinished.message = "This match is already finished";
+MatchAlreadyFinished.xtralifecode = 1;
 
-class MaximumNumberOfPlayersReached extends XLAPIError {
-	static initClass() {
-		this.prototype.name = "MaximumNumberOfPlayersReached";
-		this.prototype.message = "This match can not accept any additional player";
-		this.prototype.xtralifecode = 1;
-	}
-}
-MaximumNumberOfPlayersReached.initClass();
+class MaximumNumberOfPlayersReached extends XLAPIError { }
+MaximumNumberOfPlayersReached.name = "MaximumNumberOfPlayersReached";
+MaximumNumberOfPlayersReached.message = "This match can not accept any additional player";
+MaximumNumberOfPlayersReached.xtralifecode = 1;
 
-class AlreadyInvitedToMatch extends XLAPIError {
-	static initClass() {
-		this.prototype.name = "AlreadyInvitedToMatch";
-		this.prototype.message = "The player is already invited to the match";
-		this.prototype.xtralifecode = 1;
-	}
-}
-AlreadyInvitedToMatch.initClass();
+class AlreadyInvitedToMatch extends XLAPIError { }
+AlreadyInvitedToMatch.name = "AlreadyInvitedToMatch";
+AlreadyInvitedToMatch.message = "The player is already invited to the match";
+AlreadyInvitedToMatch.xtralifecode = 1;
 
-class InvalidLastEventId extends XLAPIError {
-	static initClass() {
-		this.prototype.name = "InvalidLastEventId";
-		this.prototype.message = "This event ID is invalid, please resynchronize";
-		this.prototype.xtralifecode = 1;
-	}
-}
-InvalidLastEventId.initClass();
+class InvalidLastEventId extends XLAPIError { }
+InvalidLastEventId.name = "InvalidLastEventId";
+InvalidLastEventId.message = "This event ID is invalid, please resynchronize";
+InvalidLastEventId.xtralifecode = 1;
 
 class ExternalStoreError extends XLAPIError {
-	static initClass() {
-		this.prototype.name = "ExternalStoreError";
-		this.prototype.xtralifecode = 1;
-	}
 	constructor(serverresponse) {
 		super();
 		this.serverresponse = serverresponse;
 		this.message = `There was an error communicating with the external store, code: ${this.serverresponse}`;
 	}
 }
-ExternalStoreError.initClass();
+ExternalStoreError.name = "ExternalStoreError";
+ExternalStoreError.xtralifecode = 1;
 
-class MissingScore extends XLAPIError {
-	static initClass() {
-		this.prototype.name = "MissingScore";
-		this.prototype.message = "Gamer has never scored in specified leaderboard";
-		this.prototype.xtralifecode = 2;
-	}
-}
-MissingScore.initClass();
+class MissingScore extends XLAPIError { }
+MissingScore.name = "MissingScore";
+MissingScore.message = "Gamer has never scored in specified leaderboard";
+MissingScore.xtralifecode = 2;
 
-class BadMatchID extends XLAPIError {
-	static initClass() {
-		this.prototype.name = "BadMatchID";
-		this.prototype.message = "This match does not exist or is not active";
-		this.prototype.xtralifecode = 3;
-	}
-}
-BadMatchID.initClass();
+class BadMatchID extends XLAPIError { }
+BadMatchID.name = "BadMatchID";
+BadMatchID.message = "This match does not exist or is not active";
+BadMatchID.xtralifecode = 3;
 
-class BadGamerID extends XLAPIError {
-	static initClass() {
-		this.prototype.name = "BadGamerID";
-		this.prototype.message = "A passed gamer ID is invalid";
-		this.prototype.xtralifecode = 3;
-	}
-}
-BadGamerID.initClass();
+class BadGamerID extends XLAPIError { }
+BadGamerID.name = "BadGamerID";
+BadGamerID.message = "A passed gamer ID is invalid";
+BadGamerID.xtralifecode = 3;
 
 class BadUserCredentials extends XLAPIError {
 	static initClass() {
@@ -217,7 +176,7 @@ class QueryError extends XLAPIError {
 	}
 	constructor(message) {
 		super();
-		this.message = message; 
+		this.message = message;
 	}
 }
 QueryError.initClass();
@@ -344,7 +303,7 @@ class InternalError extends XLAPIError {
 	}
 	constructor(message) {
 		super();
-		 this.message = message;
+		this.message = message;
 	}
 }
 InternalError.initClass();
@@ -407,7 +366,7 @@ class HookRecursionError extends XLAPIError {
 	}
 	constructor(message) {
 		super();
-		 this.message = message; 
+		this.message = message;
 	}
 }
 HookRecursionError.initClass();
@@ -419,7 +378,7 @@ class HookError extends XLAPIError {
 	}
 	constructor(message) {
 		super();
-		 this.message = message; 
+		this.message = message;
 	}
 }
 HookError.initClass();

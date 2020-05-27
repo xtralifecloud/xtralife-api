@@ -1,3 +1,4 @@
+//@ts-check
 /*
  * decaffeinate suggestions:
  * DS101: Remove unnecessary use of Array.from
@@ -16,7 +17,7 @@ const {
 
 const facebook = require("./network/facebook.js");
 const google = require("./network/google.js");
-const errors = require("./../errors.js");
+const errors = require("../errors.js");
 const _ = require("underscore");
 
 const AbstractAPI = require("../AbstractAPI.js");

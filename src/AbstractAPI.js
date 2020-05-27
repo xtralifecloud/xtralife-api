@@ -1,3 +1,4 @@
+//@ts-check
 /*
  * decaffeinate suggestions:
  * DS102: Remove unnecessary code created because of implicit returns
@@ -10,6 +11,7 @@ const xtralifeerrors = require('./errors.js');
 
 const checktypes = require('check-types');
 
+// @ts-ignore
 checktypes.objectid = id => (id != null ? id._bsontype : undefined) === 'ObjectID';
 
 const shouldRunPreconditions = process.env.NODE_ENV !== "production";
@@ -35,7 +37,9 @@ class AbstractAPI {
 	configure(parent, cb){
 		return cb();
 	}
-
+	configureGame(game, cb) {
+		return cb();
+	}
 	// Called after every module has been initialized but before xtralife is fully ready
 	// cb (err)
 	afterConfigure(parent, cb){

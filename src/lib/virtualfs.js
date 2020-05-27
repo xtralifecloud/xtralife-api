@@ -1,3 +1,4 @@
+//@ts-check
 /*
  * decaffeinate suggestions:
  * DS101: Remove unnecessary use of Array.from
@@ -6,9 +7,10 @@
  * Full docs: https://github.com/decaffeinate/decaffeinate/blob/master/docs/suggestions.md
  */
 const async = require("async");
+// @ts-ignore
 const extend = require('util')._extend;
 const {
-    ObjectID
+	ObjectID
 } = require('mongodb');
 const AWS = require('aws-sdk');
 
@@ -19,70 +21,70 @@ const crypto = require("crypto");
 
 const Q = require('bluebird');
 
-const generateHash = function(userid, key){
+const generateHash = function (userid, key) {
 	const sha = crypto.createHash('sha1');
 	sha.update(`${userid}-${key}- secret to keep S3 private`); // TODOXTRA secret MUST be in xlenv
 	return sha.digest('hex');
 };
 
 class VirtualfsAPI extends AbstractAPI {
-	constructor(){
+	constructor() {
 		super();
 	}
 
-	configure(parent, callback){
+	configure(parent, callback) {
 
 		this.parent = parent;
 		this.domains = this.coll('domains');
 
-		this.domains.createIndex({domain:1, user_id: 1}, {unique: true}, function(err){
+		this.domains.createIndex({ domain: 1, user_id: 1 }, { unique: true }, function (err) {
 			if (err != null) { return callback(err); }
 			logger.info("Virtualfs initialized");
 
 			return callback(err, {});
-	});
+		});
 
 		if (xlenv.AWS != null) {
 			AWS.config.update(xlenv.AWS.S3.credentials);
-			return this.s3bucket = new AWS.S3({params: {Bucket: xlenv.AWS.S3.bucket}});
+			return this.s3bucket = new AWS.S3({ params: { Bucket: xlenv.AWS.S3.bucket } });
 		}
 	}
-			//Q.promisifyAll @s3bucket
+	//Q.promisifyAll @s3bucket
 
-	onDeleteUser(user_id, cb){
+	onDeleteUser(user_id, cb) {
 		logger.debug(`delete user ${user_id} for virtualfs`);
-		return this.domains.find({user_id, fs: { "$exists" : true}}, {domain: 1, fs: 1}).toArray((err, docs)=> {
+		return this.domains.find({ user_id, fs: { "$exists": true } }, { domain: 1, fs: 1 }).toArray((err, docs) => {
 			if (docs == null) { return cb(err); }
 			if (err != null) { return cb(err); }
 			return async.forEach(docs, (item, localcb) => {
-				let params = {Bucket: xlenv.AWS.S3.bucket, Delimiter :  `${item.domain}/${user_id}/`};
+				let params = { Bucket: xlenv.AWS.S3.bucket, Delimiter: `${item.domain}/${user_id}/`, Delete: undefined };
 				return this.s3bucket.listObjects(params, (err, data) => {
 					if (err != null) { logger.error(err); }
 					if (err != null) { return localcb(null); }
 					const keys = [];
 					for (let each of Array.from(data.Contents)) { keys.push(each.Key); }
-					params = {Bucket: xlenv.AWS.S3.bucket, Delete : { Objects : keys} };
+					params = { Bucket: xlenv.AWS.S3.bucket, Delete: { Objects: keys }, Delimiter: undefined };
 					return this.s3bucket.deleteObjects(params, err => {
 						logger.warn(`remove s3 objects ${keys} : ${err}`);
 						return localcb(null);
 					});
 				});
 			}
-			, err => cb(null));
+				, err => cb(null));
 		});
 	}
 
-	read(context, domain, user_id, key){
+	read(context, domain, user_id, key) {
 		this.pre(check => ({
-            "domain must be a valid domain": check.nonEmptyString(domain),
-            "user_id must be an ObjectID": check.objectid(user_id),
-            "key may be an unempty string or array": check.maybe.nonEmptyString(key) || key instanceof Array
-        }));
+			"domain must be a valid domain": check.nonEmptyString(domain),
+			"user_id must be an ObjectID": check.objectid(user_id),
+			"key may be an unempty string or array": check.maybe.nonEmptyString(key) || key instanceof Array
+		}));
 
 		return this.handleHook("before-gamervfs-read", context, domain, {
 			user_id,
 			key
-		}).then(beforeData=> {
+		}).then(beforeData => {
 
 			const query = {
 				domain,
@@ -96,30 +98,31 @@ class VirtualfsAPI extends AbstractAPI {
 				field[(key == null) ? 'fs' : `fs.${key}`] = 1;
 			}
 
-			return this.domains.findOne(query, {projection: field})
-			.then(value=> {
-				return this.handleHook("after-gamervfs-read", context, domain, {
-					user_id,
-					key,
-					value
-				}).then(function(afterData){
-					if ((value != null) && (value.fs != null)) { return value.fs; } else { return {}; }});
-		});
+			return this.domains.findOne(query, { projection: field })
+				.then(value => {
+					return this.handleHook("after-gamervfs-read", context, domain, {
+						user_id,
+						key,
+						value
+					}).then(function (afterData) {
+						if ((value != null) && (value.fs != null)) { return value.fs; } else { return {}; }
+					});
+				});
 		});
 	}
 
-	write(context, domain, user_id, key, value){
+	write(context, domain, user_id, key, value) {
 		this.pre(check => ({
-            "domain must be a valid domain": check.nonEmptyString(domain),
-            "user_id must be an ObjectID": check.objectid(user_id),
-            "key may be a unempty string": check.maybe.nonEmptyString(key) || check.object(key)
-        }));
+			"domain must be a valid domain": check.nonEmptyString(domain),
+			"user_id must be an ObjectID": check.objectid(user_id),
+			"key may be a unempty string": check.maybe.nonEmptyString(key) || check.object(key)
+		}));
 
 		return this.handleHook("before-gamervfs-write", context, domain, {
 			user_id,
 			key,
 			value
-		}).then(beforeData=> {
+		}).then(beforeData => {
 
 			const query = {
 				domain,
@@ -135,29 +138,29 @@ class VirtualfsAPI extends AbstractAPI {
 				for (let k in key) { value = key[k]; set[`fs.${k}`] = value; }
 			}
 
-			return this.domains.updateOne(query, {$set: set}, { upsert: true });
+			return this.domains.updateOne(query, { $set: set }, { upsert: true });
 		})
 
-		.then(result=> {
-			return this.handleHook("after-gamervfs-write", context, domain, {
-				user_id,
-				key,
-				value
-			}).then(afterData => result.result.n);
-		});
+			.then(result => {
+				return this.handleHook("after-gamervfs-write", context, domain, {
+					user_id,
+					key,
+					value
+				}).then(afterData => result.result.n);
+			});
 	}
 
-	delete(context, domain, user_id, key){
+	delete(context, domain, user_id, key) {
 		this.pre(check => ({
-            "domain must be a valid domain": check.nonEmptyString(domain),
-            "user_id must be an ObjectID": check.objectid(user_id),
-            "key may be a unempty string": check.maybe.nonEmptyString(key)
-        }));
+			"domain must be a valid domain": check.nonEmptyString(domain),
+			"user_id must be an ObjectID": check.objectid(user_id),
+			"key may be a unempty string": check.maybe.nonEmptyString(key)
+		}));
 
 		return this.handleHook("before-gamervfs-delete", context, domain, {
 			user_id,
 			key
-		}).then(beforeData=> {
+		}).then(beforeData => {
 
 			const query = {
 				domain,
@@ -167,39 +170,39 @@ class VirtualfsAPI extends AbstractAPI {
 			const unset = {};
 			unset[(key == null) ? 'fs' : `fs.${key}`] = "";
 
-			return this.domains.updateOne(query, {$unset: unset}, {upsert: true})
-			.then(result=> {
-				return this.handleHook("after-gamervfs-delete", context, domain, {
-					user_id,
-					key
-				}).then(afterData => result.result.n);
-			});
+			return this.domains.updateOne(query, { $unset: unset }, { upsert: true })
+				.then(result => {
+					return this.handleHook("after-gamervfs-delete", context, domain, {
+						user_id,
+						key
+					}).then(afterData => result.result.n);
+				});
 		});
 	}
 
-	readmulti(context, domain, userids, keys, included){
+	readmulti(context, domain, userids, keys, included) {
 		this.pre(check => ({
-            "domain must be a valid domain": check.nonEmptyString(domain),
-            "userids must be an array": check.array(userids),
-            "keys must be an array": check.array(keys),
-            "included may be an array": check.maybe.array(included)
-        }));
+			"domain must be a valid domain": check.nonEmptyString(domain),
+			"userids must be an array": check.array(userids),
+			"keys must be an array": check.array(keys),
+			"included may be an array": check.maybe.array(included)
+		}));
 
 		const query = {
 			domain,
-			user_id: { $in : userids }
+			user_id: { $in: userids }
 		};
 
 		const fields =
-			{user_id : 1};
+			{ user_id: 1 };
 		for (let key of Array.from(keys)) { fields[`fs.${key}`] = 1; }
-		
+
 		if (included != null) {
 			for (let i of Array.from(included)) { fields[i] = 1; }
 		}
 
-		const cursor = this.domains.find(query, {projection: fields});
-		return cursor.toArray().then(values=> {
+		const cursor = this.domains.find(query, { projection: fields });
+		return cursor.toArray().then(values => {
 			for (let v of Array.from(values)) {
 				v.gamer_id = v.user_id;
 				delete v.user_id;
@@ -209,47 +212,46 @@ class VirtualfsAPI extends AbstractAPI {
 		});
 	}
 
-	_getDownloadUrl(domain, user_id, key, secret){
+	_getDownloadUrl(domain, user_id, key, secret) {
 		return `https://s3-${xlenv.AWS.S3.credentials.region}.amazonaws.com/${xlenv.AWS.S3.bucket}/${domain}/${user_id}/${key}-${secret}`;
 	}
 
-	createSignedURL(domain, user_id, key, contentType=null){
+	createSignedURL(domain, user_id, key, contentType = null) {
 		this.pre(check => ({
-            "domain must be a valid domain": check.nonEmptyString(domain)
-        }));
+			"domain must be a valid domain": check.nonEmptyString(domain)
+		}));
 
 
 		// TODO refactor, used in gameFS
 		// forbids checking type of user_id
 		const secret = generateHash(user_id, key);
-		const params = {Bucket: xlenv.AWS.S3.bucket, Key: `${domain}/${user_id}/${key}-${secret}`};
+		const params = { Bucket: xlenv.AWS.S3.bucket, Key: `${domain}/${user_id}/${key}-${secret}` };
 		if (contentType != null) {
 			params.ContentType = contentType;
 		}
 		return this.s3bucket.getSignedUrlAsync('putObject', params)
-		.then(url => {
-			return [url, this._getDownloadUrl(domain, user_id, key, secret)];
-	});
+			.then(url => {
+				return [url, this._getDownloadUrl(domain, user_id, key, secret)];
+			});
 	}
 
-	deleteURL(domain, user_id, key){
+	deleteURL(domain, user_id, key) {
 		this.pre(check => ({
-            "domain must be a valid domain": check.nonEmptyString(domain)
-        }));
-
+			"domain must be a valid domain": check.nonEmptyString(domain)
+		}));
 
 		// TODO refactor, used in gameFS
 		// forbids checking type of user_id
 		const secret = generateHash(user_id, key);
 		const keys3 = `${domain}/${user_id}/${key}-${secret}`;
-		const params = {Bucket: xlenv.AWS.S3.bucket, Key: keys3 };
+		const params = { Bucket: xlenv.AWS.S3.bucket, Key: keys3 };
 		return this.s3bucket.deleteObjectAsync(params);
 	}
 
-	sandbox(context){
+	sandbox(context) {
 		return {
-			AWS: { 
-				S3: options => { 
+			AWS: {
+				S3: options => {
 					if (((options.accessKeyId == null)) || ((options.secretAccessKey == null))) {
 						throw new Error("accessKeyID or secretAccessKey missing from options");
 					}
@@ -257,7 +259,7 @@ class VirtualfsAPI extends AbstractAPI {
 				}
 			},
 
-			read: (domain, user_id, key)=> {
+			read: (domain, user_id, key) => {
 				if (this.parent.game.checkDomainSync(context.game.appid, domain)) {
 					return this.read(context, domain, user_id, key);
 				} else {
@@ -265,7 +267,7 @@ class VirtualfsAPI extends AbstractAPI {
 				}
 			},
 
-			write: (domain, user_id, key, value)=> {
+			write: (domain, user_id, key, value) => {
 				if (this.parent.game.checkDomainSync(context.game.appid, domain)) {
 					return this.write(context, domain, user_id, key, value);
 				} else {
@@ -273,7 +275,7 @@ class VirtualfsAPI extends AbstractAPI {
 				}
 			},
 
-			delete: (domain, user_id, key)=> {
+			delete: (domain, user_id, key) => {
 				if (this.parent.game.checkDomainSync(context.game.appid, domain)) {
 					return this.delete(context, domain, user_id, key);
 				} else {
@@ -281,7 +283,7 @@ class VirtualfsAPI extends AbstractAPI {
 				}
 			},
 
-			readmulti: (domain, userids, keys, included)=> {
+			readmulti: (domain, userids, keys, included) => {
 				if (this.parent.game.checkDomainSync(context.game.appid, domain)) {
 					return this.readmulti(context, domain, userids, keys, included);
 				} else {
@@ -289,21 +291,21 @@ class VirtualfsAPI extends AbstractAPI {
 				}
 			},
 
-			createSignedURL: (domain, user_id, key, contentType=null)=> {
+			createSignedURL: (domain, user_id, key, contentType = null) => {
 				if (this.parent.game.checkDomainSync(context.game.appid, domain)) {
 					return this.createSignedURL(domain, user_id.toString(), key, contentType)
-					.spread((putURL, getURL) => ({
-                        putURL,
-                        getURL
-                    }));
+						.spread((putURL, getURL) => ({
+							putURL,
+							getURL
+						}));
 				} else {
 					throw new errors.BadArgument("Your game doesn't have access to this domain");
 				}
 			},
 
-			deleteURL: (domain, user_id, key)=> {
+			deleteURL: (domain, user_id, key) => {
 				if (this.parent.game.checkDomainSync(context.game.appid, domain)) {
-					return this.deleteUrl(domain, user_id.toString(), key);
+					return this.deleteURL(domain, user_id.toString(), key);
 				} else {
 					throw new errors.BadArgument("Your game doesn't have access to this domain");
 				}

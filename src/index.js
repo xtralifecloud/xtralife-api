@@ -1,3 +1,4 @@
+//@ts-check
 /*
  * decaffeinate suggestions:
  * DS101: Remove unnecessary use of Array.from
@@ -25,7 +26,7 @@ class Xtralife {
 			if (err != null) { console.error(err); }
 			if (err != null) { return cb(err); }
 			
-			this.api.notify = notify;
+			this.api['notify'] = notify;
 
 			const timeoutHandler =
 			xlenv.options.notifyUserOnBrokerTimeout ? (prefix, user, message)=> {
