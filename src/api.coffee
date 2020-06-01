@@ -34,6 +34,10 @@ class XtralifeAPI
 
 		@modules = [@connect, @user, @social, @outline, @transaction, @virtualfs, @leaderboard, @gamevfs, @achievement, @match, @store, @index, @timer, @kv]
 
+		if xlenv.options.disableIndexModule
+			this.modules = this.modules.filter (m) => m != this.index
+
+
 		# WARNING @collections must always be first
 		@modules.unshift @collections
 
