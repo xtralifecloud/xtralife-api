@@ -205,6 +205,16 @@ class UserAPI extends AbstractAPI
 
 	sandbox: (context)->
 		account:
+			existInNetwork: (network, id)=>
+				existAsync = Q.promisify @xtralifeapi.connect.existInNetwork, context: @xtralifeapi.connect
+
+				return existAsync(network, id)
+				.then (gamer) =>
+					console.log(JSON.stringify(gamer))
+					gamer.gamer_id = gamer._id
+					delete gamer._id
+					return gamer
+
 			nuke: (user_id)=>
 				@nuke context, user_id
 
