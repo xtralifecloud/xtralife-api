@@ -8,27 +8,27 @@ const api = require("../api.js");
 const AbstractAPI = require("../AbstractAPI.js");
 const errors = require("../errors.js");
 const {
-    ObjectID
+	ObjectID
 } = require('mongodb');
 
-const Q = require('bluebird');
+const Promise = require('bluebird');
 
 class IndexAPI extends AbstractAPI {
-	constructor(){
+	constructor() {
 		super();
 		this.elastic = null;
 	}
 
-	configure(parent, callback){
+	configure(parent, callback) {
 
 		this.parent = parent;
-		return xlenv.inject(["=elastic"], (err, elastic)=> {
+		return xlenv.inject(["=elastic"], (err, elastic) => {
 
 			this.elastic = elastic;
 			logger.info("ES Index initialized");
 
 			return callback(err, {});
-	});
+		});
 	}
 
 	index(context, domain, indexName, objectId, properties, contents) {
@@ -123,7 +123,7 @@ class IndexAPI extends AbstractAPI {
 		});
 	}
 
-	delete(context, domain, indexName, objectId){
+	delete(context, domain, indexName, objectId) {
 		return this.handleHook("before-index-delete", context, domain, {
 			domain,
 			user_id: context.gamer_id,
@@ -139,7 +139,7 @@ class IndexAPI extends AbstractAPI {
 		});
 	}
 
-	sandbox(context){
+	sandbox(context) {
 		return {
 			index: (domain, indexName, objectId, properties, payload) => {
 				if (this.parent.game.checkDomainSync(context.game.appid, domain)) {
@@ -159,7 +159,7 @@ class IndexAPI extends AbstractAPI {
 
 			// q : http://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-query-string-query.html
 			// sort: ['field1', 'field2']
-			search: (domain, indexName, q, sort, from, max, search_type)=> {
+			search: (domain, indexName, q, sort, from, max, search_type) => {
 				if (sort == null) { sort = []; }
 				if (from == null) { from = 0; }
 				if (max == null) { max = 10; }
@@ -172,7 +172,7 @@ class IndexAPI extends AbstractAPI {
 			},
 
 			// query : https://www.elastic.co/guide/en/elasticsearch/guide/current/full-body-search.html
-			query: (domain, indexName, query, from, max, search_type)=> {
+			query: (domain, indexName, query, from, max, search_type) => {
 				if (from == null) { from = 0; }
 				if (max == null) { max = 10; }
 				if (search_type == null) { search_type = 'query_then_fetch'; }
@@ -183,7 +183,7 @@ class IndexAPI extends AbstractAPI {
 				}
 			},
 
-			delete: (domain, indexName, objectId)=> {
+			delete: (domain, indexName, objectId) => {
 				if (this.parent.game.checkDomainSync(context.game.appid, domain)) {
 					return this.delete(context, domain, indexName, objectId);
 				} else {
@@ -191,7 +191,7 @@ class IndexAPI extends AbstractAPI {
 				}
 			},
 
-			getClient: ()=> { // OpenSource version ONLY, not available in the hosted edition
+			getClient: () => { // OpenSource version ONLY, not available in the hosted edition
 				return this.elastic;
 			}
 		};

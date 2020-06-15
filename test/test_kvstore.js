@@ -24,32 +24,32 @@ let user_id2 = null;
 let context = null;
 domain = 'com.clanofthecloud.cloudbuilder.azerty';
 
-describe("Xtralife KV store module", function(){
+describe("Xtralife KV store module", function () {
 
-	before('configure Xtralife', function(done){
+	before('configure Xtralife', function (done) {
 		this.timeout(5000);
-		return xtralife.configure(function(err){
+		return xtralife.configure(function (err) {
 			should(err).not.be.ok;
 
 			game = xtralife.api.game.dynGames['com.clanofthecloud.cloudbuilder'];
-			context = {game};
+			context = { game };
 			return done();
 		});
 	});
 
-	it('should create 2 new gamers', function(done){
+	it('should create 2 new gamers', function (done) {
 		let profile = {
-			displayName : "Test user 1",
+			displayName: "Test user 1",
 			lang: "en"
 		};
-		return xtralife.api.connect.register(game, "anonymous", null, null, profile, function(err, user){
+		return xtralife.api.connect.register(game, "anonymous", null, null, profile, function (err, user) {
 			user_id = user._id;
 
 			profile = {
-				displayName : "Test user 2",
+				displayName: "Test user 2",
 				lang: "en"
 			};
-			return xtralife.api.connect.register(game, "anonymous", null, null, profile, function(err, user){
+			return xtralife.api.connect.register(game, "anonymous", null, null, profile, function (err, user) {
 				user_id2 = user._id;
 				return done();
 			});
@@ -57,49 +57,51 @@ describe("Xtralife KV store module", function(){
 	});
 
 	it('should create a new key', () => xtralife.api.kv.create(context, domain, user_id, 'hello', 'world', {})
-    .then(result => result.ok.should.eql(1)));
+		.then(result => result.ok.should.eql(1)));
 
-	it('should send a duplicate key error if attempting to re-create the key', function(done){
+	it('should send a duplicate key error if attempting to re-create the key', function (done) {
 		xtralife.api.kv.create(context, domain, user_id, 'hello', 'world', {})
-		.catch(function(err){
-			err.code.should.eql(11000);
-			return done();
-		});
+			.catch(function (err) {
+				err.code.should.eql(11000);
+				return done();
+			});
 		return null;
 	});
 
 	it('should read the key', () => xtralife.api.kv.get(context, domain, user_id, 'hello')
-    .then(value => value.value.should.eql('world')));
+		.then(value => value.value.should.eql('world')));
 
 	it('should not read key with user_id2', () => xtralife.api.kv.get(context, domain, user_id2, 'hello')
-    .then(value => should(value).eql(null)));
+		.then(value => should(value).eql(null)));
 
-	it('should set the key', () => xtralife.api.kv.set(context, domain, user_id, 'hello', {itis: "an object"})
-    .then(() => xtralife.api.kv.get(context, domain, user_id, 'hello')).then(value => value.value.should.eql({itis: "an object"})));
+	it('should set the key', () => xtralife.api.kv.set(context, domain, user_id, 'hello', { itis: "an object" })
+		.then(() => xtralife.api.kv.get(context, domain, user_id, 'hello')).then(value => value.value.should.eql({ itis: "an object" })));
 
 
-	it('should update the key', () => xtralife.api.kv.updateObject(context, domain, user_id, 'hello', {itis: "another object", "with.subobject": "like this"})
-    .then(() => xtralife.api.kv.get(context, domain, user_id, 'hello')).then(value => value.value.should.eql({itis: "another object", with: {subobject: "like this"}})));
+	it('should update the key', () => xtralife.api.kv.updateObject(context, domain, user_id, 'hello', { itis: "another object", "with.subobject": "like this" })
+		.then(() => xtralife.api.kv.get(context, domain, user_id, 'hello')).then(value => value.value.should.eql({ itis: "another object", with: { subobject: "like this" } })));
 
 	it('should reset the key', () => xtralife.api.kv.set(context, domain, user_id, 'hello', "world"));
 
-	it('should change ACL then read/write key with user_id2', () => xtralife.api.kv.changeACL(context, domain, user_id, 'hello', {r: '*', w: [user_id, user_id2]})
-    .then(() => xtralife.api.kv.get(context, domain, user_id2, 'hello')).then(value => value.value.should.eql('world')).then(() => xtralife.api.kv.set(context, domain, user_id2, 'hello', 'WORLD')).then(() => xtralife.api.kv.get(context, domain, user_id, 'hello')).then(value => value.value.should.eql('WORLD')));
+	it('should change ACL then read/write key with user_id2', () => xtralife.api.kv.changeACL(context, domain, user_id, 'hello', { r: '*', w: [user_id, user_id2] })
+		.then(() => xtralife.api.kv.get(context, domain, user_id2, 'hello')).then(value => value.value.should.eql('world')).then(() => xtralife.api.kv.set(context, domain, user_id2, 'hello', 'WORLD')).then(() => xtralife.api.kv.get(context, domain, user_id, 'hello')).then(value => value.value.should.eql('WORLD')));
 
-	it('should also work from a batch', () => xtralife.api.game.runBatch(context, domain, 'testkvcreate', {user_id})
-    .then(result => xtralife.api.game.runBatch(context, domain, 'testkvget', {user_id}))
-    .then(function(result){
-        result.value.should.eql('works too');
-        return xtralife.api.game.runBatch(context, domain, 'testkvset', {user_id});})
-    .then(result => xtralife.api.game.runBatch(context, domain, 'testkvget', {user_id}))
-    .then(function(result){
-        result.value.should.eql('still works');
-        return xtralife.api.game.runBatch(context, domain, 'testkvdel', {user_id});}));
+	it('should also work from a batch', () => xtralife.api.game.runBatch(context, domain, 'testkvcreate', { user_id })
+		.then(result => xtralife.api.game.runBatch(context, domain, 'testkvget', { user_id }))
+		.then(function (result) {
+			result.value.should.eql('works too');
+			return xtralife.api.game.runBatch(context, domain, 'testkvset', { user_id });
+		})
+		.then(result => xtralife.api.game.runBatch(context, domain, 'testkvget', { user_id }))
+		.then(function (result) {
+			result.value.should.eql('still works');
+			return xtralife.api.game.runBatch(context, domain, 'testkvdel', { user_id });
+		}));
 
 	return after('should delete the key', () => xtralife.api.kv.del(context, domain, user_id, 'hello')
-    .then(function(result){
-        result.ok.should.eql(1);
-        return result.n.should.eql(1);
-    }));
+		.then(function (result) {
+			result.ok.should.eql(1);
+			return result.n.should.eql(1);
+		}));
 });
 

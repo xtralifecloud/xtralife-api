@@ -19,8 +19,6 @@ const errors = require("../errors.js");
 
 const crypto = require("crypto");
 
-const Q = require('bluebird');
-
 const generateHash = function (userid, key) {
 	const sha = crypto.createHash('sha1');
 	sha.update(`${userid}-${key}- secret to keep S3 private`); // TODOXTRA secret MUST be in xlenv
@@ -49,7 +47,7 @@ class VirtualfsAPI extends AbstractAPI {
 			return this.s3bucket = new AWS.S3({ params: { Bucket: xlenv.AWS.S3.bucket } });
 		}
 	}
-	//Q.promisifyAll @s3bucket
+	//Promise.promisifyAll(this.s3bucket)
 
 	onDeleteUser(user_id, cb) {
 		logger.debug(`delete user ${user_id} for virtualfs`);
@@ -229,6 +227,7 @@ class VirtualfsAPI extends AbstractAPI {
 		if (contentType != null) {
 			params.ContentType = contentType;
 		}
+		// @ts-ignore
 		return this.s3bucket.getSignedUrlAsync('putObject', params)
 			.then(url => {
 				return [url, this._getDownloadUrl(domain, user_id, key, secret)];
@@ -245,6 +244,7 @@ class VirtualfsAPI extends AbstractAPI {
 		const secret = generateHash(user_id, key);
 		const keys3 = `${domain}/${user_id}/${key}-${secret}`;
 		const params = { Bucket: xlenv.AWS.S3.bucket, Key: keys3 };
+		// @ts-ignore
 		return this.s3bucket.deleteObjectAsync(params);
 	}
 

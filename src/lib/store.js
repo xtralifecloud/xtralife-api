@@ -13,7 +13,7 @@ const async = require("async");
 const errors = require("../errors.js");
 const http = require("http");
 const {
-    ObjectID
+	ObjectID
 } = require('mongodb');
 const request = require("superagent");
 const stream = require('stream');
@@ -23,17 +23,17 @@ const moduleName = "In-app billing";
 const privateDomain = game => `${game.appid}.${game.apisecret}`;
 
 class StoreAPI extends AbstractAPI {
-	constructor(){
+	constructor() {
 		super();
 	}
 
-	configure(xtralifeApi, callback){
+	configure(xtralifeApi, callback) {
 		this.xtralifeApi = xtralifeApi;
 		async.parallel([
-			cb=> {
-				return this.coll('productDefinition').createIndex({appid:1}, {unique: true}, cb);
+			cb => {
+				return this.coll('productDefinition').createIndex({ appid: 1 }, { unique: true }, cb);
 			}
-		], function(err){
+		], function (err) {
 			if (err != null) { return callback(err); }
 			logger.info(`${moduleName} initialized`);
 			return callback();
@@ -42,22 +42,22 @@ class StoreAPI extends AbstractAPI {
 	}
 
 	// remove common data
-	onDeleteUser(userid, callback){
+	onDeleteUser(userid, callback) {
 		logger.debug(`delete user ${userid} for ${moduleName}`);
 		return callback(null);
 	}
 
 	// BO only
-	addProduct(game, product, cb){
+	addProduct(game, product, cb) {
 		// Check for duplicate
-		return this._fetchProducts(game.appid, (err, products)=> {
+		return this._fetchProducts(game.appid, (err, products) => {
 			if (err != null) { return cb(err); }
 			if (this._hasProductDuplicate(product, products) > 0) {
 				return cb(new errors.DuplicateProduct());
 			}
 
 			// Add the new entry
-			return this.coll('productDefinition').updateOne({appid: game.appid}, {$push: {products: product}}, {upsert: true}, function(err, result){
+			return this.coll('productDefinition').updateOne({ appid: game.appid }, { $push: { products: product } }, { upsert: true }, function (err, result) {
 				if (err != null) { return cb(err); }
 				return cb(null, result.result.n);
 			});
@@ -65,49 +65,49 @@ class StoreAPI extends AbstractAPI {
 	}
 
 	// BO only
-	deleteProduct(game, productId, cb){
-		return this.coll('productDefinition').updateOne({appid: game.appid}, {$pull: {products: {productId}}}, function(err, result){
+	deleteProduct(game, productId, cb) {
+		return this.coll('productDefinition').updateOne({ appid: game.appid }, { $pull: { products: { productId } } }, function (err, result) {
 			if (err != null) { return cb(err); }
 			return cb(null, result.result.n);
 		});
 	}
 
-	getPurchaseHistory(game, user_id, cb){
-		return this.coll('domains').findOne({domain: privateDomain(game), user_id}, {projection:{purchases: 1}}, (err, doc)=> {
+	getPurchaseHistory(game, user_id, cb) {
+		return this.coll('domains').findOne({ domain: privateDomain(game), user_id }, { projection: { purchases: 1 } }, (err, doc) => {
 			return cb(err, doc != null ? doc.purchases : undefined);
 		});
 	}
 
-	listProducts(game, skip, limit, cb){
-		return this._fetchProducts(game.appid, function(err, products){
+	listProducts(game, skip, limit, cb) {
+		return this._fetchProducts(game.appid, function (err, products) {
 			if (err != null) { return cb(err); }
-			return cb(null, products.length, products.slice(skip, +((skip+limit)-1) + 1 || undefined));
-	});
+			return cb(null, products.length, products.slice(skip, +((skip + limit) - 1) + 1 || undefined));
+		});
 	}
 
-	setProducts(game, products, cb){
-		return this.coll('productDefinition').updateOne({appid: game.appid}, {$set: {products}}, {upsert: true}, function(err, result){
+	setProducts(game, products, cb) {
+		return this.coll('productDefinition').updateOne({ appid: game.appid }, { $set: { products } }, { upsert: true }, function (err, result) {
 			if (err != null) { return cb(err); }
 			return cb(null, result.result.n);
 		});
 	}
 
-// Only for tests
-	TEST_clearStoreTransaction(storeTransaction, cb){
-		return this.coll('storeTransaction').deleteOne({_id: storeTransaction}, (err, result) => cb(err));
+	// Only for tests
+	TEST_clearStoreTransaction(storeTransaction, cb) {
+		return this.coll('storeTransaction').deleteOne({ _id: storeTransaction }, (err, result) => cb(err));
 	}
 
-	TEST_setProductDefinitions(appid, productDefinitions, cb){
-		return this.coll('productDefinition').updateOne({appid}, {$set: {products: productDefinitions}}, {upsert: true}, (err, result) => cb(err));
+	TEST_setProductDefinitions(appid, productDefinitions, cb) {
+		return this.coll('productDefinition').updateOne({ appid }, { $set: { products: productDefinitions } }, { upsert: true }, (err, result) => cb(err));
 	}
 
 	// BO only
-	updateProduct(game, productId, product, cb){
+	updateProduct(game, productId, product, cb) {
 		// Do not allow to modify the ID
 		product.productId = productId;
 
 		// Check for duplicates
-		return this._fetchProducts(game.appid, (err, products)=> {
+		return this._fetchProducts(game.appid, (err, products) => {
 			let existingProduct;
 			if (err != null) { return cb(err); }
 			for (let p of Array.from(products)) { if (p.productId === productId) { existingProduct = p; } }
@@ -119,15 +119,15 @@ class StoreAPI extends AbstractAPI {
 				return cb(new errors.DuplicateProduct());
 			}
 
-			return this.coll('productDefinition').updateOne({appid: game.appid, "products.productId": productId}
-			, {$set: {"products.$": product}}, function(err, result){
-				if (err != null) { return cb(err); }
-				return cb(null, result.result.n);
-			});
+			return this.coll('productDefinition').updateOne({ appid: game.appid, "products.productId": productId }
+				, { $set: { "products.$": product } }, function (err, result) {
+					if (err != null) { return cb(err); }
+					return cb(null, result.result.n);
+				});
 		});
 	}
 
-	validateReceipt(context, game, user_id, storeType, productId, price, currency, receiptString, receiptSignature, callback){
+	validateReceipt(context, game, user_id, storeType, productId, price, currency, receiptString, receiptSignature, callback) {
 		const purchase = {
 			productId,
 			store: storeType,
@@ -137,11 +137,11 @@ class StoreAPI extends AbstractAPI {
 		};
 
 		// Ran at the very end
-		const receiptValidated = (err, product, transactionId, storeResponseJson)=> {
+		const receiptValidated = (err, product, transactionId, storeResponseJson) => {
 			// Store the fact that the transaction was denied
 			if (err != null) {
 				if (err instanceof errors.PurchaseNotConfirmed || err instanceof errors.ExternalStoreEnvironmentError) {
-					return this.coll('domains').updateOne({domain: privateDomain(game), user_id}, {$push: {deniedPurchases: purchase}}, {upsert: true}, (callerr, doc) => callback(err));
+					return this.coll('domains').updateOne({ domain: privateDomain(game), user_id }, { $push: { deniedPurchases: purchase } }, { upsert: true }, (callerr, doc) => callback(err));
 				} else {
 					return callback(err);
 				}
@@ -152,31 +152,31 @@ class StoreAPI extends AbstractAPI {
 			// the notification required to consume the product. Thus we simply won't play the transaction again.
 			purchase.storeTransactionId = `${transactionId}`;
 			const txId = `${storeType}.${transactionId}`;
-			return this.coll('storeTransaction').updateOne({_id: txId}, {$set: {storeResponse: storeResponseJson}}, {upsert: true}, (err, result)=> {
+			return this.coll('storeTransaction').updateOne({ _id: txId }, { $set: { storeResponse: storeResponseJson } }, { upsert: true }, (err, result) => {
 				if (err != null) { return callback(err); }
 
 				// Needs process the transaction
 				if ((result.result.nModified > 0) || (result.result.upserted != null)) {
 					// Store in purchase history
-					return this.coll('domains').updateOne({domain: privateDomain(game), user_id}, {$push: {purchases: purchase}}, {upsert: true}, (err, doc)=> {
+					return this.coll('domains').updateOne({ domain: privateDomain(game), user_id }, { $push: { purchases: purchase } }, { upsert: true }, (err, doc) => {
 						if (err != null) { return callback(err); }
 
 						// Run the actual transaction
 						if (((product.reward != null ? product.reward.tx : undefined) != null) && (Object.keys(product.reward.tx).length > 0)) {
-							const runTransaction = domain=> {
+							const runTransaction = domain => {
 								const description = product.reward.description || `Triggered by purchase of ${productId}`;
 								return this.xtralifeApi.transaction.transaction(context, domain, user_id, product.reward.tx, description, false)
-								.spread((balance, achievements) => callback(null, {ok: 1, repeated: 0, purchase}))
-								.catch(callback)
-								.done();
+									.spread((balance, achievements) => callback(null, { ok: 1, repeated: 0, purchase }))
+									.catch(callback)
+									.done();
 							};
 
 							// Check the domain if needed
 							if (product.reward.domain !== "private") {
 								const {
-                                    domain
-                                } = product.reward;
-								return this.xtralifeApi.game.checkDomain(game, domain, (err, isOk)=> {
+									domain
+								} = product.reward;
+								return this.xtralifeApi.game.checkDomain(game, domain, (err, isOk) => {
 									if (err != null) { return callback(err); }
 									if (!isOk) { return callback(new errors.RestrictedDomain); }
 									return runTransaction(domain);
@@ -186,14 +186,14 @@ class StoreAPI extends AbstractAPI {
 							}
 						} else {
 							// No transaction to run
-							return callback(null, {ok: 1, repeated: 0, purchase});
+							return callback(null, { ok: 1, repeated: 0, purchase });
 						}
-				});
+					});
 				} else {
 					logger.info(`Transaction ${transactionId} for store ${storeType} already played`);
 					// Enrich with previous transaction info
-					return this._findPurchase(game, user_id, transactionId, function(err, purchase){
-						result = {ok: 1, repeated: 1};
+					return this._findPurchase(game, user_id, transactionId, function (err, purchase) {
+						result = { ok: 1, repeated: 1 };
 						if (purchase != null) { result.purchase = purchase; }
 						return callback(null, result);
 					});
@@ -202,7 +202,7 @@ class StoreAPI extends AbstractAPI {
 		};
 
 		// Launch the validation
-		return this._fetchProducts(game.appid, (err, products)=> {
+		return this._fetchProducts(game.appid, (err, products) => {
 			let product;
 			if (err != null) { return callback(err); }
 			// Make sure the product exists
@@ -221,18 +221,18 @@ class StoreAPI extends AbstractAPI {
 		});
 	}
 
-	_fetchProducts(appid, cb){
-		return this.coll('productDefinition').findOne({appid}, {projection:{products: 1}}, (err, result)=> {
+	_fetchProducts(appid, cb) {
+		return this.coll('productDefinition').findOne({ appid }, { projection: { products: 1 } }, (err, result) => {
 			if (err != null) { return cb(err); }
 			return cb(null, (result != null ? result.products : undefined) || []);
-	});
+		});
 	}
 
-	_findPurchase(game, user_id, storeTransactionId, cb){
-		return this.coll('domains').findOne({domain: privateDomain(game), user_id}, (err, domain)=> {
+	_findPurchase(game, user_id, storeTransactionId, cb) {
+		return this.coll('domains').findOne({ domain: privateDomain(game), user_id }, (err, domain) => {
 			if (err != null) { return cb(err); }
 
-			const getPurchase = function(){
+			const getPurchase = function () {
 				if (domain != null) {
 					for (let p of Array.from((domain.purchases || []))) { if (p.storeTransactionId === storeTransactionId) { return p; } }
 				}
@@ -242,12 +242,13 @@ class StoreAPI extends AbstractAPI {
 		});
 	}
 
-	_hasProductDuplicate(toInsert, products){
+	_hasProductDuplicate(toInsert, products) {
 		return ((() => {
 			const result = [];
-			for (let p of Array.from(products)) { 				if (((toInsert.productId != null) && (p.productId === toInsert.productId)) ||
-			((toInsert.appStoreId != null) && (p.appStoreId === toInsert.appStoreId)) ||
-			((toInsert.googlePlayId != null) && (p.googlePlayId === toInsert.googlePlayId))) {
+			for (let p of Array.from(products)) {
+				if (((toInsert.productId != null) && (p.productId === toInsert.productId)) ||
+					((toInsert.appStoreId != null) && (p.appStoreId === toInsert.appStoreId)) ||
+					((toInsert.googlePlayId != null) && (p.googlePlayId === toInsert.googlePlayId))) {
 					result.push(p);
 				}
 			}
@@ -256,11 +257,11 @@ class StoreAPI extends AbstractAPI {
 	}
 
 	// Callback: (err, storeType, product, transactionId, storeResponseJson)
-	_validateAppStoreReceipt(game, user_id, storeType, product, receipt, cb){
+	_validateAppStoreReceipt(game, user_id, storeType, product, receipt, cb) {
 		const payment =
-			{receipt};
+			{ receipt };
 
-		return this.IAP.verifyPayment('apple', payment, (error, response)=> {
+		return this.IAP.verifyPayment('apple', payment, (error, response) => {
 			if (error != null) {
 				switch (error.status) {
 					case 21000: case 21002: case 21003: case 21004: case 21006: return cb(new errors.PurchaseNotConfirmed(2, "Error checking the purchase: " + JSON.stringify(error))); break;
@@ -269,10 +270,12 @@ class StoreAPI extends AbstractAPI {
 				}
 			}
 
-			const expectedProduct = (() => { switch (storeType) {
-				case "appstore": return product.appStoreId;
-				case "macstore": return product.macStoreId;
-			} })();
+			const expectedProduct = (() => {
+				switch (storeType) {
+					case "appstore": return product.appStoreId;
+					case "macstore": return product.macStoreId;
+				}
+			})();
 			const appleProduct = _.filter(response.receipt != null ? response.receipt.in_app : undefined, each => each.product_id === expectedProduct);
 			if (appleProduct.length > 0) {
 				return cb(null, product, appleProduct[0].transaction_id, response);
@@ -283,8 +286,8 @@ class StoreAPI extends AbstractAPI {
 	}
 
 	// Callback: (err, storeType, product, transactionId, storeResponseJson)
-	_validateGooglePlayReceipt(game, user_id, product, receipt, cb){
-		return this.xtralifeApi.game.getCerts(game.appid, (err, certs)=> {
+	_validateGooglePlayReceipt(game, user_id, product, receipt, cb) {
+		return this.xtralifeApi.game.getCerts(game.appid, (err, certs) => {
 			let keyObject, receiptObject;
 			if (err != null) { return cb(err != null); }
 
@@ -314,7 +317,7 @@ class StoreAPI extends AbstractAPI {
 					keyObject
 				};
 
-				return this.IAP.verifyPayment('google', payment, (error, response)=> {
+				return this.IAP.verifyPayment('google', payment, (error, response) => {
 					if (error != null) { return cb(new errors.PurchaseNotConfirmed(2, "Error checking the purchase: " + JSON.stringify(error))); }
 					return cb(null, product, response.transactionId, response);
 				});

@@ -14,7 +14,6 @@ xlenv.override(null, require('./config.js'));
 global.logger = xlenv.createLogger(xlenv.logs);
 
 const xtralife = require('../src/index.js');
-const Q = require('bluebird');
 const domain = "com.clanofthecloud.cloudbuilder.azerty";
 
 let game = null;
@@ -28,34 +27,34 @@ const jwt = require('jsonwebtoken');
 const secret = "this is a game specific secret";
 
 
-describe("Xtralife JWT token issuance", function(){
+describe("Xtralife JWT token issuance", function () {
 
-	before('configure Xtralife', function(done){
+	before('configure Xtralife', function (done) {
 		this.timeout(5000);
-		return xtralife.configure(function(err){
+		return xtralife.configure(function (err) {
 			should(err).not.be.ok;
 
 			game = xtralife.api.game.dynGames['com.clanofthecloud.cloudbuilder'];
-			context = {game};
+			context = { game };
 			return done();
 		});
 	});
 
-	before('should create a new gamer', function(done){
+	before('should create a new gamer', function (done) {
 		const profile = {
-			displayName : "Test user 1",
+			displayName: "Test user 1",
 			lang: "en"
 		};
-		return xtralife.api.connect.register(game, "anonymous", null, null, profile, function(err, user){
+		return xtralife.api.connect.register(game, "anonymous", null, null, profile, function (err, user) {
 			user_id = user._id;
 			return done();
 		});
 	});
 
-	it('should issue a jwt token for a gamer', function(){
+	it('should issue a jwt token for a gamer', function () {
 
 		// issue and remember token
-		token = xtralife.api.user.sandbox(context).account.getJWToken(user_id, domain, secret, {hello: "world", isThePayload: true});
+		token = xtralife.api.user.sandbox(context).account.getJWToken(user_id, domain, secret, { hello: "world", isThePayload: true });
 
 		const key = crypto.createHash('sha256').update(secret + domain).digest('hex');
 
@@ -69,7 +68,7 @@ describe("Xtralife JWT token issuance", function(){
 		return decoded.iss.should.eql("xtralife-api");
 	});
 
-	it('should fail with invalid secret', function(done){
+	it('should fail with invalid secret', function (done) {
 
 		const key = crypto.createHash('sha256').update("WRONG SECRET" + domain).digest('hex');
 
@@ -80,7 +79,7 @@ describe("Xtralife JWT token issuance", function(){
 		}
 	});
 
-	return it('should fail with invalid domain', function(done){
+	return it('should fail with invalid domain', function (done) {
 
 		const key = crypto.createHash('sha256').update(secret + "INVALID DOMAIN").digest('hex');
 

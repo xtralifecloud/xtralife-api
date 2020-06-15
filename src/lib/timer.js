@@ -10,15 +10,15 @@ const api = require("../api.js");
 const AbstractAPI = require("../AbstractAPI.js");
 const errors = require("../errors.js");
 const {
-    ObjectID
+	ObjectID
 } = require('mongodb');
 const {
-    DTimer
+	DTimer
 } = require('dtimer');
 const os = require('os');
 const check = require('check-types');
 
-const Q = require('bluebird');
+const Promise = require('bluebird');
 const async = require('async');
 
 const _ = require('underscore');
@@ -34,39 +34,39 @@ const _ = require('underscore');
 const getExpiryTime = timer => timer.baseTime + (timer.expirySeconds * 1000);
 
 const getTimerIds = timers => (() => {
-    const result = [];
-    for (let timerName in timers) {
-        if (['_id', 'domain', 'user_id'].indexOf(timerName) === -1) {
-            result.push(timerName);
-        }
-    }
-    return result;
+	const result = [];
+	for (let timerName in timers) {
+		if (['_id', 'domain', 'user_id'].indexOf(timerName) === -1) {
+			result.push(timerName);
+		}
+	}
+	return result;
 })();
 
 // return null if no timers
 // otherwise returns the id of the earliest timer (the one which should trigger first)
-const getEarliestTimerId = function(timers){
+const getEarliestTimerId = function (timers) {
 	const timerIds = getTimerIds(timers);
 	if (timerIds.length === 0) { return null; }
 	let earliest = timerIds[0];
 
 	for (let id of Array.from(timerIds)) {
 		if (getExpiryTime(timers[id]) < getExpiryTime(timers[earliest])) {
-				earliest = id;
-			}
+			earliest = id;
+		}
 	}
 	return earliest;
 };
 
 // return null if no timers
 // otherwise returns the earliest timer (the one which should trigger first)
-const getEarliestTimer = function(timers){
+const getEarliestTimer = function (timers) {
 	const id = getEarliestTimerId(timers);
 	if (id != null) { return timers[id]; } else { return null; }
 };
 
 // add the expiresInMs field to timers, so the user knows in how many ms they'll trigger
-const addExpiryInMs = function(timers){
+const addExpiryInMs = function (timers) {
 	for (let id of Array.from(getTimerIds(timers))) {
 		timers[id].expiresInMs = getExpiryTime(timers[id]) - Date.now();
 	}
@@ -75,37 +75,37 @@ const addExpiryInMs = function(timers){
 
 
 class TimerAPI extends AbstractAPI {
-	constructor(){
+	constructor() {
 		super();
 		this._messageReceived = this._messageReceived.bind(this);
 	}
 
-	configure(xtralifeapi, callback){
+	configure(xtralifeapi, callback) {
 
 		this.xtralifeapi = xtralifeapi;
-		return xlenv.inject(['redisClient', 'redisChannel'], (err, redis, pubsub)=> {
+		return xlenv.inject(['redisClient', 'redisChannel'], (err, redis, pubsub) => {
 
 			// replace ch1 with a unique id for this node (host ? process ?)
 			this.dtimer = new DTimer(`${os.hostname()}_${process.pid}`, redis, pubsub);
 
-			this.dtimer.on('event', ev=> {
+			this.dtimer.on('event', ev => {
 				this._messageReceived(ev.timer);
-				return this.dtimer.confirm(ev.id, err=> {});
+				return this.dtimer.confirm(ev.id, err => { });
 			});
-					// confirmed
+			// confirmed
 
-			this.dtimer.on('error', err=> {
+			this.dtimer.on('error', err => {
 				return logger.error(err);
 			});
 
 			return this.dtimer.join()
-			.then(()=> {
-				this.timersColl = this.coll('timers');
-				return this.timersColl.createIndex({domain:1, user_id: 1}, {unique: true})
-				.then(()=> {
-					return callback(null);
-				});
-		}).catch(callback);
+				.then(() => {
+					this.timersColl = this.coll('timers');
+					return this.timersColl.createIndex({ domain: 1, user_id: 1 }, { unique: true })
+						.then(() => {
+							return callback(null);
+						});
+				}).catch(callback);
 		});
 	}
 
@@ -114,41 +114,41 @@ class TimerAPI extends AbstractAPI {
 	// otherwise return all timers for this user
 	get(context, domain, user_id) {
 		this.pre(check => ({
-            "context must be an object with .game": check.like(context, {
-                game: {
-                    apikey: 'cloudbuilder-key',
-                    apisecret: 'azerty',
-                    appid: 'com.clanofthecloud.cloudbuilder'
-                }
-            }
-            ),
+			"context must be an object with .game": check.like(context, {
+				game: {
+					apikey: 'cloudbuilder-key',
+					apisecret: 'azerty',
+					appid: 'com.clanofthecloud.cloudbuilder'
+				}
+			}
+			),
 
-            "domain is not a valid domain": check.nonEmptyString(domain),
-            "user_id must be an ObjectID": check.objectid(user_id)
-        }));
+			"domain is not a valid domain": check.nonEmptyString(domain),
+			"user_id must be an ObjectID": check.objectid(user_id)
+		}));
 
-		return this.timersColl.findOne({domain, user_id})
-		.then(addExpiryInMs);
+		return this.timersColl.findOne({ domain, user_id })
+			.then(addExpiryInMs);
 	}
 
 	add(context, domain, user_id, timerObject, batchToRun) {
 		this.pre(check => ({
-            "context must be an object with .game": check.like(context, {
-                game: {
-                    apikey: 'cloudbuilder-key',
-                    apisecret: 'azerty',
-                    appid: 'com.clanofthecloud.cloudbuilder'
-                }
-            }
-            ),
+			"context must be an object with .game": check.like(context, {
+				game: {
+					apikey: 'cloudbuilder-key',
+					apisecret: 'azerty',
+					appid: 'com.clanofthecloud.cloudbuilder'
+				}
+			}
+			),
 
-            "domain is not a valid domain": check.nonEmptyString(domain),
-            "user_id must be an ObjectID": check.objectid(user_id),
-            "timerObject must be an object": check.object(timerObject),
-            "batchToRun must be a string": check.nonEmptyString(batchToRun)
-        }));
+			"domain is not a valid domain": check.nonEmptyString(domain),
+			"user_id must be an ObjectID": check.objectid(user_id),
+			"timerObject must be an object": check.object(timerObject),
+			"batchToRun must be a string": check.nonEmptyString(batchToRun)
+		}));
 
-		const {expirySeconds, timerId, description, customData} = timerObject;
+		const { expirySeconds, timerId, description, customData } = timerObject;
 		const baseTime = Date.now();
 
 		const lightContext = {
@@ -158,46 +158,46 @@ class TimerAPI extends AbstractAPI {
 			customData: {}
 		};
 
-		const toSet = { [timerId]: {baseTime, expirySeconds, description, customData, batchToRun, context: lightContext, alreadyScheduled: false} };
+		const toSet = { [timerId]: { baseTime, expirySeconds, description, customData, batchToRun, context: lightContext, alreadyScheduled: false } };
 
-		return this.timersColl.findOneAndUpdate({domain, user_id}, {'$set': toSet}, {returnOriginal: false, upsert: true})
-		.get('value')
-		.then(timers=> {
-			// if the timer we're adding is the earliest, schedule one message delivery for it
-			if (getEarliestTimerId(timers) === timerId) {
+		return this.timersColl.findOneAndUpdate({ domain, user_id }, { '$set': toSet }, { returnOriginal: false, upsert: true })
+			.get('value')
+			.then(timers => {
+				// if the timer we're adding is the earliest, schedule one message delivery for it
+				if (getEarliestTimerId(timers) === timerId) {
 
-				//console.log "scheduling #{timerId} with delay = #{expirySeconds*1000}"
-				const message = {domain, user_id, timerId, baseTime, expirySeconds, batchToRun, context: lightContext};
-				return this._publish(message, expirySeconds*1000)
-				.then(() => {
-					return this._setAlreadyPublished(domain, user_id, timerId, true)
-					.then(() => timers);
-				});
-			} else {
-				return timers;
-			}
-	}).then(addExpiryInMs);
+					//console.log "scheduling #{timerId} with delay = #{expirySeconds*1000}"
+					const message = { domain, user_id, timerId, baseTime, expirySeconds, batchToRun, context: lightContext };
+					return this._publish(message, expirySeconds * 1000)
+						.then(() => {
+							return this._setAlreadyPublished(domain, user_id, timerId, true)
+								.then(() => timers);
+						});
+				} else {
+					return timers;
+				}
+			}).then(addExpiryInMs);
 	}
 
-	delete(context, domain, user_id, timerId){
+	delete(context, domain, user_id, timerId) {
 		this.pre(check => ({
-            "context must be an object with .game": check.like(context, {
-                game: {
-                    appid: 'com.clanofthecloud.cloudbuilder'
-                }
-            }
-            ),
+			"context must be an object with .game": check.like(context, {
+				game: {
+					appid: 'com.clanofthecloud.cloudbuilder'
+				}
+			}
+			),
 
-            "domain is not a valid domain": check.nonEmptyString(domain),
-            "user_id must be an ObjectID": check.objectid(user_id),
-            "timerId must be a string": check.nonEmptyString(timerId)
-        }));
+			"domain is not a valid domain": check.nonEmptyString(domain),
+			"user_id must be an ObjectID": check.objectid(user_id),
+			"timerId must be a string": check.nonEmptyString(timerId)
+		}));
 
 		const toUnset = { [timerId]: null };
 
-		return this.timersColl.findOneAndUpdate({domain, user_id}, {'$unset': toUnset}, {returnOriginal: false})
-		.get('value')
-		.then(addExpiryInMs);
+		return this.timersColl.findOneAndUpdate({ domain, user_id }, { '$unset': toUnset }, { returnOriginal: false })
+			.get('value')
+			.then(addExpiryInMs);
 	}
 
 	// retiming doesn't change base time, only expirySeconds
@@ -205,79 +205,79 @@ class TimerAPI extends AbstractAPI {
 	//
 	// retiming can also be relative and proportional
 	// retime(-0.2) will speedup by 20% for the not yet elapsed time
-	retime(context, domain, user_id, timerId, expirySeconds){
+	retime(context, domain, user_id, timerId, expirySeconds) {
 		var timers, expirySeconds;
 		this.pre(check => ({
-            "context must be an object with .game": check.like(context, {
-                game: {
-                    appid: 'com.clanofthecloud.cloudbuilder'
-                }
-            }
-            ),
+			"context must be an object with .game": check.like(context, {
+				game: {
+					appid: 'com.clanofthecloud.cloudbuilder'
+				}
+			}
+			),
 
-            "domain is not a valid domain": check.nonEmptyString(domain),
-            "user_id must be an ObjectID": check.objectid(user_id),
-            "timerId must be a string": check.nonEmptyString(timerId),
-            "expirySeconds must be a number" : check.number(expirySeconds)
-        }));
+			"domain is not a valid domain": check.nonEmptyString(domain),
+			"user_id must be an ObjectID": check.objectid(user_id),
+			"timerId must be a string": check.nonEmptyString(timerId),
+			"expirySeconds must be a number": check.number(expirySeconds)
+		}));
 
 		const promise = (() => {
 			if (expirySeconds < 0) { // relative retime, adjust expirySeconds
-			const retimeToPct = -expirySeconds;
-			return this.timersColl.findOne({domain, user_id})
-			.then(timers=> {
-				let baseTime;
-				({baseTime, expirySeconds} = timers[timerId]);
-				const alreadyElapsed = (Date.now() - baseTime)/1000;
-				const remains = expirySeconds - alreadyElapsed;
+				const retimeToPct = -expirySeconds;
+				return this.timersColl.findOne({ domain, user_id })
+					.then(timers => {
+						let baseTime;
+						({ baseTime, expirySeconds } = timers[timerId]);
+						const alreadyElapsed = (Date.now() - baseTime) / 1000;
+						const remains = expirySeconds - alreadyElapsed;
 
-				let retimeTo= remains*(1-retimeToPct);
-				if (retimeTo<0) { retimeTo=0; }
-				return retimeTo;
-			});
-		} else {
-			return Q.resolve(expirySeconds);
-		}
+						let retimeTo = remains * (1 - retimeToPct);
+						if (retimeTo < 0) { retimeTo = 0; }
+						return retimeTo;
+					});
+			} else {
+				return Promise.resolve(expirySeconds);
+			}
 		})();
 
-		return promise.then(expirySeconds=> {
+		return promise.then(expirySeconds => {
 			const toSet = { [`${timerId}.expirySeconds`]: expirySeconds, [`${timerId}.alreadyScheduled`]: false };
 
-			return this.timersColl.findOneAndUpdate({domain, user_id}, {'$set': toSet}, {returnOriginal: false, upsert: false})
-			.get('value')
-			.then(timers => {
-				if (getEarliestTimerId(timers) === timerId) {
-					const timer = timers[timerId];
-					let newDelay = getExpiryTime(timer) - Date.now();
-					if (newDelay<0) { newDelay = 0; }
+			return this.timersColl.findOneAndUpdate({ domain, user_id }, { '$set': toSet }, { returnOriginal: false, upsert: false })
+				.get('value')
+				.then(timers => {
+					if (getEarliestTimerId(timers) === timerId) {
+						const timer = timers[timerId];
+						let newDelay = getExpiryTime(timer) - Date.now();
+						if (newDelay < 0) { newDelay = 0; }
 
-					//console.log "scheduling #{timerId} with delay = #{newDelay}"
+						//console.log "scheduling #{timerId} with delay = #{newDelay}"
 
-					return this._publish({domain, user_id, timerId, baseTime: timer.baseTime, expirySeconds, batchToRun: timer.batchToRun, context}, newDelay)
-					.then(() => {
-						this._setAlreadyPublished(domain, user_id, timerId, true);
+						return this._publish({ domain, user_id, timerId, baseTime: timer.baseTime, expirySeconds, batchToRun: timer.batchToRun, context }, newDelay)
+							.then(() => {
+								this._setAlreadyPublished(domain, user_id, timerId, true);
+								return timers;
+							});
+					} else {
 						return timers;
-					});
-				} else {
-					return timers;
-				}
-		}).then(addExpiryInMs);
+					}
+				}).then(addExpiryInMs);
 		});
 	}
 
 
 	// returns a promise for timers
 	// we must know if there's a message in a queue for each timer, so we store the info in mongodb
-	_setAlreadyPublished(domain, user_id, timerId, alreadyPublished){
+	_setAlreadyPublished(domain, user_id, timerId, alreadyPublished) {
 		const toSet = { [`${timerId}.alreadyScheduled`]: alreadyPublished };
-		return this.timersColl.updateOne({domain, user_id}, {'$set': toSet}, {returnOriginal: false, upsert: false});
+		return this.timersColl.updateOne({ domain, user_id }, { '$set': toSet }, { returnOriginal: false, upsert: false });
 	}
 
 	// publish the message with the specified timeout
 	// will resolve to null, or reject if an error occurs
-	_publish(message, timeoutMs){
+	_publish(message, timeoutMs) {
 
-		return this.dtimer.post({timer: message}, timeoutMs);
+		return this.dtimer.post({ timer: message }, timeoutMs);
 	}
 
 	// called for each new message
@@ -285,12 +285,12 @@ class TimerAPI extends AbstractAPI {
 	// if it does, it will call the corresponding batch
 	// and it will delete the corresponding timer
 	// it will then schedule the next timer (if it wasn't scheduled before)
-	_messageReceived(message){
-		const _messageHasCorrectModel = ()=> {
+	_messageReceived(message) {
+		const _messageHasCorrectModel = () => {
 			return check.like(message, {
-				domain:"com.company.game.key",
-				user_id:"55c885e75ecd563765faf612",
-				timerId:"timerId",
+				domain: "com.company.game.key",
+				user_id: "55c885e75ecd563765faf612",
+				timerId: "timerId",
 				baseTime: 1439203492270,
 				expirySeconds: 1.0,
 				batchToRun: 'timerTrigger',
@@ -306,41 +306,41 @@ class TimerAPI extends AbstractAPI {
 		// returns a promise
 		// with null if this message can't be processed (timer doesn't exist, or should not fire now)
 		// with list of timers if message processed
-		const _processMessage = message=> {
-			if (!_messageHasCorrectModel()) { return Q.resolve(null); }
+		const _processMessage = message => {
+			if (!_messageHasCorrectModel()) { return Promise.resolve(null); }
 			// get timers
 			return this.get(message.context, message.domain, new ObjectID(message.user_id))
-			.then(timers=> {
-				if (timers == null) { return null; } // should not happen
+				.then(timers => {
+					if (timers == null) { return null; } // should not happen
 
-				const timer = timers[message.timerId];
-				if (timer == null) { return null; }
+					const timer = timers[message.timerId];
+					if (timer == null) { return null; }
 
-				// return if the earliest timer isn't this one
-				if (getEarliestTimerId(timers) !== message.timerId) { return null; }
-				// return if the message doesn't coincide exactly with timer
-				if ((message.baseTime !== timer.baseTime) || (message.expirySeconds !== timer.expirySeconds)) { return null; }
+					// return if the earliest timer isn't this one
+					if (getEarliestTimerId(timers) !== message.timerId) { return null; }
+					// return if the message doesn't coincide exactly with timer
+					if ((message.baseTime !== timer.baseTime) || (message.expirySeconds !== timer.expirySeconds)) { return null; }
 
-				// delete triggered timer then call batch (asynchronously)
-				return this.delete(message.context, message.domain, new ObjectID(message.user_id), message.timerId)
-				.then(timers=> {
-					logger.debug(`Calling batch from timer ${timer.batchToRun}`, {message, timer});
-					api.game.runBatch(message.context, message.domain, '__'+timer.batchToRun, {domain: message.domain, user_id: new ObjectID(message.user_id), timerId: message.timerId, now: Date.now(), expiredAt: (timer.baseTime+(timer.expirySeconds*1000)), description: timer.description, customData: timer.customData})
-					.then(() => {
-						return logger.debug(`Batch returned from timer ${timer.batchToRun}`, {message, timer});
-				})
-					.catch(err=> {
-						logger.debug(`Error during timer batch ${message.domain}.__${timer.batchToRun}`);
-						return logger.debug(err, {stack: err.stack});
-				})
-					.done();
-					return timers;
+					// delete triggered timer then call batch (asynchronously)
+					return this.delete(message.context, message.domain, new ObjectID(message.user_id), message.timerId)
+						.then(timers => {
+							logger.debug(`Calling batch from timer ${timer.batchToRun}`, { message, timer });
+							api.game.runBatch(message.context, message.domain, '__' + timer.batchToRun, { domain: message.domain, user_id: new ObjectID(message.user_id), timerId: message.timerId, now: Date.now(), expiredAt: (timer.baseTime + (timer.expirySeconds * 1000)), description: timer.description, customData: timer.customData })
+								.then(() => {
+									return logger.debug(`Batch returned from timer ${timer.batchToRun}`, { message, timer });
+								})
+								.catch(err => {
+									logger.debug(`Error during timer batch ${message.domain}.__${timer.batchToRun}`);
+									return logger.debug(err, { stack: err.stack });
+								})
+								.done();
+							return timers;
+						});
 				});
-			});
 		};
 
 		// resolves to null if no message needed scheduling
-		const _scheduleNextMessage = timers=> {
+		const _scheduleNextMessage = timers => {
 			if (timers == null) { return null; }
 
 			// we need to schedule a new message with the next earliest timer, if any
@@ -351,7 +351,7 @@ class TimerAPI extends AbstractAPI {
 			const nextTimerId = getEarliestTimerId(timers);
 
 			let newDelay = getExpiryTime(nextTimer) - Date.now();
-			if (newDelay<0) { newDelay = 0; }
+			if (newDelay < 0) { newDelay = 0; }
 			//console.log "scheduling #{nextTimerId} with delay = #{newDelay}"
 
 			message = {
@@ -364,42 +364,42 @@ class TimerAPI extends AbstractAPI {
 				context: nextTimer.context
 			};
 			return this._publish(message, newDelay)
-			.then(() => {
-				return this._setAlreadyPublished(timers.domain, timers.user_id, nextTimerId, true);
-			});
+				.then(() => {
+					return this._setAlreadyPublished(timers.domain, timers.user_id, nextTimerId, true);
+				});
 		};
 
 
 
 		return _processMessage(message)
-		.catch(error=> {
-			logger.error('Error in xtralife Timer _processMessage');
-			logger.error(error);
-			return null;
-	}).then(timers=> {
-			return timers || this.get(message.context, message.domain, new ObjectID(message.user_id));
-		}).then(timers=> {
-			return _scheduleNextMessage(timers);
-		}).catch(err=> {
-			logger.error("Error in xtralife Timer _scheduleNextMessage or @get");
-			logger.error(err, {stack: err.stack});
-			return null;
-		});
+			.catch(error => {
+				logger.error('Error in xtralife Timer _processMessage');
+				logger.error(error);
+				return null;
+			}).then(timers => {
+				return timers || this.get(message.context, message.domain, new ObjectID(message.user_id));
+			}).then(timers => {
+				return _scheduleNextMessage(timers);
+			}).catch(err => {
+				logger.error("Error in xtralife Timer _scheduleNextMessage or @get");
+				logger.error(err, { stack: err.stack });
+				return null;
+			});
 	}
 
-	sandbox(context){
+	sandbox(context) {
 		this.pre(check => ({
-            "context must be an object with .game": check.like(context, {
-                game: {
-                    appid: 'com.clanofthecloud.cloudbuilder'
-                }
-            }
-            )
-        }));
+			"context must be an object with .game": check.like(context, {
+				game: {
+					appid: 'com.clanofthecloud.cloudbuilder'
+				}
+			}
+			)
+		}));
 
 		// timerObject = {expirySeconds, timerId, description, customData}
 		return {
-			add: (domain, user_id, timerObject, batchToRun)=> {
+			add: (domain, user_id, timerObject, batchToRun) => {
 				if (this.xtralifeapi.game.checkDomainSync(context.game.appid, domain)) {
 					return this.add(context, domain, user_id, timerObject, batchToRun);
 				} else {
@@ -407,7 +407,7 @@ class TimerAPI extends AbstractAPI {
 				}
 			},
 
-			get: (domain, user_id)=> {
+			get: (domain, user_id) => {
 				if (this.xtralifeapi.game.checkDomainSync(context.game.appid, domain)) {
 					return this.get(context, domain, user_id);
 				} else {
@@ -415,7 +415,7 @@ class TimerAPI extends AbstractAPI {
 				}
 			},
 
-			delete: (domain, user_id, timerId)=> {
+			delete: (domain, user_id, timerId) => {
 				if (this.xtralifeapi.game.checkDomainSync(context.game.appid, domain)) {
 					return this.delete(context, domain, user_id, timerId);
 				} else {
@@ -423,7 +423,7 @@ class TimerAPI extends AbstractAPI {
 				}
 			},
 
-			retime: (domain, user_id, timerId, expirySeconds)=> {
+			retime: (domain, user_id, timerId, expirySeconds) => {
 				if (this.xtralifeapi.game.checkDomainSync(context.game.appid, domain)) {
 					return this.retime(context, domain, user_id, timerId, expirySeconds);
 				} else {

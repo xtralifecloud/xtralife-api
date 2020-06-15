@@ -8,8 +8,8 @@ const xlenv = global.xlenv = require("xtralife-env");
 
 global.logger = require('winston');
 
-const Q = require('bluebird');
-Q.promisifyAll(require('redis'));
+const Promise = require('bluebird');
+Promise.promisifyAll(require('redis'));
 
 xlenv.override(null, {
 	nbworkers: 1,
@@ -27,12 +27,12 @@ xlenv.override(null, {
 		port: 6378
 	},
 
-	redisClient(cb){
+	redisClient(cb) {
 		const client = require('redis').createClient(xlenv.redis.port, xlenv.redis.host);
 		return client.info(err => cb(err, client));
 	},
 
-	redisChannel(cb){
+	redisChannel(cb) {
 		const client = require('redis').createClient(xlenv.redis.port, xlenv.redis.host);
 		return client.info(err => cb(err, client));
 	},
@@ -57,11 +57,11 @@ xlenv.override(null, {
 	},
 
 
-	mongoCx(cb){
+	mongoCx(cb) {
 		return require("mongodb").MongoClient.connect(xlenv.mongodb.url, xlenv.mongodb.options, (err, mongodb) => cb(err, mongodb));
 	},
 
-	elastic(cb){
+	elastic(cb) {
 		const elastic = require("elasticsearch");
 		const client = new elastic.Client();
 		return cb(null, client);
@@ -83,20 +83,20 @@ xlenv.override(null, {
 		hostnameBlacklist: []
 	}, // used to restrict this.game.http.* apis
 
-		//profileFields: ['displayName'] # show nothing but displayName in profile
+	//profileFields: ['displayName'] # show nothing but displayName in profile
 
 	mailer: null, // CONFIGURE HERE
 
 
 	xtralife: {
 		games: {
-			"com.clanofthecloud.testgame": { 
-				apikey:"testgame-key",
-				apisecret:"testgame-secret",
+			"com.clanofthecloud.testgame": {
+				apikey: "testgame-key",
+				apisecret: "testgame-secret",
 				config: {
-					enable:true,
-					domains:[],
-					eventedDomains:[],
+					enable: true,
+					domains: [],
+					eventedDomains: [],
 					certs: {
 						android: {
 							enable: false,
@@ -115,20 +115,20 @@ xlenv.override(null, {
 						}
 					},
 					socialSettings: {
-						facebookAppToken : '',
+						facebookAppToken: '',
 						gameCenterBundleIdRE: /^not.the.correct.bundleId$/
 					}
 				}
 			},
 
 
-			"com.clanofthecloud.cloudbuilder": { 
-				apikey:"cloudbuilder-key",
-				apisecret:"azerty",
+			"com.clanofthecloud.cloudbuilder": {
+				apikey: "cloudbuilder-key",
+				apisecret: "azerty",
 				config: {
-					enable:true,
-					domains:["com.clanofthecloud.cloudbuilder.m3Nsd85GNQd3","com.clanofthecloud.cloudbuilder.test"],
-					eventedDomains:[],
+					enable: true,
+					domains: ["com.clanofthecloud.cloudbuilder.m3Nsd85GNQd3", "com.clanofthecloud.cloudbuilder.test"],
+					eventedDomains: [],
 					certs: {
 						android: {
 							enable: false,
@@ -147,7 +147,7 @@ xlenv.override(null, {
 						}
 					},
 					socialSettings: {
-						facebookAppToken : '',
+						facebookAppToken: '',
 						gameCenterBundleIdRE: /^cloud\.xtralife\..*$/
 					}
 				}

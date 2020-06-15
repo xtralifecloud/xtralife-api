@@ -18,7 +18,7 @@ class XtralifeAPI {
 		this.errors = _errors;
 	}
 
-	configure(_, cb){
+	configure(_, cb) {
 		const before = Date.now();
 
 		this.mailer = xlenv.mailer;
@@ -52,42 +52,42 @@ class XtralifeAPI {
 		// @ts-ignore
 		this.modules.push(this.game);
 
-		return async.mapSeries(this.modules, (each, localcb)=> {
+		return async.mapSeries(this.modules, (each, localcb) => {
 			return each.configure(this, err => localcb(err));
 		}
-		, err=> {
-			if (err != null) {
-				logger.error("can't configure Xtralife-API!");
-				logger.error(err.message, {stack: err.stack});
-				return cb(err);
-			} else {
-				logger.info(`Xtralife-API configured... in ${Date.now()-before} ms`);
+			, err => {
+				if (err != null) {
+					logger.error("can't configure Xtralife-API!");
+					logger.error(err.message, { stack: err.stack });
+					return cb(err);
+				} else {
+					logger.info(`Xtralife-API configured... in ${Date.now() - before} ms`);
 
-				return cb();
-			}
-		});
+					return cb();
+				}
+			});
 	}
 
-	configureGame(game, callback){
+	configureGame(game, callback) {
 		return async.each(this.modules, (eachApi, cb) => eachApi.configureGame(game, cb)
-		, callback);
+			, callback);
 	}
 
-	afterConfigure(xtralifeapi, cb){
-		return async.mapSeries(this.modules, (each, localcb)=> {
+	afterConfigure(xtralifeapi, cb) {
+		return async.mapSeries(this.modules, (each, localcb) => {
 			return each.afterConfigure(this, localcb);
 		}
-		, err=> {
-			logger.info("All Xtralife-API modules post configured");
-			return cb(err);
-		});
+			, err => {
+				logger.info("All Xtralife-API modules post configured");
+				return cb(err);
+			});
 	}
 
 	// remove common data
-	onDeleteUser(userid, cb, appid){
+	onDeleteUser(userid, cb, appid) {
 		if (!xlenv.options.removeUser) { return cb(null); }
 
-		return this.game.handleHook("before-nuking-user", {game: {appid}}, 'private', {
+		return this.game.handleHook("before-nuking-user", { game: { appid } }, 'private', {
 			userid,
 			user_id: userid
 		}).then(() => {
@@ -95,30 +95,31 @@ class XtralifeAPI {
 			// Call onDeleteUser for each of the submodules
 			const tasks = [];
 			for (let module of Array.from(this.modules)) {
-				(module=> {
-					return tasks.push(callback=> module.onDeleteUser(userid, callback));
+				(module => {
+					return tasks.push(callback => module.onDeleteUser(userid, callback));
 				})(module);
 			}
 
 			tasks.reverse();
 
 			return new Q((resolve, reject) => {
-				return async.series(tasks, err=> { 
-					if (err != null) { return reject(err);
+				return async.series(tasks, err => {
+					if (err != null) {
+						return reject(err);
 					} else { return resolve(err); }
 				});
 			});
 		}).then(() => {
-			return this.game.handleHook("after-nuking-user", {game: {appid}}, 'private', {
-			userid,
-			user_id: userid
-		}
+			return this.game.handleHook("after-nuking-user", { game: { appid } }, 'private', {
+				userid,
+				user_id: userid
+			}
 			);
 		}).then(cb)
-		.catch(cb);
+			.catch(cb);
 	}
 
-	sandbox(context){
+	sandbox(context) {
 		context.runsFromClient = false;
 
 		return {

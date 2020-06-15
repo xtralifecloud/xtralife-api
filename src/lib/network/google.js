@@ -6,16 +6,16 @@
  */
 const request = require("request");
 
-const validToken = function(token, cb){
+const validToken = function (token, cb) {
 	const options = {
 		method: 'GET',
 		url: 'https://www.googleapis.com/plus/v1/people/me',
 		headers: {
-			Authorization: 'Bearer '+token
+			Authorization: 'Bearer ' + token
 		}
 	};
 
-	return request(options, function(err, resp, body){
+	return request(options, function (err, resp, body) {
 		let me;
 		if (err != null) {
 			err.source = "googleapis";

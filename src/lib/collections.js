@@ -7,7 +7,7 @@
 const AbstractAPI = require('../AbstractAPI.js');
 
 class CollectionsAPI extends AbstractAPI {
-	constructor(){
+	constructor() {
 		super();
 		this.mongoCx = null;
 		this.db = null;
@@ -15,8 +15,8 @@ class CollectionsAPI extends AbstractAPI {
 		this._cache = {};
 	}
 
-	configure(_, callback){
-		return xlenv.inject(["=mongoCx"], (err, mongoCx)=> {
+	configure(_, callback) {
+		return xlenv.inject(["=mongoCx"], (err, mongoCx) => {
 			if (err != null) { return callback(err); }
 			this.mongoCx = mongoCx;
 
@@ -27,7 +27,7 @@ class CollectionsAPI extends AbstractAPI {
 		});
 	}
 
-	coll(name){
+	coll(name) {
 		if (this._cache[name] != null) {
 			return this._cache[name];
 		} else {
@@ -36,8 +36,8 @@ class CollectionsAPI extends AbstractAPI {
 		}
 	}
 
-	onDeleteUser(userid, cb){
-		return this.coll("domains").deleteOne({user_id: userid}, (err, result)=> {
+	onDeleteUser(userid, cb) {
+		return this.coll("domains").deleteOne({ user_id: userid }, (err, result) => {
 			logger.warn(`removed domains ${userid} : ${result.result.n} , ${err} `);
 			return cb();
 		});

@@ -5,16 +5,16 @@
  * Full docs: https://github.com/decaffeinate/decaffeinate/blob/master/docs/suggestions.md
  */
 // import service implementations
-const {APNService, AndroidService} = require("./notifyServices.coffee");
+const { APNService, AndroidService } = require("./notifyServices.js");
 
 // cache of appid->os->Sender
 const _services = {};
 
 
 // Creates a new Sender of the right kind, with the specified config
-const _SenderFactory = function(os, config, appid){
+const _SenderFactory = function (os, config, appid) {
 	switch (os) {
-		case "macos":case "ios":
+		case "macos": case "ios":
 			try {
 				return new APNService(config, appid);
 			} catch (error) {
@@ -38,7 +38,7 @@ const _SenderFactory = function(os, config, appid){
 // Gets a sender for an appid/os combination
 // Uses caching of Senders
 // config is only used when not already in cache
-var _getSender = function(appid, os, config){
+var _getSender = function (appid, os, config) {
 	if (_services[appid] != null) {
 		if (_services[appid][os] != null) {
 			return _services[appid][os];
@@ -46,17 +46,17 @@ var _getSender = function(appid, os, config){
 			return _services[appid][os] = _SenderFactory(os, config, appid);
 		}
 	} else {
-		_services[appid]={};
+		_services[appid] = {};
 		return _getSender(appid, os, config);
 	}
 };
 
 module.exports = {
 
-	send(app, domain, os, tokens, alert, cb){
+	send(app, domain, os, tokens, alert, cb) {
 		console.log(`notify ${domain} ${os} `);
 		const sender = _getSender(app.appid, os, app.certs[os]);
 		if (sender == null) { return cb(err); }
 		return sender.send(domain, tokens, alert, cb);
-	} 
+	}
 };

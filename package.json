@@ -1,6 +1,6 @@
 {
   "name": "xtralife-api",
-  "version": "3.3.13",
+  "version": "4.0.0-alpha",
   "description": "Xtralife.cloud business logic shared between components",
   "main": "src/index.js",
   "scripts": {
@@ -22,11 +22,9 @@
   "dependencies": {
     "apn": "^1.7.7",
     "async": "<2",
-    "aws-sdk": "^2.487.0",
+    "aws-sdk": "^2.696.0",
     "bluebird": "*",
     "check-types": "*",
-    "coffee-script-mapped": "*",
-    "coffeescript": "*",
     "dtimer": "^0.3.3",
     "elasticsearch": "^12.1.3",
     "extend": "*",
@@ -48,8 +46,8 @@
     "underscore-contrib": "*",
     "url": "^0.11.0",
     "winston": "^3.2.1",
-    "xtralife-env": "*",
-    "xtralife-msg": "*"
+    "xtralife-env": "4.0.0-alpha",
+    "xtralife-msg": "4.0.0-alpha"
   },
   "devDependencies": {
     "mocha": "*",

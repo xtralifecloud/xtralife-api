@@ -33,44 +33,44 @@ class BadArgument extends XLAPIError {
 		super(message);
 	}
 }
-BadArgument.name = "BadArgument";
-BadArgument.message = "A passed argument is invalid";
-BadArgument.xtralifecode = 1;
+BadArgument.prototype.name = "BadArgument";
+BadArgument.prototype.message = "A passed argument is invalid";
+BadArgument.prototype.xtralifecode = 1;
 
 class AlreadyJoinedMatch extends XLAPIError { }
-AlreadyJoinedMatch.name = "AlreadyJoinedMatch";
-AlreadyJoinedMatch.message = "You are already being part of this match";
-AlreadyJoinedMatch.xtralifecode = 1;
+AlreadyJoinedMatch.prototype.name = "AlreadyJoinedMatch";
+AlreadyJoinedMatch.prototype.message = "You are already being part of this match";
+AlreadyJoinedMatch.prototype.xtralifecode = 1;
 
 class NoShoeInMatch extends XLAPIError { }
-NoShoeInMatch.name = "NoShoeInMatch";
-NoShoeInMatch.message = "Unable to draw from shoe unless items have been put in it at creation";
-NoShoeInMatch.xtralifecode = 1;
+NoShoeInMatch.prototype.name = "NoShoeInMatch";
+NoShoeInMatch.prototype.message = "Unable to draw from shoe unless items have been put in it at creation";
+NoShoeInMatch.prototype.xtralifecode = 1;
 
 class MatchNotFinished extends XLAPIError { }
-MatchNotFinished.name = "MatchNotFinished";
-MatchNotFinished.message = "This match needs to be finished in order to perform this operation";
-MatchNotFinished.xtralifecode = 1;
+MatchNotFinished.prototype.name = "MatchNotFinished";
+MatchNotFinished.prototype.message = "This match needs to be finished in order to perform this operation";
+MatchNotFinished.prototype.xtralifecode = 1;
 
 class MatchAlreadyFinished extends XLAPIError { }
-MatchAlreadyFinished.name = "MatchAlreadyFinished";
-MatchAlreadyFinished.message = "This match is already finished";
-MatchAlreadyFinished.xtralifecode = 1;
+MatchAlreadyFinished.prototype.name = "MatchAlreadyFinished";
+MatchAlreadyFinished.prototype.message = "This match is already finished";
+MatchAlreadyFinished.prototype.xtralifecode = 1;
 
 class MaximumNumberOfPlayersReached extends XLAPIError { }
-MaximumNumberOfPlayersReached.name = "MaximumNumberOfPlayersReached";
-MaximumNumberOfPlayersReached.message = "This match can not accept any additional player";
-MaximumNumberOfPlayersReached.xtralifecode = 1;
+MaximumNumberOfPlayersReached.prototype.name = "MaximumNumberOfPlayersReached";
+MaximumNumberOfPlayersReached.prototype.message = "This match can not accept any additional player";
+MaximumNumberOfPlayersReached.prototype.xtralifecode = 1;
 
 class AlreadyInvitedToMatch extends XLAPIError { }
-AlreadyInvitedToMatch.name = "AlreadyInvitedToMatch";
-AlreadyInvitedToMatch.message = "The player is already invited to the match";
-AlreadyInvitedToMatch.xtralifecode = 1;
+AlreadyInvitedToMatch.prototype.name = "AlreadyInvitedToMatch";
+AlreadyInvitedToMatch.prototype.message = "The player is already invited to the match";
+AlreadyInvitedToMatch.prototype.xtralifecode = 1;
 
 class InvalidLastEventId extends XLAPIError { }
-InvalidLastEventId.name = "InvalidLastEventId";
-InvalidLastEventId.message = "This event ID is invalid, please resynchronize";
-InvalidLastEventId.xtralifecode = 1;
+InvalidLastEventId.prototype.name = "InvalidLastEventId";
+InvalidLastEventId.prototype.message = "This event ID is invalid, please resynchronize";
+InvalidLastEventId.prototype.xtralifecode = 1;
 
 class ExternalStoreError extends XLAPIError {
 	constructor(serverresponse) {
@@ -79,170 +79,117 @@ class ExternalStoreError extends XLAPIError {
 		this.message = `There was an error communicating with the external store, code: ${this.serverresponse}`;
 	}
 }
-ExternalStoreError.name = "ExternalStoreError";
-ExternalStoreError.xtralifecode = 1;
+ExternalStoreError.prototype.name = "ExternalStoreError";
+ExternalStoreError.prototype.xtralifecode = 1;
 
 class MissingScore extends XLAPIError { }
-MissingScore.name = "MissingScore";
-MissingScore.message = "Gamer has never scored in specified leaderboard";
-MissingScore.xtralifecode = 2;
+MissingScore.prototype.name = "MissingScore";
+MissingScore.prototype.message = "Gamer has never scored in specified leaderboard";
+MissingScore.prototype.xtralifecode = 2;
 
 class BadMatchID extends XLAPIError { }
-BadMatchID.name = "BadMatchID";
-BadMatchID.message = "This match does not exist or is not active";
-BadMatchID.xtralifecode = 3;
+BadMatchID.prototype.name = "BadMatchID";
+BadMatchID.prototype.message = "This match does not exist or is not active";
+BadMatchID.prototype.xtralifecode = 3;
 
 class BadGamerID extends XLAPIError { }
-BadGamerID.name = "BadGamerID";
-BadGamerID.message = "A passed gamer ID is invalid";
-BadGamerID.xtralifecode = 3;
+BadGamerID.prototype.name = "BadGamerID";
+BadGamerID.prototype.message = "A passed gamer ID is invalid";
+BadGamerID.prototype.xtralifecode = 3;
 
-class BadUserCredentials extends XLAPIError {
-	static initClass() {
-		this.prototype.name = "BadUserCredentials";
-		this.prototype.message = "Email and Password don't match";
-		this.prototype.xtralifecode = 3;
-	}
-}
-BadUserCredentials.initClass();
+class BadUserCredentials extends XLAPIError {}
+BadUserCredentials.prototype.name = "BadUserCredentials";
+BadUserCredentials.prototype.message = "Email and Password don't match";
+BadUserCredentials.prototype.xtralifecode = 3;
 
-class InvalidProduct extends XLAPIError {
-	static initClass() {
-		this.prototype.name = "InvalidProduct";
-		this.prototype.message = "The product ID matches no product in the store";
-		this.prototype.xtralifecode = 3;
-	}
-}
-InvalidProduct.initClass();
+class InvalidProduct extends XLAPIError {}
+InvalidProduct.prototype.name = "InvalidProduct";
+InvalidProduct.prototype.message = "The product ID matches no product in the store";
+InvalidProduct.prototype.xtralifecode = 3;
 
-class DuplicateProduct extends XLAPIError {
-	static initClass() {
-		this.prototype.name = "DuplicateProduct";
-		this.prototype.message = "Either the product ID, or the equivalent product ID in one of the store is already defined";
-		this.prototype.xtralifecode = 3;
-	}
-}
-DuplicateProduct.initClass();
+class DuplicateProduct extends XLAPIError {}
+DuplicateProduct.prototype.name = "DuplicateProduct";
+DuplicateProduct.prototype.message = "Either the product ID, or the equivalent product ID in one of the store is already defined";
+DuplicateProduct.prototype.xtralifecode = 3;
 
-class MissingArgument extends XLAPIError {
-	static initClass() {
-		this.prototype.name = "MissingArgument";
-		this.prototype.message = "An argument is missing";
-		this.prototype.xtralifecode = 4;
-	}
-}
-MissingArgument.initClass();
+class MissingArgument extends XLAPIError {}
+MissingArgument.prototype.name = "MissingArgument";
+MissingArgument.prototype.message = "An argument is missing";
+MissingArgument.prototype.xtralifecode = 4;
 
 class gamerDoesntHaveGodfather extends XLAPIError {
-	static initClass() {
-		this.prototype.name = "gamerDoesntHaveGodfather";
-		this.prototype.message = "the gamer doesn't have godfather yet";
-		this.prototype.xtralifecode = 4;
-	}
 }
-gamerDoesntHaveGodfather.initClass();
+gamerDoesntHaveGodfather.prototype.name = "gamerDoesntHaveGodfather";
+gamerDoesntHaveGodfather.prototype.message = "the gamer doesn't have godfather yet";
+gamerDoesntHaveGodfather.prototype.xtralifecode = 4;
 
 class RestrictedDomain extends XLAPIError {
-	static initClass() {
-		this.prototype.name = "RestrictedDomain";
-		this.prototype.message = "Domain is not granted to the game";
-		this.prototype.xtralifecode = 4;
-	}
 }
-RestrictedDomain.initClass();
+RestrictedDomain.prototype.name = "RestrictedDomain";
+RestrictedDomain.prototype.message = "Domain is not granted to the game";
+RestrictedDomain.prototype.xtralifecode = 4;
 
 class BadPropertyType extends XLAPIError {
-	static initClass() {
-		this.prototype.name = "BadPropertyType";
-		this.prototype.message = "Properties only support basic types (number, string, boolean) or arrays of basic types";
-		this.prototype.xtralifecode = 5;
-	}
 }
-BadPropertyType.initClass();
+BadPropertyType.prototype.name = "BadPropertyType";
+BadPropertyType.prototype.message = "Properties only support basic types (number, string, boolean) or arrays of basic types";
+BadPropertyType.prototype.xtralifecode = 5;
 
 class MissingPropertyValue extends XLAPIError {
-	static initClass() {
-		this.prototype.name = "MissingPropertyValue";
-		this.prototype.message = "field value is missing";
-		this.prototype.xtralifecode = 5;
-	}
 }
-MissingPropertyValue.initClass();
+MissingPropertyValue.prototype.name = "MissingPropertyValue";
+MissingPropertyValue.prototype.message = "field value is missing";
+MissingPropertyValue.prototype.xtralifecode = 5;
 
 class QueryError extends XLAPIError {
-	static initClass() {
-		this.prototype.name = "QueryError";
-		this.prototype.xtralifecode = 7;
-	}
 	constructor(message) {
 		super();
 		this.message = message;
 	}
 }
-QueryError.initClass();
+QueryError.prototype.name = "QueryError";
+QueryError.prototype.xtralifecode = 7;
 
 class alreadyGodchild extends XLAPIError {
-	static initClass() {
-		this.prototype.name = "alreadyGodchild";
-		this.prototype.message = "gamer already have a godfather";
-		this.prototype.xtralifecode = 8;
-	}
 }
-alreadyGodchild.initClass();
+alreadyGodchild.prototype.name = "alreadyGodchild";
+alreadyGodchild.prototype.message = "gamer already have a godfather";
+alreadyGodchild.prototype.xtralifecode = 8;
 
 class cantBeSelfGodchild extends XLAPIError {
-	static initClass() {
-		this.prototype.name = "cantBeSelfGodchild";
-		this.prototype.message = "gamers can't be godfather of themself";
-		this.prototype.xtralifecode = 8;
-	}
 }
-cantBeSelfGodchild.initClass();
+cantBeSelfGodchild.prototype.name = "cantBeSelfGodchild";
+cantBeSelfGodchild.prototype.message = "gamers can't be godfather of themself";
+cantBeSelfGodchild.prototype.xtralifecode = 8;
 
 class unknownGodfatherCode extends XLAPIError {
-	static initClass() {
-		this.prototype.name = "unknownGodfatherCode";
-		this.prototype.message = "the godfather code is not found";
-		this.prototype.xtralifecode = 9;
-	}
 }
-unknownGodfatherCode.initClass();
+unknownGodfatherCode.prototype.name = "unknownGodfatherCode";
+unknownGodfatherCode.prototype.message = "the godfather code is not found";
+unknownGodfatherCode.prototype.xtralifecode = 9;
 
 class GameCenterError extends XLAPIError {
-	static initClass() {
-		this.prototype.name = "GameCenterLoginError";
-		this.prototype.xtralifecode = 99;
-	}
 	constructor(message) {
 		super();
 		this.message = message;
 	}
 }
-GameCenterError.initClass();
+GameCenterError.prototype.name = "GameCenterLoginError";
+GameCenterError.prototype.xtralifecode = 99;
 
 class BadToken extends XLAPIError {
-	static initClass() {
-		this.prototype.name = "BadToken";
-		this.prototype.message = "The short login code is invalid";
-		this.prototype.xtralifecode = 10;
-	}
 }
-BadToken.initClass();
+BadToken.prototype.name = "BadToken";
+BadToken.prototype.message = "The short login code is invalid";
+BadToken.prototype.xtralifecode = 10;
 
 class tooLateRegistering extends XLAPIError {
-	static initClass() {
-		this.prototype.name = "tooLateRegistering";
-		this.prototype.message = "the gamer launch the game too many days ago to become a godchild";
-		this.prototype.xtralifecode = 11;
-	}
 }
-tooLateRegistering.initClass();
+tooLateRegistering.prototype.name = "tooLateRegistering";
+tooLateRegistering.prototype.message = "the gamer launch the game too many days ago to become a godchild";
+tooLateRegistering.prototype.xtralifecode = 11;
 
 class PurchaseNotConfirmed extends XLAPIError {
-	static initClass() {
-		this.prototype.name = "PurchaseNotConfirmed";
-		this.prototype.xtralifecode = 12;
-	}
 	constructor(serverresponse, detail) {
 		super();
 		this.serverresponse = serverresponse;
@@ -250,147 +197,103 @@ class PurchaseNotConfirmed extends XLAPIError {
 		if (detail) { this.message = `${this.message}. ${detail}.`; }
 	}
 }
-PurchaseNotConfirmed.initClass();
+PurchaseNotConfirmed.prototype.name = "PurchaseNotConfirmed";
+PurchaseNotConfirmed.prototype.xtralifecode = 12;
 
 class ExternalStoreEnvironmentError extends XLAPIError {
-	static initClass() {
-
-		this.prototype.name = "ExternalStoreEnvironmentError";
-		this.prototype.xtralifecode = 12;
-	}
 	constructor(serverresponse) {
 		super();
 		this.serverresponse = serverresponse;
 		this.message = `You are trying to purchase an item from the sandbox in prod or vice versa, code : ${this.serverresponse}`;
 	}
 }
-ExternalStoreEnvironmentError.initClass();
-
-ExternalStoreEnvironmentError = class ExternalStoreEnvironmentError extends XLAPIError {
-	static initClass() {
-		this.prototype.name = "ExternalStoreEnvironmentError";
-		this.prototype.message = "You are trying to purchase an item from the sandbox in prod or vice versa";
-		this.prototype.xtralifecode = 12;
-	}
-};
-ExternalStoreEnvironmentError.initClass();
+ExternalStoreEnvironmentError.prototype.name = "ExternalStoreEnvironmentError";
+ExternalStoreEnvironmentError.prototype.message = "You are trying to purchase an item from the sandbox in prod or vice versa";
+ExternalStoreEnvironmentError.prototype.xtralifecode = 12;
 
 class BalanceInsufficient extends XLAPIError {
-	static initClass() {
-		this.prototype.name = "BalanceInsufficient";
-		this.prototype.message = "balance is not high enough for transaction";
-		this.prototype.xtralifecode = 19;
-	}
 }
-BalanceInsufficient.initClass();
+BalanceInsufficient.prototype.name = "BalanceInsufficient";
+BalanceInsufficient.prototype.message = "balance is not high enough for transaction";
+BalanceInsufficient.prototype.xtralifecode = 19;
 
 class ConnectError extends XLAPIError {
-	static initClass() {
-		this.prototype.name = "Error";
-		this.prototype.xtralifecode = 20;
-	}
 	constructor(message) {
 		super();
 		this.message = message;
 	}
 }
-ConnectError.initClass();
+ConnectError.prototype.name = "Error";
+ConnectError.prototype.xtralifecode = 20;
 
 class InternalError extends XLAPIError {
-	static initClass() {
-		this.prototype.name = "InternalError";
-		this.prototype.xtralifecode = 21;
-	}
 	constructor(message) {
 		super();
 		this.message = message;
 	}
 }
-InternalError.initClass();
+InternalError.prototype.name = "InternalError";
+InternalError.prototype.xtralifecode = 21;
 
 class ConcurrentModification extends XLAPIError {
-	static initClass() {
-		this.prototype.name = "ConcurrentModification";
-		this.prototype.message = "The object was concurrently modified, you need to retry the request";
-		this.prototype.xtralifecode = 91;
-	}
 }
-ConcurrentModification.initClass();
+ConcurrentModification.prototype.name = "ConcurrentModification";
+ConcurrentModification.prototype.message = "The object was concurrently modified, you need to retry the request";
+ConcurrentModification.prototype.xtralifecode = 91;
 
 class ExternalServerTempError extends XLAPIRetryableError {
-	static initClass() {
-
-		this.prototype.name = "ExternalServerTempError";
-		this.prototype.xtralifecode = 92;
-	}
 	constructor(serverresponse) {
 		super();
 		this.serverresponse = serverresponse;
 		this.message = `An external server could not be reached, please try again later, code : ${this.serverresponse}`;
 	}
 }
-ExternalServerTempError.initClass();
+ExternalServerTempError.prototype.name = "ExternalServerTempError";
+ExternalServerTempError.prototype.xtralifecode = 92;
 
 class PreconditionError extends XLAPIError {
-	static initClass() {
-
-		this.prototype.name = "PreconditionError";
-		this.prototype.xtralifecode = 1;
-	}
 	constructor(errors) {
 		super();
 		this.errors = errors;
 		this.message = `Incorrect parameters (${this.errors.join(',')})`;
 	}
 }
-PreconditionError.initClass();
+PreconditionError.prototype.name = "PreconditionError";
+PreconditionError.prototype.xtralifecode = 1;
 
 class PreventRegistration extends XLAPIError {
-	static initClass() {
-
-		this.prototype.name = "PreventRegistration";
-		this.prototype.xtralifecode = 1;
-	}
 	constructor(details) {
 		super();
 		this.details = details;
 		this.message = "PreventRegistration raised!";
 	}
 }
-PreventRegistration.initClass();
+PreventRegistration.prototype.name = "PreventRegistration";
+PreventRegistration.prototype.xtralifecode = 1;
 
 class HookRecursionError extends XLAPIError {
-	static initClass() {
-		this.prototype.name = "HookRecursionError";
-		this.prototype.xtralifecode = 69;
-	}
 	constructor(message) {
 		super();
 		this.message = message;
 	}
 }
-HookRecursionError.initClass();
+HookRecursionError.prototype.name = "HookRecursionError";
+HookRecursionError.prototype.xtralifecode = 69;
 
 class HookError extends XLAPIError {
-	static initClass() {
-		this.prototype.name = "HookError";
-		this.prototype.xtralifecode = 68;
-	}
 	constructor(message) {
 		super();
 		this.message = message;
 	}
 }
-HookError.initClass();
+HookError.prototype.name = "HookError";
+HookError.prototype.xtralifecode = 68;
 
 class SponsorshipRefusedByHook extends XLAPIError {
-	static initClass() {
-		this.prototype.name = "SponsorshipRefusedByHook";
-		this.prototype.message = "The social-godfather hook refused sponsorship";
-		this.prototype.xtralifecode = 70;
-	}
 }
-SponsorshipRefusedByHook.initClass();
+SponsorshipRefusedByHook.prototype.name = "SponsorshipRefusedByHook";
+SponsorshipRefusedByHook.prototype.message = "The social-godfather hook refused sponsorship";
+SponsorshipRefusedByHook.prototype.xtralifecode = 70;
 
 
 module.exports = {

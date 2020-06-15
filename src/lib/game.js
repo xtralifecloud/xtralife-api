@@ -10,11 +10,11 @@
 const AbstractAPI = require('../AbstractAPI.js');
 const async = require('async');
 const {
-    ObjectID
+	ObjectID
 } = require('mongodb');
 const moment = require("moment");
 const _ = require('underscore-contrib');
-const Q = require('bluebird');
+const Promise = require('bluebird');
 const errors = require('../errors.js');
 const util = require('util');
 
@@ -37,11 +37,11 @@ class GameAPI extends AbstractAPI {
 	}
 
 	// helpers
-	collgame(){
+	collgame() {
 		return this.coll("games");
 	}
 
-	configure(xtralifeapi, cb){
+	configure(xtralifeapi, cb) {
 		this.xtralifeapi = xtralifeapi;
 		this.collDomainDefinition = this.coll("domainDefinition");
 
@@ -50,10 +50,10 @@ class GameAPI extends AbstractAPI {
 		// start with the contents of xlenv.hooks.definitions
 		this.hooks = _.clone(xlenv.hooks.definitions);
 
-		return xlenv.inject(["xtralife.games"], (err, xtralifeGames)=> {
+		return xlenv.inject(["xtralife.games"], (err, xtralifeGames) => {
 			if (err != null) { cb(err); }
 
-			return this.collgame().createIndex({appid: 1}, { unique: true }, err=> {
+			return this.collgame().createIndex({ appid: 1 }, { unique: true }, err => {
 				if (err != null) { return cb(err); }
 
 
@@ -62,11 +62,11 @@ class GameAPI extends AbstractAPI {
 
 				this.eventedDomains = {};
 
-				Q.promisifyAll(this.coll('hookLog'));
+				Promise.promisifyAll(this.coll('hookLog'));
 
-				xlenv.inject(['redisClient'], (err, client)=> {
-					return this.redlock = new Redlock([client], {driftFactor: 0.01, retryCount:  3, retryDelay:  200});
-			});
+				xlenv.inject(['redisClient'], (err, client) => {
+					return this.redlock = new Redlock([client], { driftFactor: 0.01, retryCount: 3, retryDelay: 200 });
+				});
 
 				return async.eachSeries(((() => {
 					const result = [];
@@ -74,18 +74,18 @@ class GameAPI extends AbstractAPI {
 						result.push(each);
 					}
 					return result;
-				})()), (game, localcb)=> {
-					return this.configureGame(game, err=> {
+				})()), (game, localcb) => {
+					return this.configureGame(game, err => {
 						return localcb(err);
 					}
-					, true);
+						, true);
 				} // silent
-				, err => cb(err));
+					, err => cb(err));
 			});
 		});
 	}
 
-	configureGame(appid, cb, silent){
+	configureGame(appid, cb, silent) {
 		if (silent == null) { silent = false; }
 		const game = this.dynGames[appid];
 		game.appid = appid;
@@ -95,39 +95,42 @@ class GameAPI extends AbstractAPI {
 		// needed to initiate the llop on timed out event !
 		xlenv.broker.start(`${appid}.${game.apisecret}`);
 		this.eventedDomains[this.getPrivateDomain(appid)] = true;
-		if (game.config.eventedDomains != null) { for (let domain of Array.from(game.config.eventedDomains)) {
-			this.eventedDomains[domain] = true; 
-			xlenv.broker.start(domain);
-		} }
-
-		return this.coll('games').updateOne({appid}, {"$set": {appid, config: game.config}}, {upsert: true})
-		.then(query=> {
-			if (query.result.upserted != null) {
-				return query.result.upserted[0]._id;
-			} else {
-				return this.coll('games').findOne({appid})
-				.then(agame => agame._id);
+		if (game.config.eventedDomains != null) {
+			for (let domain of Array.from(game.config.eventedDomains)) {
+				this.eventedDomains[domain] = true;
+				xlenv.broker.start(domain);
 			}
-	}).then(function(_id){
-			game._id = _id;
-			return cb(null);}).catch(cb);
+		}
+
+		return this.coll('games').updateOne({ appid }, { "$set": { appid, config: game.config } }, { upsert: true })
+			.then(query => {
+				if (query.result.upserted != null) {
+					return query.result.upserted[0]._id;
+				} else {
+					return this.coll('games').findOne({ appid })
+						.then(agame => agame._id);
+				}
+			}).then(function (_id) {
+				game._id = _id;
+				return cb(null);
+			}).catch(cb);
 	}
 
-	onDeleteUser(userid, cb){
+	onDeleteUser(userid, cb) {
 		logger.debug(`delete user ${userid} for game`);
 		return cb(null);
 	}
 
-	existsKey(apikey, cb){
+	existsKey(apikey, cb) {
 		return cb(null, this.gamesByApiKey[apikey]);
 	}
 
-	getPrivateDomain(appid){
+	getPrivateDomain(appid) {
 		const game = this.dynGames[appid];
 		return `${appid}.${game.apisecret}`;
 	}
 
-	checkAppCredentials(apikey, apisecret, cb){
+	checkAppCredentials(apikey, apisecret, cb) {
 		const game = this.gamesByApiKey[apikey];
 		if (game == null) { return cb(new Error('Invalid ApiKey')); }
 		if ((game.apisecret === apisecret) && game.config.enable) {
@@ -137,26 +140,26 @@ class GameAPI extends AbstractAPI {
 		}
 	}
 
-	checkDomain(game, domain, cb){
-		return cb(null,  game.config.domains && (game.config.domains.indexOf(domain)!==-1));
+	checkDomain(game, domain, cb) {
+		return cb(null, game.config.domains && (game.config.domains.indexOf(domain) !== -1));
 	}
 
-	checkDomainSync(appid, domain){
+	checkDomainSync(appid, domain) {
 		const game = this.dynGames[appid];
 		return (this.getPrivateDomain(appid) === domain) || (game.config.domains && (game.config.domains.indexOf(domain) !== -1));
 	}
 
-	getGame(appid, domain, cb){
+	getGame(appid, domain, cb) {
 		//keep ascending compatibility
 		if (cb == null) {
 			cb = domain;
 			domain = this.getPrivateDomain(appid);
 		}
 
-		return this.collgame().findOne({appid}, (err, game)=> {
+		return this.collgame().findOne({ appid }, (err, game) => {
 			if (err != null) { return cb(err); }
 
-			return this.collDomainDefinition.findOne({domain}, {projection:{leaderboards: 1}}, function(err, domainDefinition){
+			return this.collDomainDefinition.findOne({ domain }, { projection: { leaderboards: 1 } }, function (err, domainDefinition) {
 				if (err != null) { return cb(err); }
 				game.leaderboards = (domainDefinition != null ? domainDefinition.leaderboards : undefined) || {};
 				return cb(null, game);
@@ -164,7 +167,7 @@ class GameAPI extends AbstractAPI {
 		});
 	}
 
-	getCerts(appid, cb){
+	getCerts(appid, cb) {
 		const empty = {
 			android: {
 				enable: false,
@@ -187,106 +190,106 @@ class GameAPI extends AbstractAPI {
 	}
 
 
-	hasListener(domain){
+	hasListener(domain) {
 		return this.eventedDomains[domain] === true;
 	}
 
-	getAppsWithDomain(domain, cb){
+	getAppsWithDomain(domain, cb) {
 
 		if (this.appsForDomain[domain] != null) {
 			return cb(null, this.appsForDomain[domain]);
 		}
-		
+
 		let appid = undefined;
 		for (let key in this.gamesByApiKey) {
 			if (domain === `${this.gamesByApiKey[key].appid}.${this.gamesByApiKey[key].apisecret}`) {
 				({
-                    appid
-                } = this.gamesByApiKey[key]);
+					appid
+				} = this.gamesByApiKey[key]);
 			}
 		}
-		
+
 		if (appid == null) { return cb(null, null); }
 
 		const game = this.dynGames[appid];
-		this.appsForDomain[domain] = {appid, certs : game.config.certs};
+		this.appsForDomain[domain] = { appid, certs: game.config.certs };
 		return cb(null, this.appsForDomain[domain]);
 	}
 
 
-	runBatch(context, domain, hookName, params){
-		if (hookName.slice(0, 2) !== '__') { hookName = '__'+hookName; }
+	runBatch(context, domain, hookName, params) {
+		if (hookName.slice(0, 2) !== '__') { hookName = '__' + hookName; }
 
 		return this.handleHook(hookName, context, domain, params);
 	}
 
-	runBatchWithLock(context, domain, hookName, params, resource=null){
-		if (hookName.slice(0, 2) !== '__') { hookName = '__'+hookName; }
+	runBatchWithLock(context, domain, hookName, params, resource = null) {
+		if (hookName.slice(0, 2) !== '__') { hookName = '__' + hookName; }
 
 		if (resource == null) { resource = hookName; }
 		const lockName = `${domain}.${resource}`;
 
-		return this.redlock.lock(lockName, 200).then(lock=> {
+		return this.redlock.lock(lockName, 200).then(lock => {
 			return this.handleHook(hookName, context, domain, params)
-			.timeout(200)
-			.tap(result=> {
-				return lock.unlock();
-		}).catch(err=> {
-				lock.unlock();
-				throw err;
-			});
+				.timeout(200)
+				.tap(result => {
+					return lock.unlock();
+				}).catch(err => {
+					lock.unlock();
+					throw err;
+				});
 		});
 	}
 
-	sendEvent(context, domain, user_id, message){
+	sendEvent(context, domain, user_id, message) {
 		if (!this.hasListener(domain)) {
 			throw new errors.NoListenerOnDomain(domain);
 		}
 
 		if (util.isArray(user_id)) {
 			if (user_id.length > (xlenv.options.maxReceptientsForEvent)) {
-				return Q.reject(new Error(`Can't send a message to more than ${xlenv.options.maxUsersForEvent} users`));
+				return Promise.reject(new Error(`Can't send a message to more than ${xlenv.options.maxUsersForEvent} users`));
 			}
 
-			return Q.all((Array.from(user_id).map((eachUser) => xlenv.broker.send(domain, eachUser.toString(), message))));
+			return Promise.all((Array.from(user_id).map((eachUser) => xlenv.broker.send(domain, eachUser.toString(), message))));
 		} else {
 			return xlenv.broker.send(domain, user_id.toString(), message);
 		}
 	}
 
-	sendVolatileEvent(context, domain, user_id, message){
+	sendVolatileEvent(context, domain, user_id, message) {
 		if (util.isArray(user_id)) {
 			if (user_id.length > (xlenv.options.maxReceptientsForEvent)) {
-				return Q.reject(new Error(`Can't send a message to more than ${xlenv.options.maxUsersForEvent} users`));
+				return Promise.reject(new Error(`Can't send a message to more than ${xlenv.options.maxUsersForEvent} users`));
 			}
 
-			return Q.all((Array.from(user_id).map((eachUser) => xlenv.broker.sendVolatile(domain, eachUser.toString(), message))));
+			return Promise.all((Array.from(user_id).map((eachUser) => xlenv.broker.sendVolatile(domain, eachUser.toString(), message))));
 		} else {
 			return xlenv.broker.sendVolatile(domain, user_id.toString(), message);
 		}
 	}
 
-	getHooks(game, domain){
-		if (!this.checkDomainSync(game.appid, domain)) { return Q.reject(new errors.RestrictedDomain("Invalid domain access")); }
+	getHooks(game, domain) {
+		if (!this.checkDomainSync(game.appid, domain)) { return Promise.reject(new errors.RestrictedDomain("Invalid domain access")); }
 
-		return Q.resolve((
+		return Promise.resolve((
 			(this.hooks[domain] == null) ? null
-			: this.hooks[domain]
+				: this.hooks[domain]
 		)
 		);
 	}
 
-	hookLog(game, domain, hookName, log){
+	hookLog(game, domain, hookName, log) {
 		if (!(xlenv.options.hookLog != null ? xlenv.options.hookLog.enable : undefined)) { return; }
 		if (!this.checkDomainSync(game.appid, domain)) { throw new errors.RestrictedDomain("Invalid domain access"); }
-		return logger.debug(`hookLog: ${domain}.${hookName} - ${log}`, {appid: game.appid});
+		return logger.debug(`hookLog: ${domain}.${hookName} - ${log}`, { appid: game.appid });
 	}
 
-	sandbox(context){
-		const _checkUrl = function(_url){
+	sandbox(context) {
+		const _checkUrl = function (_url) {
 			const {
-                hostname
-            } = url.parse(_url);
+				hostname
+			} = url.parse(_url);
 			if (xlenv.options.hostnameBlacklist == null) {
 				logger.warn('xlenv.options.hostnameBlacklist should be defined, disabling http requests');
 				throw new Error("HTTP requests have been disabled, please contact support");
@@ -298,26 +301,26 @@ class GameAPI extends AbstractAPI {
 		};
 
 		return {
-			loginExternal: (external, id, token, options)=> {
-				const loginAsync = Q.promisify(this.xtralifeapi.connect.loginExternal, {context: this.xtralifeapi.connect});
-				const addGameAsync = Q.promisify(this.xtralifeapi.connect.addGameToUser, {context: this.xtralifeapi.connect});
+			loginExternal: (external, id, token, options) => {
+				const loginAsync = Promise.promisify(this.xtralifeapi.connect.loginExternal, { context: this.xtralifeapi.connect });
+				const addGameAsync = Promise.promisify(this.xtralifeapi.connect.addGameToUser, { context: this.xtralifeapi.connect });
 
 				return loginAsync(context.game, external, id, token, options)
-				.then((gamer, created) => {
-					return addGameAsync(context.game, gamer).then(count => {
-						const result = gamer;
+					.then((gamer, created) => {
+						return addGameAsync(context.game, gamer).then(count => {
+							const result = gamer;
 
-						result.gamer_id = gamer._id;
-						result.gamer_secret = this.xtralifeapi.user.sha_passwd(gamer._id);
-						result.servertime = new Date();
-						delete result._id;
-						delete result.networksecret;
-						return result;
+							result.gamer_id = gamer._id;
+							result.gamer_secret = this.xtralifeapi.user.sha_passwd(gamer._id);
+							result.servertime = new Date();
+							delete result._id;
+							delete result.networksecret;
+							return result;
+						});
 					});
-				});
 			},
-		
-			runBatch: (domain, hookName, params)=> {
+
+			runBatch: (domain, hookName, params) => {
 				if (this.xtralifeapi.game.checkDomainSync(context.game.appid, domain)) {
 					return this.runBatch(context, domain, hookName, params);
 				} else {
@@ -325,7 +328,7 @@ class GameAPI extends AbstractAPI {
 				}
 			},
 
-			runBatchWithLock: (domain, hookName, params, resource=null)=> {
+			runBatchWithLock: (domain, hookName, params, resource = null) => {
 				if (this.xtralifeapi.game.checkDomainSync(context.game.appid, domain)) {
 					return this.runBatchWithLock(context, domain, hookName, params, resource);
 				} else {
@@ -337,7 +340,7 @@ class GameAPI extends AbstractAPI {
 				return this.getPrivateDomain(context.game.appid);
 			},
 
-			sendEvent: (domain, user_id, message)=> {
+			sendEvent: (domain, user_id, message) => {
 				if (this.xtralifeapi.game.checkDomainSync(context.game.appid, domain)) {
 					return this.sendEvent(context, domain, user_id, message);
 				} else {
@@ -345,7 +348,7 @@ class GameAPI extends AbstractAPI {
 				}
 			},
 
-			sendVolatileEvent: (domain, user_id, message)=> {
+			sendVolatileEvent: (domain, user_id, message) => {
 				if (this.xtralifeapi.game.checkDomainSync(context.game.appid, domain)) {
 					return this.sendVolatileEvent(context, domain, user_id, message);
 				} else {
@@ -356,22 +359,22 @@ class GameAPI extends AbstractAPI {
 			jwt,
 
 			http: {
-				get(_url){
+				get(_url) {
 					_checkUrl(_url);
 					return superagent.get(_url);
 				},
 
-				post(_url){
+				post(_url) {
 					_checkUrl(_url);
 					return superagent.post(_url);
 				},
 
-				put(_url){
+				put(_url) {
 					_checkUrl(_url);
 					return superagent.put(_url);
 				},
-		
-				del: _url=> {
+
+				del: _url => {
 					_checkUrl(_url);
 					return superagent.del(_url);
 				}
@@ -379,7 +382,7 @@ class GameAPI extends AbstractAPI {
 
 			nodemailer,
 
-			redlock: ()=> this.redlock
+			redlock: () => this.redlock
 		};
 	}
 }

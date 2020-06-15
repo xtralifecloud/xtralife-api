@@ -11,44 +11,44 @@ const api = require("../api.js");
 const AbstractAPI = require("../AbstractAPI.js");
 const errors = require("../errors.js");
 const {
-    ObjectID
+	ObjectID
 } = require('mongodb');
 
-const Q = require('bluebird');
+const Promise = require('bluebird');
 
 class GameVFSAPI extends AbstractAPI {
-	constructor(){
+	constructor() {
 		super();
 	}
 
-	configure(parent, callback){
+	configure(parent, callback) {
 
 		this.parent = parent;
 		this.domains = this.coll('gamevfs');
-		this.readAsync = Q.promisify(this.read, {context: this});
-		this.writeAsync = Q.promisify(this.write, {context: this});
+		this.readAsync = Promise.promisify(this.read, { context: this });
+		this.writeAsync = Promise.promisify(this.write, { context: this });
 
-		return this.domains.createIndex({domain:1}, function(err){
+		return this.domains.createIndex({ domain: 1 }, function (err) {
 			if (err != null) { return callback(err); }
 			logger.info("Gamevfs initialized");
 			return callback(err, {});
-	});
+		});
 	}
 
 	// remove common data
-	onDeleteUser(user_id, cb){
+	onDeleteUser(user_id, cb) {
 		logger.debug(`delete user ${user_id} for gamevfs`);
 		return cb(null);
 	}
 
-	read(domain, key, callback){
+	read(domain, key, callback) {
 		this.pre(check => ({
-            "domain must be a valid domain": check.nonEmptyString(domain),
-            "key may be an unempty string or array": check.maybe.nonEmptyString(key) || key instanceof Array
-        }));
+			"domain must be a valid domain": check.nonEmptyString(domain),
+			"key may be an unempty string or array": check.maybe.nonEmptyString(key) || key instanceof Array
+		}));
 
 		const query =
-			{domain};
+			{ domain };
 
 		const field = {};
 		if (key instanceof Array) {
@@ -57,20 +57,20 @@ class GameVFSAPI extends AbstractAPI {
 			field[(key == null) ? 'fs' : `fs.${key}`] = 1;
 		}
 
-		return this.domains.findOne(query, {projection: field} , (err, value)=> {
+		return this.domains.findOne(query, { projection: field }, (err, value) => {
 			if (err != null) { return callback(err); }
 			return callback(null, ((value != null) && (value.fs != null) ? value.fs : {}));
 		});
 	}
 
-	write(domain, key, value, callback){
+	write(domain, key, value, callback) {
 		if (callback == null) { callback = value; }
 		this.pre(check => ({
-            "domain must be a valid domain": check.nonEmptyString(domain)
-        }));
+			"domain must be a valid domain": check.nonEmptyString(domain)
+		}));
 
 		const query =
-			{domain};
+			{ domain };
 
 		const set = {};
 		if (key === null) {
@@ -81,52 +81,52 @@ class GameVFSAPI extends AbstractAPI {
 			for (let k in key) { value = key[k]; set[`fs.${k}`] = value; }
 		}
 
-		return this.domains.updateOne(query, {$set: set}, { upsert: true }, (err, result)=> {
+		return this.domains.updateOne(query, { $set: set }, { upsert: true }, (err, result) => {
 			if (err != null) { return callback(err); }
 			return callback(null, result.result.n);
 		});
 	}
 
-	delete(domain, key, callback){
+	delete(domain, key, callback) {
 		this.pre(check => ({
-            "domain must be a valid domain": check.nonEmptyString(domain)
-        }));
+			"domain must be a valid domain": check.nonEmptyString(domain)
+		}));
 
 		const query =
-			{domain};
+			{ domain };
 
 		const unset = {};
 		unset[(key == null) ? 'fs' : `fs.${key}`] = "";
-		return this.domains.updateOne(query, {$unset: unset}, (err, result)=> {
+		return this.domains.updateOne(query, { $unset: unset }, (err, result) => {
 			if (err != null) { return callback(err); }
 
 			return callback(null, result.result.n);
 		});
 	}
 
-	incr(context, domain, key, amount){
+	incr(context, domain, key, amount) {
 		if (amount == null) { amount = 1; }
 		this.pre(check => ({
-            "domain must be a valid domain": check.nonEmptyString(domain),
-            "key must be a string": check.nonEmptyString(key)
-        }));
+			"domain must be a valid domain": check.nonEmptyString(domain),
+			"key must be a string": check.nonEmptyString(key)
+		}));
 
 		const query =
-			{domain};
+			{ domain };
 
-		const field = {[`fs.${key}`] : 1};
-		const update = {"$inc" : {[`fs.${key}`]: amount} };
+		const field = { [`fs.${key}`]: 1 };
+		const update = { "$inc": { [`fs.${key}`]: amount } };
 
-		return this.domains.findOneAndUpdate(query, update, {returnOriginal: false, projection: field})
-		.then(results=> {
-			return results.value.fs;
-		});
+		return this.domains.findOneAndUpdate(query, update, { returnOriginal: false, projection: field })
+			.then(results => {
+				return results.value.fs;
+			});
 	}
 
-	createSignedURL(domain, key, contentType=null, callback){
+	createSignedURL(domain, key, contentType = null, callback) {
 		this.pre(check => ({
-            "domain must be a valid domain": check.nonEmptyString(domain)
-        }));
+			"domain must be a valid domain": check.nonEmptyString(domain)
+		}));
 
 		if (callback == null) {
 			callback = contentType;
@@ -134,25 +134,25 @@ class GameVFSAPI extends AbstractAPI {
 		}
 
 		return this.parent.virtualfs.createSignedURL(domain, "GAME", key, contentType)
-		.spread((signedURL, getURL) => callback(null, signedURL, getURL))
-		.catch(callback)
-		.done();
+			.spread((signedURL, getURL) => callback(null, signedURL, getURL))
+			.catch(callback)
+			.done();
 	}
 
-	deleteURL(domain, key, callback){
+	deleteURL(domain, key, callback) {
 		this.pre(check => ({
-            "domain must be a valid domain": check.nonEmptyString(domain)
-        }));
+			"domain must be a valid domain": check.nonEmptyString(domain)
+		}));
 
 		return this.parent.virtualfs.deleteURL(domain, "GAME", key)
-		.then(result => callback(null, result))
-		.catch(callback)
-		.done();
+			.then(result => callback(null, result))
+			.catch(callback)
+			.done();
 	}
 
-	sandbox(context){
+	sandbox(context) {
 		return {
-			incr: (domain, key, amount)=> {
+			incr: (domain, key, amount) => {
 				if (amount == null) { amount = 1; }
 				if (this.parent.game.checkDomainSync(context.game.appid, domain)) {
 					return this.incr(context, domain, key, amount);
@@ -161,7 +161,7 @@ class GameVFSAPI extends AbstractAPI {
 				}
 			},
 
-			read: (domain, key)=> {
+			read: (domain, key) => {
 				if (this.parent.game.checkDomainSync(context.game.appid, domain)) {
 					return this.readAsync(domain, key);
 				} else {
@@ -169,7 +169,7 @@ class GameVFSAPI extends AbstractAPI {
 				}
 			},
 
-			write: (domain, key, value)=> {
+			write: (domain, key, value) => {
 				if (this.parent.game.checkDomainSync(context.game.appid, domain)) {
 					return this.writeAsync(domain, key, value);
 				} else {
