@@ -1,6 +1,6 @@
 {
   "name": "xtralife-api",
-  "version": "4.0.0-alpha",
+  "version": "4.0.0-beta",
   "description": "Xtralife.cloud business logic shared between components",
   "main": "src/index.js",
   "scripts": {
