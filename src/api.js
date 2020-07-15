@@ -43,6 +43,10 @@ class XtralifeAPI {
 
 		this.modules = [this.connect, this.user, this.social, this.outline, this.transaction, this.virtualfs, this.leaderboard, this.gamevfs, this.achievement, this.match, this.store, this.index, this.timer, this.kv];
 
+		if (xlenv.options.disableIndexModule) {
+			this.modules = this.modules.filter( each => each !== this.index )
+		}
+		  
 		// WARNING @collections must always be first
 		// @ts-ignore
 		this.modules.unshift(this.collections);

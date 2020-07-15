@@ -26,6 +26,8 @@ const jwt = require('jsonwebtoken');
 const url = require('url');
 const nodemailer = require('nodemailer');
 
+const metrics = require('./metrics.js');
+
 class GameAPI extends AbstractAPI {
 
 	constructor() {
@@ -216,7 +218,6 @@ class GameAPI extends AbstractAPI {
 		return cb(null, this.appsForDomain[domain]);
 	}
 
-
 	runBatch(context, domain, hookName, params) {
 		if (hookName.slice(0, 2) !== '__') { hookName = '__' + hookName; }
 
@@ -283,6 +284,10 @@ class GameAPI extends AbstractAPI {
 		if (!(xlenv.options.hookLog != null ? xlenv.options.hookLog.enable : undefined)) { return; }
 		if (!this.checkDomainSync(game.appid, domain)) { throw new errors.RestrictedDomain("Invalid domain access"); }
 		return logger.debug(`hookLog: ${domain}.${hookName} - ${log}`, { appid: game.appid });
+	}
+
+	getMetrics() {
+		return metrics;
 	}
 
 	sandbox(context) {
@@ -382,7 +387,9 @@ class GameAPI extends AbstractAPI {
 
 			nodemailer,
 
-			redlock: () => this.redlock
+			redlock: () => this.redlock,
+
+			metrics: () => this.getMetrics()
 		};
 	}
 }
