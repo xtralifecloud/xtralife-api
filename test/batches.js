@@ -1,5 +1,8 @@
 module.exports = {
 	"com.clanofthecloud.cloudbuilder.azerty": {
+		init: function() {
+			console.log("com.clanofthecloud.cloudbuilder Game init hook")
+		},
 		__testTimer: function (params, customData, mod) {
 			return this.timer.add('com.clanofthecloud.cloudbuilder.azerty', params.user_id, {
 				expirySeconds: 2,

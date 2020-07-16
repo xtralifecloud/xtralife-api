@@ -104,6 +104,13 @@ class GameAPI extends AbstractAPI {
 			}
 		}
 
+		// if there's an init hook on the private domain of the game, call it
+		const privateDomain = this.getPrivateDomain(appid)
+		if (xlenv.hooks.functions && xlenv.hooks.functions[privateDomain] && xlenv.hooks.functions[privateDomain]['init']) {
+			// we've found an init hook, call it
+			xlenv.hooks.functions[privateDomain].init()
+		}
+
 		return this.coll('games').updateOne({ appid }, { "$set": { appid, config: game.config } }, { upsert: true })
 			.then(query => {
 				if (query.result.upserted != null) {
