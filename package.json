@@ -43,13 +43,13 @@
     "underscore": "^1.13.1",
     "underscore-contrib": "^0.3.0",
     "winston": "^3.3.3",
-    "xtralife-msg": "https://github.com/xtralifecloud/xtralife-msg.git"
+    "xtralife-msg": "4.0.0"
   },
   "devDependencies": {
     "mocha": "^9.1.2",
     "redis": "^3.1.2",
     "should": "^13.2.3",
-    "xtralife-env": "https://github.com/xtralifecloud/xtralife-env.git"
+    "xtralife-env": "4.0.0"
   },
   "readmeFilename": "readme.md"
 }
