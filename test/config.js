@@ -42,16 +42,9 @@ xlenv.override(null, {
 
 		url: "mongodb://localhost:27018",
 		options: { // see http://mongodb.github.io/node-mongodb-native/driver-articles/mongoclient.html
-			db: {
-				w: 1,
-				readPreference: "primaryPreferred"
-			},
-
-			server: {
-				auto_reconnect: true
-			},
-
-			mongos: {},
+			
+			w: 1,
+			readPreference: "primaryPreferred",
 			promiseLibrary: require('bluebird')
 		}
 	},
@@ -61,7 +54,7 @@ xlenv.override(null, {
 		return require("mongodb").MongoClient.connect(xlenv.mongodb.url, xlenv.mongodb.options, (err, mongodb) => cb(err, mongodb));
 	},
 
-	elastic(cb) {
+	elastic(cb) {	
 		const elastic = require("elasticsearch");
 		const client = new elastic.Client();
 		return cb(null, client);

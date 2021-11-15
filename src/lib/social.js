@@ -12,12 +12,12 @@
 const async = require("async");
 const extend = require('extend');
 const rs = require("randomstring");
-const moment = require('moment');
+//const moment = require('moment');
 const _ = require("underscore");
 const Promise = require('bluebird');
 
 const {
-	ObjectID
+	ObjectId
 } = require("mongodb");
 
 const facebook = require("./network/facebook.js");
@@ -115,7 +115,7 @@ class SocialAPI extends AbstractAPI {
 	}
 
 	describeUsersListBase(ids) {
-		const cursor = this.collusers.find({ _id: { $in: ids } }, { profile: 1 });
+		const cursor = this.collusers.find({ _id: { $in: ids } }, { profile: 1 })
 
 		return cursor.toArray().then(users => {
 			if (users == null) { return []; }
@@ -211,7 +211,7 @@ class SocialAPI extends AbstractAPI {
 								if ((reward != null) && (reward.transaction != null)) {
 									return this.xtralifeapi.transaction.transaction(context, domain, user.user_id, reward.transaction, reward.description)
 										.spread((balance, achievements) => {
-											if (result.result.n === 1) {
+											if (result.modifiedCount === 1) {
 												const message = {
 													type: "godchildren",
 													event: {
@@ -222,12 +222,12 @@ class SocialAPI extends AbstractAPI {
 												if (options.osn != null) { message.osn = options.osn; }
 												if (this.xtralifeapi.game.hasListener(domain)) { xlenv.broker.send(domain, user.user_id.toString(), message); }
 											}
-											return cb(null, result.result.n);
+											return cb(null, result.modifiedCount);
 										}).catch(cb)
 										.done();
 								} else {
-									cb(err, result.result.n);
-									if (result.result.n === 1) {
+									cb(err, result.modifiedCount);
+									if (result.modifiedCount === 1) {
 										const message = {
 											type: "godchildren",
 											event: {
@@ -308,7 +308,7 @@ class SocialAPI extends AbstractAPI {
 					if (err != null) { return cb(err); }
 					if (blacklisted != null) { return cb(null, { done: 0 }); }
 					return this.colldomains.updateOne({ domain, user_id }, { $addToSet: { "relations.friends": friend_id } }, { upsert: true }, (err, result) => {
-						return cb(err, { done: result.result.n });
+						return cb(err, { done: result.upsertedCount });
 					});
 				});
 
@@ -318,7 +318,7 @@ class SocialAPI extends AbstractAPI {
 				return this.colldomains.updateOne({ domain, user_id }, { $pull: { "relations.blacklist": friend_id } }, { upsert: true }, (err, result) => {
 					if (err != null) { return cb(err); }
 					return this.colldomains.updateOne({ domain, user_id }, { $pull: { "relations.friends": friend_id } }, { upsert: true }, (err, other) => {
-						return cb(err, { done: result.result.n || other.result.n });
+						return cb(err, { done: result.modifiedCount || other.result.n });
 					});
 				});
 
@@ -328,7 +328,7 @@ class SocialAPI extends AbstractAPI {
 				return this.colldomains.updateOne({ domain, user_id }, { $addToSet: { "relations.blacklist": friend_id } }, { upsert: true }, (err, result) => {
 					if (err != null) { return cb(err); }
 					return this.colldomains.updateOne({ domain, user_id }, { $pull: { "relations.friends": friend_id } }, { upsert: true }, (err, other) => {
-						return cb(err, { done: result.result.n });
+						return cb(err, { done: result.modifiedCount });
 					});
 				});
 		}

@@ -44,7 +44,7 @@ class AchievementAPI extends AbstractAPI {
 	checkTriggeredAchievements(context, user_id, domain, domainDocument, oldBalance, newBalance, user_achievements) {
 		this.pre(check => ({
 			"domain must be a valid domain": check.nonEmptyString(domain),
-			"user_id must be an ObjectID": check.objectid(user_id)
+			"user_id must be an ObjectId": check.objectid(user_id)
 		}));
 
 		// Needed prior to returning the achievements
@@ -174,7 +174,7 @@ class AchievementAPI extends AbstractAPI {
 				// Update the achievements field for the domain in DB
 				return this.coll('domains').findOneAndUpdate({ domain, user_id },
 					{ "$set": query },
-					{ upsert: true, returnOriginal: false })
+					{ upsert: true, returnDocument: "after" })
 					.then(result => {
 						return this.handleHook("after-achievement-userdata-modified", context, domain, {
 							domain,
@@ -203,7 +203,7 @@ class AchievementAPI extends AbstractAPI {
 		}));
 
 		const achColl = this.coll('achievements');
-		return achColl.findOneAndUpdate({ domain }, { $set: { definitions: achievements } }, { upsert: true, returnOriginal: false })
+		return achColl.findOneAndUpdate({ domain }, { $set: { definitions: achievements } }, { upsert: true, returnDocument: "after" })
 			.then(result => {
 				return result.value;
 			});

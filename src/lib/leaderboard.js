@@ -9,7 +9,7 @@
 const async = require("async");
 const extend = require('util')._extend;
 const {
-	ObjectID
+	ObjectId
 } = require('mongodb');
 const _ = require("underscore");
 
@@ -80,7 +80,7 @@ class LeaderboardAPI extends AbstractAPI {
 	_describeScore(context, domain, board, scores, rank, card, page, count, cb) {
 		const before = new Date();
 
-		const list = _.map(scores, item => new ObjectID(item));
+		const list = _.map(scores, item => new ObjectId(item));
 
 		const query = {
 			domain,

@@ -9,7 +9,7 @@ const api = require("../api.js");
 const AbstractAPI = require("../AbstractAPI.js");
 const errors = require("../errors.js");
 const {
-	ObjectID
+	ObjectId
 } = require('mongodb');
 
 class KVStoreAPI extends AbstractAPI {
@@ -53,7 +53,10 @@ class KVStoreAPI extends AbstractAPI {
 
 		const cdate = Date.now();
 		return this.kvColl.insertOne({ domain, key, value, acl, cdate, udate: cdate })
-			.get('result');
+			.then(result => {
+				result.acknowledged ? result.ok = 1 : result.ok = 0
+				return result
+			})
 	}
 
 	// change the ACL of a key (must have 'a' right to do so)
@@ -94,7 +97,11 @@ class KVStoreAPI extends AbstractAPI {
 		if (udate != null) { query.udate = udate; }
 
 		return this.kvColl.updateOne(query, { $set: { value, udate: Date.now() } })
-			.get('result');
+			.then(result => {
+				result.acknowledged ? result.ok = 1 : result.ok = 0
+				result.nModified = result.modifiedCount
+				return result
+			})
 	}
 
 	// updateObject allows incremental changes to JS objects stored in value
@@ -150,7 +157,12 @@ class KVStoreAPI extends AbstractAPI {
 		const query = { domain, key };
 		if (user_id != null) { query['$or'] = [{ 'acl.a': '*' }, { 'acl.a': user_id }]; }
 		return this.kvColl.deleteOne({ domain, key, $or: [{ 'acl.a': '*' }, { 'acl.a': user_id }] })
-			.get('result');
+			.then(result => {
+				var res = {}
+				res.n = result.deletedCount
+				result.acknowledged ? res.ok = 1 : res.ok = 0
+				return res
+			})
 	}
 
 	// used by BACKOFFICE only !

@@ -11,7 +11,7 @@ const api = require("../api.js");
 const AbstractAPI = require("../AbstractAPI.js");
 const errors = require("../errors.js");
 const {
-	ObjectID
+	ObjectId
 } = require('mongodb');
 
 const Promise = require('bluebird');
@@ -83,7 +83,7 @@ class GameVFSAPI extends AbstractAPI {
 
 		return this.domains.updateOne(query, { $set: set }, { upsert: true }, (err, result) => {
 			if (err != null) { return callback(err); }
-			return callback(null, result.result.n);
+			return callback(null, result.modifiedCount);
 		});
 	}
 
@@ -100,7 +100,7 @@ class GameVFSAPI extends AbstractAPI {
 		return this.domains.updateOne(query, { $unset: unset }, (err, result) => {
 			if (err != null) { return callback(err); }
 
-			return callback(null, result.result.n);
+			return callback(null, result.modifiedCount);
 		});
 	}
 
@@ -117,7 +117,7 @@ class GameVFSAPI extends AbstractAPI {
 		const field = { [`fs.${key}`]: 1 };
 		const update = { "$inc": { [`fs.${key}`]: amount } };
 
-		return this.domains.findOneAndUpdate(query, update, { returnOriginal: false, projection: field })
+		return this.domains.findOneAndUpdate(query, update, { projection: field, returnDocument: "after" })
 			.then(results => {
 				return results.value.fs;
 			});

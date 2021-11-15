@@ -16,7 +16,7 @@ const rs = require("randomstring");
 
 // @ts-ignore
 const {
-	ObjectID
+	ObjectId
 } = require("mongodb");
 
 // @ts-ignore
@@ -79,7 +79,7 @@ class UserAPI extends AbstractAPI {
 
 		if (needUpdate) {
 			return this.collusers().updateOne({ _id: user._id }, { $set: updated }, (err, result) => {
-				return cb(err, { done: result.result.n, profile: user.profile });
+				return cb(err, { done: result.modifiedCount, profile: user.profile });
 			});
 		} else {
 			return cb(null, { done: 0 });
@@ -88,7 +88,7 @@ class UserAPI extends AbstractAPI {
 
 	updateProfile(user_id, profile, cb) {
 		return this.collusers().updateOne({ _id: user_id }, { $set: { profile } }, (err, result) => {
-			return cb(err, { done: result.result.n, profile });
+			return cb(err, { done: result.modifiedCount, profile });
 		});
 	}
 
@@ -209,7 +209,7 @@ class UserAPI extends AbstractAPI {
 					key,
 					value
 					// @ts-ignore
-				}).then(afterData => result.result.n);
+				}).then(afterData => result.modifiedCount);
 			});
 	}
 
@@ -242,7 +242,7 @@ class UserAPI extends AbstractAPI {
 						user_id,
 						key
 						// @ts-ignore
-					}).then(afterData => result.result.n);
+					}).then(afterData => result.modifiedCount);
 				});
 		});
 	}

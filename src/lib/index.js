@@ -8,7 +8,7 @@ const api = require("../api.js");
 const AbstractAPI = require("../AbstractAPI.js");
 const errors = require("../errors.js");
 const {
-	ObjectID
+	ObjectId
 } = require('mongodb');
 
 const Promise = require('bluebird');

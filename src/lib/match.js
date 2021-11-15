@@ -13,7 +13,7 @@ const api = require("../api.js");
 const AbstractAPI = require("../AbstractAPI.js");
 const errors = require("../errors.js");
 const {
-	ObjectID
+	ObjectId
 } = require('mongodb');
 
 const Promise = require('bluebird');
@@ -109,11 +109,11 @@ class MatchAPI extends AbstractAPI {
 				shoe: this._shuffleArray(shoe),
 				shoeIndex: 0,
 				globalState: globalState || {},
-				lastEventId: new ObjectID(),
+				lastEventId: new ObjectId(),
 				events: [],
 				gamerData: [{ gamer_id: user_id }]
 			};
-			toInsert._id = new ObjectID();
+			toInsert._id = new ObjectId();
 
 			return this.handleHook("before-match-create", context, domain, {
 				domain,
@@ -122,7 +122,7 @@ class MatchAPI extends AbstractAPI {
 			}).then(() => {
 				return this.coll('matches').insertOne(toInsert)
 					.then(result => {
-						if (result.result.n !== 1) { throw new errors.BadArgument; }
+						if (!result.acknowledged) { throw new errors.BadArgument; }
 						// Success
 						return this._enrichMatchForReturningAsync(toInsert)
 							.tap(match => {
@@ -160,13 +160,14 @@ class MatchAPI extends AbstractAPI {
 						match
 					}
 					);
-				}).then(result => result.result.n);
+				}).then(result => {
+						return result.deletedCount});
 			});
 	}
 
 	dismissInvitation(context, match_id, gamer_id) {
 		return this.coll('matches').findOneAndUpdate({ _id: match_id, invitees: gamer_id },
-			{ $pull: { invitees: gamer_id } }, { upsert: false, returnOriginal: false })
+			{ $pull: { invitees: gamer_id } }, { upsert: false, returnDocument: "after" })
 			.then(result => {
 				const match = result.value;
 				if (match == null) { throw new errors.BadMatchID; }
@@ -209,7 +210,7 @@ class MatchAPI extends AbstractAPI {
 				const event = {
 					type: 'match.shoedraw',
 					event: {
-						_id: new ObjectID(),
+						_id: new ObjectId(),
 						count
 					}
 				};
@@ -234,7 +235,7 @@ class MatchAPI extends AbstractAPI {
 					match,
 					drawnItems
 				}).then(() => {
-					return this.coll('matches').findOneAndUpdate(query, update, { upsert: false, returnOriginal: false })
+					return this.coll('matches').findOneAndUpdate(query, update, { upsert: false, returnDocument: "after" })
 						.then(result => {
 							const updatedMatch = result.value;
 							this._broadcastEvent(gamer_id, updatedMatch, event, eventOsn);
@@ -274,7 +275,7 @@ class MatchAPI extends AbstractAPI {
 			limit
 		}
 		);
-		return cursor.count().then(count => {
+		return this.coll('matches').countDocuments().then(count => {
 			return cursor.toArray()
 				.then(matches => {
 					// Complete the matches with the detailed profile of the owner
@@ -297,7 +298,7 @@ class MatchAPI extends AbstractAPI {
 				const event = {
 					type: 'match.finish',
 					event: {
-						_id: new ObjectID(),
+						_id: new ObjectId(),
 						finished: 1
 					}
 				};
@@ -320,7 +321,7 @@ class MatchAPI extends AbstractAPI {
 					user_id: caller_gamer_id,
 					match
 				}).then(() => {
-					return this.coll('matches').findOneAndUpdate(query, replacement, { upsert: false, returnOriginal: false })
+					return this.coll('matches').findOneAndUpdate(query, replacement, { upsert: false, returnDocument: "after" })
 						.then(result => {
 							match = result.value;
 							if (match == null) { throw new errors.BadArgument; }
@@ -395,7 +396,7 @@ class MatchAPI extends AbstractAPI {
 									match,
 									invitee_id
 								}).then(() => {
-									return this.coll('matches').findOneAndUpdate(query, update, { upsert: false, returnOriginal: false })
+									return this.coll('matches').findOneAndUpdate(query, update, { upsert: false, returnDocument: "after" })
 										.then(result => {
 											match = result.value;
 											if (match == null) { throw new errors.BadArgument; }
@@ -441,7 +442,7 @@ class MatchAPI extends AbstractAPI {
 						const event = {
 							type: 'match.join',
 							event: {
-								_id: new ObjectID(),
+								_id: new ObjectId(),
 								playersJoined: users
 							}
 						};
@@ -472,7 +473,7 @@ class MatchAPI extends AbstractAPI {
 							user_id: gamer_id,
 							match
 						}).then(() => {
-							return matchColl.findOneAndUpdate(query, update, { upsert: false, returnOriginal: false });
+							return matchColl.findOneAndUpdate(query, update, { upsert: false, returnDocument: "after" });
 						})
 							.then(result => {
 								const modified = result.value;
@@ -499,7 +500,7 @@ class MatchAPI extends AbstractAPI {
 				const event = {
 					type: 'match.leave',
 					event: {
-						_id: new ObjectID(),
+						_id: new ObjectId(),
 						playersLeft: users
 					}
 				};
@@ -527,7 +528,7 @@ class MatchAPI extends AbstractAPI {
 				const move = {
 					type: 'match.move',
 					event: {
-						_id: new ObjectID(),
+						_id: new ObjectId(),
 						player_id: gamer_id,
 						move: moveData.move
 					}
@@ -560,7 +561,7 @@ class MatchAPI extends AbstractAPI {
 					match,
 					move: moveData
 				}).then(() => {
-					return this.coll('matches').findOneAndUpdate(query, update, { upsert: false, returnOriginal: false });
+					return this.coll('matches').findOneAndUpdate(query, update, { upsert: false, returnDocument: "after" });
 				})
 					.then(result => {
 						const modified = result.value;
@@ -620,7 +621,7 @@ class MatchAPI extends AbstractAPI {
 	_forceDeleteMatch(match_id, callback) {
 		return this.coll('matches').deleteOne({ _id: match_id }, function (err, writeResult) {
 			if (err != null) { return callback(err); }
-			if (writeResult.result.n === 0) { return callback(new errors.BadMatchID); }
+			if (writeResult.modifiedCount === 0) { return callback(new errors.BadMatchID); }
 			return callback(null);
 		});
 	}
@@ -645,7 +646,7 @@ class MatchAPI extends AbstractAPI {
 			update['$set'] = { lastEventId: optional_event.event._id };
 		}
 
-		return this.coll('matches').findOneAndUpdate(query, update, { upsert: false, returnOriginal: false })
+		return this.coll('matches').findOneAndUpdate(query, update, { upsert: false, returnDocument: "after" })
 			.then(result => {
 				const modified = result.value;
 				if (modified == null) { throw new errors.BadMatchID; }
@@ -684,7 +685,7 @@ class MatchAPI extends AbstractAPI {
 	list(domain, skip, limit, hideFinished, withGamer_id, customProperties) {
 		const filter = { domain };
 		if (hideFinished === true) { filter.status = { $ne: 'finished' }; }
-		if ((withGamer_id != null) && (withGamer_id.length === 24)) { filter.players = ObjectID(withGamer_id); }
+		if ((withGamer_id != null) && (withGamer_id.length === 24)) { filter.players = ObjectId(withGamer_id); }
 		// https://github.com/clutchski/coffeelint/issues/189
 		try {
 			if (customProperties != null) { filter.customProperties = JSON.parse(customProperties); }
@@ -710,7 +711,7 @@ class MatchAPI extends AbstractAPI {
 	}
 
 	updateMatch(matchId, updatedMatch) {
-		return this.coll('matches').findOneAndUpdate({ _id: matchId }, { $set: updatedMatch }, { upsert: false, returnOriginal: false })
+		return this.coll('matches').findOneAndUpdate({ _id: matchId }, { $set: updatedMatch }, { upsert: false, returnDocument: "after" })
 			.then(result => result != null ? result.value : undefined);
 	}
 

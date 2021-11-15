@@ -10,9 +10,9 @@
 const AbstractAPI = require('../AbstractAPI.js');
 const async = require('async');
 const {
-	ObjectID
+	ObjectId
 } = require('mongodb');
-const moment = require("moment");
+//const moment = require("moment");
 const _ = require('underscore-contrib');
 const Promise = require('bluebird');
 const errors = require('../errors.js');
@@ -113,8 +113,8 @@ class GameAPI extends AbstractAPI {
 
 		return this.coll('games').updateOne({ appid }, { "$set": { appid, config: game.config } }, { upsert: true })
 			.then(query => {
-				if (query.result.upserted != null) {
-					return query.result.upserted[0]._id;
+				if (query.upsertedCount != 0) {
+					return query.upsertedId;
 				} else {
 					return this.coll('games').findOne({ appid })
 						.then(agame => agame._id);

@@ -10,7 +10,7 @@ const api = require("../api.js");
 const AbstractAPI = require("../AbstractAPI.js");
 const errors = require("../errors.js");
 const {
-	ObjectID
+	ObjectId
 } = require('mongodb');
 const {
 	DTimer
@@ -160,12 +160,11 @@ class TimerAPI extends AbstractAPI {
 
 		const toSet = { [timerId]: { baseTime, expirySeconds, description, customData, batchToRun, context: lightContext, alreadyScheduled: false } };
 
-		return this.timersColl.findOneAndUpdate({ domain, user_id }, { '$set': toSet }, { returnOriginal: false, upsert: true })
+		return this.timersColl.findOneAndUpdate({ domain, user_id }, { '$set': toSet }, { upsert: true, returnDocument: "after" })
 			.get('value')
 			.then(timers => {
 				// if the timer we're adding is the earliest, schedule one message delivery for it
 				if (getEarliestTimerId(timers) === timerId) {
-
 					//console.log "scheduling #{timerId} with delay = #{expirySeconds*1000}"
 					const message = { domain, user_id, timerId, baseTime, expirySeconds, batchToRun, context: lightContext };
 					return this._publish(message, expirySeconds * 1000)
@@ -195,7 +194,7 @@ class TimerAPI extends AbstractAPI {
 
 		const toUnset = { [timerId]: null };
 
-		return this.timersColl.findOneAndUpdate({ domain, user_id }, { '$unset': toUnset }, { returnOriginal: false })
+		return this.timersColl.findOneAndUpdate({ domain, user_id }, { '$unset': toUnset }, { returnDocument: "after" })
 			.get('value')
 			.then(addExpiryInMs);
 	}
@@ -243,7 +242,7 @@ class TimerAPI extends AbstractAPI {
 		return promise.then(expirySeconds => {
 			const toSet = { [`${timerId}.expirySeconds`]: expirySeconds, [`${timerId}.alreadyScheduled`]: false };
 
-			return this.timersColl.findOneAndUpdate({ domain, user_id }, { '$set': toSet }, { returnOriginal: false, upsert: false })
+			return this.timersColl.findOneAndUpdate({ domain, user_id }, { '$set': toSet }, { returnDocument: "after", upsert: false })
 				.get('value')
 				.then(timers => {
 					if (getEarliestTimerId(timers) === timerId) {
@@ -270,7 +269,7 @@ class TimerAPI extends AbstractAPI {
 	// we must know if there's a message in a queue for each timer, so we store the info in mongodb
 	_setAlreadyPublished(domain, user_id, timerId, alreadyPublished) {
 		const toSet = { [`${timerId}.alreadyScheduled`]: alreadyPublished };
-		return this.timersColl.updateOne({ domain, user_id }, { '$set': toSet }, { returnOriginal: false, upsert: false });
+		return this.timersColl.updateOne({ domain, user_id }, { '$set': toSet }, { returnDocument: "after", upsert: false });
 	}
 
 	// publish the message with the specified timeout
@@ -309,7 +308,7 @@ class TimerAPI extends AbstractAPI {
 		const _processMessage = message => {
 			if (!_messageHasCorrectModel()) { return Promise.resolve(null); }
 			// get timers
-			return this.get(message.context, message.domain, new ObjectID(message.user_id))
+			return this.get(message.context, message.domain, new ObjectId(message.user_id))
 				.then(timers => {
 					if (timers == null) { return null; } // should not happen
 
@@ -322,10 +321,10 @@ class TimerAPI extends AbstractAPI {
 					if ((message.baseTime !== timer.baseTime) || (message.expirySeconds !== timer.expirySeconds)) { return null; }
 
 					// delete triggered timer then call batch (asynchronously)
-					return this.delete(message.context, message.domain, new ObjectID(message.user_id), message.timerId)
+					return this.delete(message.context, message.domain, new ObjectId(message.user_id), message.timerId)
 						.then(timers => {
 							logger.debug(`Calling batch from timer ${timer.batchToRun}`, { message, timer });
-							api.game.runBatch(message.context, message.domain, '__' + timer.batchToRun, { domain: message.domain, user_id: new ObjectID(message.user_id), timerId: message.timerId, now: Date.now(), expiredAt: (timer.baseTime + (timer.expirySeconds * 1000)), description: timer.description, customData: timer.customData })
+							api.game.runBatch(message.context, message.domain, '__' + timer.batchToRun, { domain: message.domain, user_id: new ObjectId(message.user_id), timerId: message.timerId, now: Date.now(), expiredAt: (timer.baseTime + (timer.expirySeconds * 1000)), description: timer.description, customData: timer.customData })
 								.then(() => {
 									return logger.debug(`Batch returned from timer ${timer.batchToRun}`, { message, timer });
 								})
@@ -377,7 +376,7 @@ class TimerAPI extends AbstractAPI {
 				logger.error(error);
 				return null;
 			}).then(timers => {
-				return timers || this.get(message.context, message.domain, new ObjectID(message.user_id));
+				return timers || this.get(message.context, message.domain, new ObjectId(message.user_id));
 			}).then(timers => {
 				return _scheduleNextMessage(timers);
 			}).catch(err => {

@@ -20,7 +20,7 @@ const _ = require('underscore');
 const Promise = require('bluebird');
 
 const {
-	ObjectID
+	ObjectId
 } = require("mongodb");
 
 /*
@@ -123,9 +123,9 @@ class AbstractAPI {
 						const mod = {
 							'_': _,
 							'Q': Promise,
-							'ObjectID'(id) { return new ObjectID(id); },
+							'ObjectID'(id) { return new ObjectId(id); },
 							'ObjectIDs'(ids) {
-								return _.map(ids, id => new ObjectID(id));
+								return _.map(ids, id => new ObjectId(id));
 							},
 							debug(log) {
 								return xtralife.api.game.hookLog(context.game, domain, hookName, log);

@@ -13,7 +13,7 @@ const async = require("async");
 const errors = require("../errors.js");
 const http = require("http");
 const {
-	ObjectID
+	ObjectId
 } = require('mongodb');
 const request = require("superagent");
 const stream = require('stream');
@@ -59,7 +59,7 @@ class StoreAPI extends AbstractAPI {
 			// Add the new entry
 			return this.coll('productDefinition').updateOne({ appid: game.appid }, { $push: { products: product } }, { upsert: true }, function (err, result) {
 				if (err != null) { return cb(err); }
-				return cb(null, result.result.n);
+				return cb(null, result.modifiedCount);
 			});
 		});
 	}
@@ -68,7 +68,7 @@ class StoreAPI extends AbstractAPI {
 	deleteProduct(game, productId, cb) {
 		return this.coll('productDefinition').updateOne({ appid: game.appid }, { $pull: { products: { productId } } }, function (err, result) {
 			if (err != null) { return cb(err); }
-			return cb(null, result.result.n);
+			return cb(null, result.modifiedCount);
 		});
 	}
 
@@ -88,7 +88,7 @@ class StoreAPI extends AbstractAPI {
 	setProducts(game, products, cb) {
 		return this.coll('productDefinition').updateOne({ appid: game.appid }, { $set: { products } }, { upsert: true }, function (err, result) {
 			if (err != null) { return cb(err); }
-			return cb(null, result.result.n);
+			return cb(null, result.modifiedCount);
 		});
 	}
 
@@ -122,7 +122,7 @@ class StoreAPI extends AbstractAPI {
 			return this.coll('productDefinition').updateOne({ appid: game.appid, "products.productId": productId }
 				, { $set: { "products.$": product } }, function (err, result) {
 					if (err != null) { return cb(err); }
-					return cb(null, result.result.n);
+					return cb(null, result.modifiedCount);
 				});
 		});
 	}
@@ -156,7 +156,7 @@ class StoreAPI extends AbstractAPI {
 				if (err != null) { return callback(err); }
 
 				// Needs process the transaction
-				if ((result.result.nModified > 0) || (result.result.upserted != null)) {
+				if ((result.modifiedCount > 0) || (result.upsertedCount > 0)) {
 					// Store in purchase history
 					return this.coll('domains').updateOne({ domain: privateDomain(game), user_id }, { $push: { purchases: purchase } }, { upsert: true }, (err, doc) => {
 						if (err != null) { return callback(err); }
@@ -324,7 +324,7 @@ class StoreAPI extends AbstractAPI {
 			} else {
 				// Android.test.purchased item, skip many checks
 				if (receiptObject.productId !== product.googlePlayId) { return cb(new errors.PurchaseNotConfirmed(4)); }
-				return cb(null, product, receiptObject.orderId + new ObjectID());
+				return cb(null, product, receiptObject.orderId + new ObjectId());
 			}
 		});
 	}

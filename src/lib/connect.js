@@ -12,7 +12,7 @@ const rs = require("randomstring");
 const _ = require("underscore");
 
 const {
-	ObjectID
+	ObjectId
 } = require("mongodb");
 
 const facebook = require("./network/facebook.js");
@@ -63,7 +63,7 @@ class ConnectAPI extends AbstractAPI {
 
 	onDeleteUser(userid, cb) {
 		return this.collusers().deleteOne({ _id: userid }, function (err, result) {
-			logger.warn(`removed ${userid} : ${result.result.n} , ${err} `);
+			logger.warn(`removed ${userid} : ${result.modifiedCount} , ${err} `);
 			return cb(err);
 		});
 	}
@@ -71,7 +71,7 @@ class ConnectAPI extends AbstractAPI {
 	exist(userid, cb) {
 		let id;
 		try {
-			id = new ObjectID(userid);
+			id = new ObjectId(userid);
 		} catch (error) {
 			return cb(new errors.BadGamerID);
 		}
@@ -83,7 +83,7 @@ class ConnectAPI extends AbstractAPI {
 	existAndLog(userid, appid, cb) {
 		let id;
 		try {
-			id = new ObjectID(userid);
+			id = new ObjectId(userid);
 		} catch (error) {
 			return cb(new errors.BadGamerID);
 		}
@@ -186,7 +186,7 @@ class ConnectAPI extends AbstractAPI {
 	changePassword(user_id, sha_pass, cb) {
 		return this.collusers().updateOne({ _id: user_id }, { $set: { networksecret: sha_pass } }, (err, result) => {
 			if (err == null) { logger.debug(`password changed for ${user_id}`); }
-			return cb(err, result.result.n);
+			return cb(err, result.modifiedCount);
 		});
 	}
 
@@ -196,13 +196,13 @@ class ConnectAPI extends AbstractAPI {
 			if (user != null) { return cb(new errors.ConnectError("UserExists", `${email} already exists`)); }
 			return this.collusers().updateOne({ _id: user_id }, { $set: { networkid: email } }, (err, result) => {
 				if (err == null) { logger.debug(`email changed for ${user_id}`); }
-				return cb(err, result.result.n);
+				return cb(err, result.modifiedCount);
 			});
 		});
 	}
 
 	register(game, network, networkid, networksecret, profile, cb) {
-		if (networkid == null) { networkid = new ObjectID().toString(); }
+		if (networkid == null) { networkid = new ObjectId().toString(); }
 		const newuser = {
 			network,
 			networkid,
@@ -244,7 +244,7 @@ class ConnectAPI extends AbstractAPI {
 		return this.collusers().updateOne({ _id: user._id }, { $addToSet: { games: newgame } }, (err, result) => {
 			if (err == null) { logger.debug(`${game.appid} added to ${user.gamer_id}`); }
 
-			return cb(err, result.result.n);
+			return cb(err, result.modifiedCount);
 		});
 	}
 
@@ -376,7 +376,7 @@ class ConnectAPI extends AbstractAPI {
 						profile: this._buildEmailProfile(email)
 					}
 				};
-				return this.collusers().findOneAndUpdate({ _id: user_id }, modification, { returnOriginal: false });
+				return this.collusers().findOneAndUpdate({ _id: user_id }, modification, { returnDocument: "after" });
 			})
 			.then(function (result) {
 				logger.debug(`converted to e-mail account for ${user_id}`);
@@ -397,7 +397,7 @@ class ConnectAPI extends AbstractAPI {
 								profile: this._buildFacebookProfile(me)
 							}
 						};
-						return this.collusers().findOneAndUpdate({ _id: user_id }, modification, { returnOriginal: false });
+						return this.collusers().findOneAndUpdate({ _id: user_id }, modification, { returnDocument: "after" });
 					})
 					.then(function (result) {
 						if (typeof err === 'undefined' || err === null) { logger.debug(`converted to facebook account for ${me.id}`); }
@@ -419,7 +419,7 @@ class ConnectAPI extends AbstractAPI {
 								profile: this._buildGooglePlusProfile(me)
 							}
 						};
-						return this.collusers().findOneAndUpdate({ _id: user_id }, modification, { returnOriginal: false });
+						return this.collusers().findOneAndUpdate({ _id: user_id }, modification, { returnDocument: "after" });
 					})
 					.then(function (result) {
 						if (typeof err === 'undefined' || err === null) { logger.debug(`converted to google+ account for ${me.id}`); }
@@ -439,7 +439,7 @@ class ConnectAPI extends AbstractAPI {
 						profile: this._buildGameCenterProfile(options)
 					}
 				};
-				return this.collusers().findOneAndUpdate({ _id: user_id }, modification, { returnOriginal: false });
+				return this.collusers().findOneAndUpdate({ _id: user_id }, modification, { returnDocument: "after" });
 			})
 			.then(function (result) {
 				if (typeof err === 'undefined' || err === null) { logger.debug(`converted to game center account for ${user_id}`); }
@@ -466,7 +466,7 @@ class ConnectAPI extends AbstractAPI {
 				}
 
 				return this.collusers().updateOne({ _id: user._id }, { $set: updated }, (err, result) => {
-					return cb(err, { done: result.result.n });
+					return cb(err, { done: result.modifiedCount });
 				});
 			});
 		});
@@ -491,7 +491,7 @@ class ConnectAPI extends AbstractAPI {
 				}
 
 				return this.collusers().updateOne({ _id: user._id }, { $set: updated }, (err, result) => {
-					return cb(err, { done: result.result.n });
+					return cb(err, { done: result.modifiedCount });
 				});
 			});
 		});
@@ -502,7 +502,7 @@ class ConnectAPI extends AbstractAPI {
 		const unset = {};
 		unset[`links.${network}`] = "";
 		return this.collusers().updateOne({ _id: user._id }, { $unset: unset }, (err, result) => {
-			return cb(err, { done: result.result.n });
+			return cb(err, { done: result.modifiedCount });
 		});
 	}
 
@@ -550,7 +550,7 @@ class ConnectAPI extends AbstractAPI {
 			return this.collusers().updateOne({ _id: user._id }, { $addToSet: { tokens: device } }, (err, result) => {
 				if (err != null) { return cb(err); }
 				//logger.info "user: #{user._id}, token: #{token}, count : #{count}"
-				return cb(null, result.result.n);
+				return cb(null, result.modifiedCount);
 			});
 		});
 	}
@@ -567,7 +567,7 @@ class ConnectAPI extends AbstractAPI {
 			// remove current version with domain
 			return this.collusers().updateOne({ _id: user._id }, { $pull: { tokens: device } }, (err, result) => {
 				if (err != null) { return cb(err); }
-				return cb(null, result.result.n);
+				return cb(null, result.modifiedCount);
 			});
 		});
 	}
@@ -577,7 +577,7 @@ class ConnectAPI extends AbstractAPI {
 			"domain must be a valid domain": check.nonEmptyString(domain)
 		}));
 
-		return this.collusers().findOne({ _id: new ObjectID(user_id) }, { projection: { "profile.lang": 1, tokens: 1 } }, (err, user) => {
+		return this.collusers().findOne({ _id: new ObjectId(user_id) }, { projection: { "profile.lang": 1, tokens: 1 } }, (err, user) => {
 			if (err != null) { return cb(err); }
 			if ((user != null ? user.tokens : undefined) == null) { return cb(null, null); }
 

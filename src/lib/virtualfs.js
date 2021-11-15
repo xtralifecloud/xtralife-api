@@ -10,7 +10,7 @@ const async = require("async");
 // @ts-ignore
 const extend = require('util')._extend;
 const {
-	ObjectID
+	ObjectId
 } = require('mongodb');
 const AWS = require('aws-sdk');
 
@@ -144,7 +144,14 @@ class VirtualfsAPI extends AbstractAPI {
 					user_id,
 					key,
 					value
-				}).then(afterData => result.result.n);
+				}).then(afterData => {
+					if(result.modifiedCount == 1){
+						return result.modifiedCount
+					}
+					else if (result.upsertedCount == 1){
+						return result.upsertedCount
+					}
+				})
 			});
 	}
 
@@ -173,7 +180,7 @@ class VirtualfsAPI extends AbstractAPI {
 					return this.handleHook("after-gamervfs-delete", context, domain, {
 						user_id,
 						key
-					}).then(afterData => result.result.n);
+					}).then(afterData => result.modifiedCount);
 				});
 		});
 	}

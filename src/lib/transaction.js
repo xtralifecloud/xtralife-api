@@ -12,7 +12,7 @@ const api = require("../api.js");
 const AbstractAPI = require("../AbstractAPI.js");
 const errors = require("../errors.js");
 const {
-	ObjectID
+	ObjectId
 } = require('mongodb');
 
 const Promise = require('bluebird');
@@ -41,7 +41,7 @@ class TransactionAPI extends AbstractAPI {
 	// remove common data
 	onDeleteUser(userid, cb) {
 		return this.txColl.deleteMany({ userid }, (err, result) => {
-			logger.warn(`removed transactions ${userid} : ${result.result.n} , ${err} `);
+			logger.warn(`removed transactions ${userid} : ${result.modifiedCount} , ${err} `);
 			return cb(null);
 		});
 	}
@@ -86,14 +86,14 @@ class TransactionAPI extends AbstractAPI {
 				balanceBefore: balance,
 				balanceAfter: adjustedBalance
 			}).then(() => { // now insert Tx
-				const insertedTx = { _id: new ObjectID(), domain, userid: user_id, ts: new Date(), tx: transaction, desc: description };
+				const insertedTx = { _id: new ObjectId(), domain, userid: user_id, ts: new Date(), tx: transaction, desc: description };
 				return this.txColl.insertOne(insertedTx)
 					.then(() => {
 						// update the balance if the lastTx is the one read just before into balObj
 						// upsert : insert new balance if not already present
 						return this.domainsColl.findOneAndUpdate({ domain, user_id, lastTx }
 							, { $set: { balance: adjustedBalance, lastTx: insertedTx._id } }
-							, { upsert: true, returnOriginal: false });
+							, { upsert: true, returnDocument: "after" });
 					})
 					.then(status => {
 						if (!status.ok) {
