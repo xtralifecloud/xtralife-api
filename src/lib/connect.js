@@ -219,8 +219,8 @@ class ConnectAPI extends AbstractAPI {
 		return this.collusers().insertOne(newuser, err => {
 			if (err != null) {
 				if (err.code === 11000) {
-					const key = err.err.substring(err.err.indexOf('$') + 1, err.err.indexOf('_1'));
-					return cb(new errors.ConnectError("UserExists", `${key} already exists`));
+					const key = err.keyValue[''];
+					return cb(new errors.ConnectError(`UserAlreadyExists: duplicate key '${key}'`));
 				} else {
 					return cb(err);
 				}
