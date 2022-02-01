@@ -53,8 +53,13 @@ class UserAPI extends AbstractAPI {
 		this.xtralifeapi = xtralifeapi;
 		this.domains = this.coll('domains');
 
-		logger.info("User initialized");
-		return callback(null);
+		return this.collusers().createIndex({"games.appid": 1}, function (err) {
+			if (err != null) {
+				return callback(err);
+			}
+			logger.info("User initialized");
+			return callback(err, {});
+		});
 	}
 
 	afterConfigure(_xtralifeapi, cb) {
@@ -78,17 +83,17 @@ class UserAPI extends AbstractAPI {
 		}
 
 		if (needUpdate) {
-			return this.collusers().updateOne({ _id: user._id }, { $set: updated }, (err, result) => {
-				return cb(err, { done: result.modifiedCount, profile: user.profile });
+			return this.collusers().updateOne({_id: user._id}, {$set: updated}, (err, result) => {
+				return cb(err, {done: result.modifiedCount, profile: user.profile});
 			});
 		} else {
-			return cb(null, { done: 0 });
+			return cb(null, {done: 0});
 		}
 	}
 
 	updateProfile(user_id, profile, cb) {
-		return this.collusers().updateOne({ _id: user_id }, { $set: { profile } }, (err, result) => {
-			return cb(err, { done: result.modifiedCount, profile });
+		return this.collusers().updateOne({_id: user_id}, {$set: {profile}}, (err, result) => {
+			return cb(err, {done: result.modifiedCount, profile});
 		});
 	}
 
@@ -104,7 +109,7 @@ class UserAPI extends AbstractAPI {
 			}
 		}
 
-		return this.collusers().updateOne({ _id: user_id }, { $set: updated })
+		return this.collusers().updateOne({_id: user_id}, {$set: updated})
 			.then(res => {
 				return res.result;
 			});
@@ -112,14 +117,20 @@ class UserAPI extends AbstractAPI {
 
 	_checktype(value) {
 		switch (typeof value) {
-			case "number": case "string": case "boolean":
+			case "number":
+			case "string":
+			case "boolean":
 				return null;
 				// @ts-ignore
 				break;
 			case "object":
-				if (!Array.isArray(value)) { return new errors.BadPropertyType('Bad type'); }
+				if (!Array.isArray(value)) {
+					return new errors.BadPropertyType('Bad type');
+				}
 				for (let elem of Array.from(value)) {
-					if (!["number", "string", "boolean"].includes(typeof (elem))) { return new errors.BadPropertyType('Bad type'); }
+					if (!["number", "string", "boolean"].includes(typeof (elem))) {
+						return new errors.BadPropertyType('Bad type');
+					}
 				}
 				break;
 		}
@@ -148,7 +159,7 @@ class UserAPI extends AbstractAPI {
 			const field = {};
 			field[(key == null) ? 'properties' : `properties.${key}`] = 1;
 
-			return this.domains.findOne(query, { projection: field })
+			return this.domains.findOne(query, {projection: field})
 				.then(value => {
 					return this.handleHook("after-properties-read", context, domain, {
 						domain,
@@ -157,7 +168,11 @@ class UserAPI extends AbstractAPI {
 						value
 						// @ts-ignore
 					}).then(function (afterData) {
-						if ((value != null) && (value.properties != null)) { return value.properties; } else { return {}; }
+						if ((value != null) && (value.properties != null)) {
+							return value.properties;
+						} else {
+							return {};
+						}
 					});
 				});
 		});
@@ -172,14 +187,26 @@ class UserAPI extends AbstractAPI {
 		//"key may be a unempty string": check.maybe.nonEmptyString(key)
 
 		if (key != null) {
-			if (value == null) { return (() => { throw (new errors.MissingPropertyValue("Missing value")); })(); }
+			if (value == null) {
+				return (() => {
+					throw (new errors.MissingPropertyValue("Missing value"));
+				})();
+			}
 			err = this._checktype(value);
-			if (err != null) { return (() => { throw err; })(); }
+			if (err != null) {
+				return (() => {
+					throw err;
+				})();
+			}
 		} else {
 			for (let k in value) {
 				const v = value[k];
 				err = this._checktype(v);
-				if (err != null) { return (() => { throw err; })(); }
+				if (err != null) {
+					return (() => {
+						throw err;
+					})();
+				}
 			}
 		}
 
@@ -199,7 +226,7 @@ class UserAPI extends AbstractAPI {
 			const set = {};
 			set[(key == null) ? 'properties' : `properties.${key}`] = value;
 
-			return this.domains.updateOne(query, { $set: set }, { upsert: true });
+			return this.domains.updateOne(query, {$set: set}, {upsert: true});
 		})
 
 			.then(result => {
@@ -235,7 +262,7 @@ class UserAPI extends AbstractAPI {
 			const unset = {};
 			unset[(key == null) ? 'properties' : `properties.${key}`] = "";
 
-			return this.domains.updateOne(query, { $unset: unset }, { upsert: true })
+			return this.domains.updateOne(query, {$unset: unset}, {upsert: true})
 				.then(result => {
 					return this.handleHook("after-properties-delete", context, domain, {
 						domain,
@@ -251,15 +278,17 @@ class UserAPI extends AbstractAPI {
 		const {
 			appid
 		} = context.game;
-		return this.collusers().findOne({ _id: gamer_id, "games.appid": appid })
+		return this.collusers().findOne({_id: gamer_id, "games.appid": appid})
 			.then(player => {
 				return new Promise((resolve, reject) => {
 					if (player != null) {
 						return this.xtralifeapi.onDeleteUser(player._id, err => {
-							if (err != null) {
-								return reject(err);
-							} else { return resolve({ nuked: true, dead: 'probably' }); }
-						}
+								if (err != null) {
+									return reject(err);
+								} else {
+									return resolve({nuked: true, dead: 'probably'});
+								}
+							}
 							, appid);
 					} else {
 						return reject(new Error("Player not found"));
@@ -276,7 +305,9 @@ class UserAPI extends AbstractAPI {
 	}
 
 	sha_passwd(passwd) {
-		if (xlenv.privateKey == null) { throw new Error("null privatekey"); }
+		if (xlenv.privateKey == null) {
+			throw new Error("null privatekey");
+		}
 		const sha = crypto.createHash('sha1');
 		sha.update(xlenv.privateKey + passwd);
 		return sha.digest('hex');
@@ -286,7 +317,7 @@ class UserAPI extends AbstractAPI {
 		return {
 			account: {
 				existInNetwork: (network, id) => {
-					const existAsync = Promise.promisify(this.xtralifeapi.connect.existInNetwork, { context: this.xtralifeapi.connect })
+					const existAsync = Promise.promisify(this.xtralifeapi.connect.existInNetwork, {context: this.xtralifeapi.connect})
 
 					// @ts-ignore
 					return existAsync(network, id)
@@ -307,11 +338,16 @@ class UserAPI extends AbstractAPI {
 					const conversionPromise =
 						(() => {
 							switch (network.toLowerCase()) {
-								case "facebook": return this.xtralifeapi.connect.convertAccountToFacebook(user_id, token);
-								case "googleplus": return this.xtralifeapi.connect.convertAccountToGooglePlus(user_id, token);
-								case "gamecenter": return this.xtralifeapi.connect.convertAccountToGameCenter(user_id, token, options);
-								case "email": return this.xtralifeapi.connect.convertAccountToEmail(user_id, token, this.sha_passwd(options));
-								default: throw new errors.BadArgument("Unknown network to convert to");
+								case "facebook":
+									return this.xtralifeapi.connect.convertAccountToFacebook(user_id, token);
+								case "googleplus":
+									return this.xtralifeapi.connect.convertAccountToGooglePlus(user_id, token);
+								/* case "gamecenter":
+									return this.xtralifeapi.connect.convertAccountToGameCenter(user_id, token, options); */
+								case "email":
+									return this.xtralifeapi.connect.convertAccountToEmail(user_id, token, this.sha_passwd(options));
+								default:
+									throw new errors.BadArgument("Unknown network to convert to");
 							}
 						})();
 
@@ -326,20 +362,26 @@ class UserAPI extends AbstractAPI {
 				},
 
 				changeEmail: (user_id, email) => {
-					const changeAsync = Promise.promisify(this.xtralifeapi.connect.changeEmail, { context: this.xtralifeapi.connect });
+					const changeAsync = Promise.promisify(this.xtralifeapi.connect.changeEmail, {context: this.xtralifeapi.connect});
 					// @ts-ignore
 					return changeAsync(user_id, email);
 				},
 
 				getJWToken: (user_id, domain, secret, payload, expiresIn) => {
-					if (expiresIn == null) { expiresIn = "2m"; }
+					if (expiresIn == null) {
+						expiresIn = "2m";
+					}
 					if (!this.xtralifeapi.game.checkDomainSync(context.game.appid, domain)) {
 						throw new errors.BadArgument("Your game doesn't have access to this domain");
 					}
 
 					const key = crypto.createHash('sha256').update(secret + domain).digest('hex');
 
-					return jwt.sign({ user_id: user_id.toString(), domain, payload }, key, { expiresIn, issuer: "xtralife-api", subject: "auth" });
+					return jwt.sign({user_id: user_id.toString(), domain, payload}, key, {
+						expiresIn,
+						issuer: "xtralife-api",
+						subject: "auth"
+					});
 				}
 			},
 
@@ -347,7 +389,9 @@ class UserAPI extends AbstractAPI {
 				read: (user_id, included) => {
 					const fields = {};
 					if (included != null) {
-						for (let i of Array.from(included)) { fields[i] = 1; }
+						for (let i of Array.from(included)) {
+							fields[i] = 1;
+						}
 					}
 					return this.xtralifeapi.connect.readProfileAsync(user_id, fields);
 				},
@@ -402,7 +446,7 @@ class UserAPI extends AbstractAPI {
 
 				setFriendStatus: (domain, user_id, friend_id, status, osn) => {
 					if (this.xtralifeapi.game.checkDomainSync(context.game.appid, domain)) {
-						const setFriendStatus = Promise.promisify(this.xtralifeapi.social.setFriendStatus, { context: this.xtralifeapi.social });
+						const setFriendStatus = Promise.promisify(this.xtralifeapi.social.setFriendStatus, {context: this.xtralifeapi.social});
 						// @ts-ignore
 						return setFriendStatus(domain, user_id, friend_id, status, osn);
 					} else {
@@ -413,7 +457,7 @@ class UserAPI extends AbstractAPI {
 				godfather: {
 					set: (domain, user_id, godfather, options) => {
 						if (this.xtralifeapi.game.checkDomainSync(context.game.appid, domain)) {
-							const asyncFn = Promise.promisify(this.xtralifeapi.social.setGodfather, { context: this.xtralifeapi.social });
+							const asyncFn = Promise.promisify(this.xtralifeapi.social.setGodfather, {context: this.xtralifeapi.social});
 							// @ts-ignore
 							return asyncFn(context, domain, user_id, godfather, options);
 
@@ -424,7 +468,7 @@ class UserAPI extends AbstractAPI {
 
 					get: (domain, user_id) => {
 						if (this.xtralifeapi.game.checkDomainSync(context.game.appid, domain)) {
-							const asyncFn = Promise.promisify(this.xtralifeapi.social.getGodfather, { context: this.xtralifeapi.social });
+							const asyncFn = Promise.promisify(this.xtralifeapi.social.getGodfather, {context: this.xtralifeapi.social});
 							// @ts-ignore
 							return asyncFn(context, domain, user_id);
 
@@ -435,7 +479,7 @@ class UserAPI extends AbstractAPI {
 
 					getCode: (domain, user_id) => {
 						if (this.xtralifeapi.game.checkDomainSync(context.game.appid, domain)) {
-							const asyncFn = Promise.promisify(this.xtralifeapi.social.godfatherCode, { context: this.xtralifeapi.social });
+							const asyncFn = Promise.promisify(this.xtralifeapi.social.godfatherCode, {context: this.xtralifeapi.social});
 							// @ts-ignore
 							return asyncFn(domain, user_id);
 
@@ -446,7 +490,7 @@ class UserAPI extends AbstractAPI {
 
 					getChildren: (domain, user_id) => {
 						if (this.xtralifeapi.game.checkDomainSync(context.game.appid, domain)) {
-							const asyncFn = Promise.promisify(this.xtralifeapi.social.getGodchildren, { context: this.xtralifeapi.social });
+							const asyncFn = Promise.promisify(this.xtralifeapi.social.getGodchildren, {context: this.xtralifeapi.social});
 							// @ts-ignore
 							return asyncFn(context, domain, user_id);
 
@@ -474,40 +518,81 @@ class UserAPI extends AbstractAPI {
 			games: {
 				"$elemMatch": {
 					appid: options.game
-				}
+				},
 			}
 		};
-		if (options.id != null) { filter._id = options.id; }
 
-		return this.collusers().count(filter, (err, count) => {
-			if (err != null) { return cb(err); }
-			return this.collusers().find(filter, {
-				skip: options.skip,
-				limit: options.limit,
+		if (options.id != null) {
+			filter._id = options.id;
+		}
+
+		const res = this.collusers().find(filter, {
 				projection: {
 					password: 0,
 					networksecret: 0
 				}
 			}
-			).toArray((err, docs) => cb(err, count, docs));
-		});
+		).skip(options.skip).limit(options.limit)
+
+		return res.toArray((err, docs) => cb(err, docs));
+	}
+
+	count(options, cb) {
+		const filter = {
+			games: {
+				"$elemMatch": {
+					appid: options.game
+				}
+			}
+		}
+
+		return this.collusers().count(filter, (err, count) => {
+			if (err != null) {
+				return cb(err);
+			}
+			return cb(err, count)
+		})
 	}
 
 	search(appId, q, skip, limit, cb) {
-		const query = { $or: [{ 'profile.displayName': { $regex: `${q}`, $options: 'i' } }, { 'profile.email': { $regex: `${q}`, $options: 'i' } }] };
-		query.games = { $elemMatch: { appid: appId } };
+		const query = {
+			$or: [{
+				'profile.displayName': {
+					$regex: `${q}`,
+					$options: 'i'
+				}
+			}, {'profile.email': {$regex: `${q}`, $options: 'i'}}]
+		};
+		query.games = {$elemMatch: {appid: appId}};
 
-		const cursor = this.collusers().find(query, {
-			limit,
-			skip,
-			projection: {
-				password: 0,
-				networksecret: 0
+		return this.collusers().find(query, {
+				limit,
+				skip,
+				projection: {
+					password: 0,
+					networksecret: 0
+				}
 			}
-		}
-		);
-		// @ts-ignore
-		return cursor.count((err, count) => cursor.toArray((err, docs) => cb(err, count, docs)));
+		).toArray((err, docs) => cb(err, docs));
+	}
+
+	searchCount(appId, q, cb) {
+		const query = {
+			$or: [{
+				'profile.displayName': {
+					$regex: `${q}`,
+					$options: 'i'
+				}
+			}, {'profile.email': {$regex: `${q}`, $options: 'i'}}]
+		};
+		query.games = {$elemMatch: {appid: appId}};
+
+		return this.collusers().count(query, (err, count) => {
+			if (err != null) {
+				return cb(err);
+			}
+			return cb(err, count)
+		})
 	}
 }
 
