@@ -268,6 +268,46 @@ class TransactionAPI extends AbstractAPI {
 			}
 		};
 	}
+
+	search(domain, user_id, ts1, ts2, q, skip, limit, callback) {
+		this.pre(check => ({
+			"domain must be a valid domain": check.nonEmptyString(domain),
+			"user_id must be an ObjectID": check.objectid(user_id),
+			"timestamp1 must be an string": check.string(ts1),
+			"timestamp2 must be an string": check.string(ts2),
+			"q must be an string": check.string(q),
+		}));
+
+		const query = { domain, userid: user_id };
+
+		if(ts1 !== "null" && ts2 !== "null") query["ts"]= {$gte: new Date(parseInt(ts1)), $lte: new Date(parseInt(ts2))}
+		if(q !== "null") query["desc"]= {$regex: q}
+
+		const cursor = this.txColl.find(query);
+		cursor.sort({ ts: -1 });
+		return cursor.count(function (err, count) {
+			if (err != null) {
+				logger.error(err, 'error in txHistory.find');
+				return callback(err);
+			}
+
+			return cursor.skip(skip).limit(limit).toArray(function (err, transactions) {
+				if (err != null) {
+					logger.error(err, 'error in txHistory.find.toArray');
+					return callback(err);
+				}
+
+				for (let each of Array.from(transactions)) {
+					(function (each) {
+						delete each._id;
+						return delete each.userid;
+					})(each);
+				}
+
+				return callback(null, { transactions, count });
+			});
+		});
+	}
 }
 
 module.exports = new TransactionAPI();
