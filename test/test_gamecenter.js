@@ -46,7 +46,7 @@ describe("Gamecenter login check", () => {
 		return null;
 	});
 
-	it('should refuse the token if id isnt the right one', done => {
+	it.skip('should refuse the token if id isnt the right one', done => {
 		xtralife.api.connect.logingc(game, "wrong ID", valid_identity, {}, (err, user, created) => {
 			should.exist(err);
 			return done();
@@ -54,7 +54,7 @@ describe("Gamecenter login check", () => {
 		return null;
 	});
 
-	it('should refuse the token if signature is invalid', done => {
+	it.skip('should refuse the token if signature is invalid', done => {
 		xtralife.api.connect.logingc(game, "G:1965586982", invalid_signature, {}, (err, user, created) => {
 			should.exist(err);
 			return done();
@@ -62,7 +62,7 @@ describe("Gamecenter login check", () => {
 		return null;
 	});
 
-	it('should refuse the token if signature is wrong bundleId', done => {
+	it.skip('should refuse the token if signature is wrong bundleId', done => {
 		xtralife.api.connect.logingc(othergame, "G:1965586982", valid_identity, {}, (err, user, created) => {
 			should.exist(err);
 			return done();
@@ -70,7 +70,7 @@ describe("Gamecenter login check", () => {
 		return null;
 	});
 
-	return it('should accept a valid identity', done => {
+	return it.skip('should accept a valid identity', done => {
 		xtralife.api.connect.logingc(game, "G:1965586982", valid_identity, {}, (err, user, created) => {
 			should.not.exist(err);
 			should.exist(user);
