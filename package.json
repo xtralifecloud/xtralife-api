@@ -42,13 +42,13 @@
     "underscore": "^1.13.1",
     "underscore-contrib": "^0.3.0",
     "winston": "^3.3.3",
-    "xtralife-msg": "4.0.0"
+    "xtralife-msg": "^4.0.0"
   },
   "devDependencies": {
     "mocha": "^9.2.0",
     "redis": "^3.1.2",
     "should": "^13.2.3",
-    "xtralife-env": "4.0.0"
+    "xtralife-env": "^4.0.0"
   },
   "readmeFilename": "readme.md"
 }
