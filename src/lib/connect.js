@@ -17,7 +17,7 @@ const {
 
 const facebook = require("./network/facebook.js");
 const google = require("./network/google.js");
-const gamecenter = require('gamecenter-identity-verifier');
+//const gamecenter = require('gamecenter-identity-verifier');
 const errors = require("./../errors.js");
 
 const AbstractAPI = require("../AbstractAPI.js");
@@ -219,8 +219,8 @@ class ConnectAPI extends AbstractAPI {
 		return this.collusers().insertOne(newuser, err => {
 			if (err != null) {
 				if (err.code === 11000) {
-					const key = err.err.substring(err.err.indexOf('$') + 1, err.err.indexOf('_1'));
-					return cb(new errors.ConnectError("UserExists", `${key} already exists`));
+					const key = err.keyValue[''];
+					return cb(new errors.ConnectError(`UserAlreadyExists: duplicate key '${key}'`));
 				} else {
 					return cb(err);
 				}
@@ -338,7 +338,7 @@ class ConnectAPI extends AbstractAPI {
 		});
 	}
 
-	logingc(game, id, secret, options, cb) {
+/* 	logingc(game, id, secret, options, cb) {
 		// TODO replace new Error with proper Nasa Errors
 		if (id !== secret.playerId) { return cb(new errors.GameCenterError("token is not for this player")); }
 		if (!(game.config.socialSettings != null ? game.config.socialSettings.gameCenterBundleIdRE : undefined)) { return cb(new errors.GameCenterError("socialSettings.gameCenterBundleIdRE must be set for GameCenter login")); }
@@ -362,7 +362,7 @@ class ConnectAPI extends AbstractAPI {
 				});
 			});
 		});
-	}
+	} */
 
 	convertAccountToEmail(user_id, email, sha_password) {
 		if (!/^[^@ ]+@[^\.@ ]+\.[^@ ]+$/.test(email)) { return Promise.reject(new errors.BadArgument); }
@@ -428,7 +428,7 @@ class ConnectAPI extends AbstractAPI {
 			});
 	}
 
-	convertAccountToGameCenter(user_id, id, options) {
+/* 	convertAccountToGameCenter(user_id, id, options) {
 		return this._checkAccountForConversion("gamecenter", user_id, id)
 			.then(() => {
 				const modification = {
@@ -445,7 +445,7 @@ class ConnectAPI extends AbstractAPI {
 				if (typeof err === 'undefined' || err === null) { logger.debug(`converted to game center account for ${user_id}`); }
 				return (result != null ? result.value : undefined);
 			});
-	}
+	} */
 
 	linkAccountWithFacebook(user, token, cb) {
 		return facebook.validToken(token, (err, me) => {
@@ -630,7 +630,7 @@ class ConnectAPI extends AbstractAPI {
 		return profile;
 	}
 
-	_buildGameCenterProfile(options) {
+/* 	_buildGameCenterProfile(options) {
 		let profile = {
 			displayName: __guard__(options != null ? options.gamecenter : undefined, x => x.gcdisplayname) || "",
 			firstName: __guard__(options != null ? options.gamecenter : undefined, x1 => x1.gcalias) || "",
@@ -640,7 +640,7 @@ class ConnectAPI extends AbstractAPI {
 			profile = _.pick(profile, xlenv.options.profileFields);
 		}
 		return profile;
-	}
+	} */
 
 	_buildGooglePlusProfile(me) {
 		let profile = {
