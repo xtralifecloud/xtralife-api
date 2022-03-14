@@ -134,9 +134,8 @@ class GameVFSAPI extends AbstractAPI {
 		}
 
 		return this.parent.virtualfs.createSignedURL(domain, "GAME", key, contentType)
-			.spread((signedURL, getURL) => callback(null, signedURL, getURL))
+			.then(([signedURL, getURL]) => callback(null, signedURL, getURL))
 			.catch(callback)
-			.done();
 	}
 
 	deleteURL(domain, key, callback) {

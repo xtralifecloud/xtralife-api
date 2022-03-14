@@ -144,13 +144,8 @@ class VirtualfsAPI extends AbstractAPI {
 					user_id,
 					key,
 					value
-				}).then(afterData => {
-					if(result.modifiedCount == 1){
-						return result.modifiedCount
-					}
-					else if (result.upsertedCount == 1){
-						return result.upsertedCount
-					}
+				}).then(() => {
+					return result.matchedCount === 1 ? result.modifiedCount : result.upsertedCount
 				})
 			});
 	}
@@ -180,7 +175,9 @@ class VirtualfsAPI extends AbstractAPI {
 					return this.handleHook("after-gamervfs-delete", context, domain, {
 						user_id,
 						key
-					}).then(afterData => result.modifiedCount);
+					}).then(() => {
+						return result.modifiedCount
+					});
 				});
 		});
 	}
@@ -235,9 +232,9 @@ class VirtualfsAPI extends AbstractAPI {
 			params.ContentType = contentType;
 		}
 		// @ts-ignore
-		return this.s3bucket.getSignedUrlAsync('putObject', params)
+		return this.s3bucket.getSignedUrlPromise('putObject', params)
 			.then(url => {
-				return [url, this._getDownloadUrl(domain, user_id, key, secret)];
+				return [url, this._getDownloadUrl(domain, user_id, key, secret), domain, key];
 			});
 	}
 
@@ -252,7 +249,7 @@ class VirtualfsAPI extends AbstractAPI {
 		const keys3 = `${domain}/${user_id}/${key}-${secret}`;
 		const params = { Bucket: xlenv.AWS.S3.bucket, Key: keys3 };
 		// @ts-ignore
-		return this.s3bucket.deleteObjectAsync(params);
+		return this.s3bucket.deleteObject(params);
 	}
 
 	sandbox(context) {
@@ -301,10 +298,9 @@ class VirtualfsAPI extends AbstractAPI {
 			createSignedURL: (domain, user_id, key, contentType = null) => {
 				if (this.parent.game.checkDomainSync(context.game.appid, domain)) {
 					return this.createSignedURL(domain, user_id.toString(), key, contentType)
-						.spread((putURL, getURL) => ({
-							putURL,
-							getURL
-						}));
+						.then(([putURL, getURL]) => {
+							return {putURL, getURL}
+						});
 				} else {
 					throw new errors.BadArgument("Your game doesn't have access to this domain");
 				}
