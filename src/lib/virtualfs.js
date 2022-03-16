@@ -145,7 +145,7 @@ class VirtualfsAPI extends AbstractAPI {
 					key,
 					value
 				}).then(() => {
-					return result.matchedCount === 1 ? result.modifiedCount : result.upsertedCount
+					return result.modifiedCount === 1 ? result.modifiedCount : result.upsertedCount
 				})
 			});
 	}
@@ -234,7 +234,7 @@ class VirtualfsAPI extends AbstractAPI {
 		// @ts-ignore
 		return this.s3bucket.getSignedUrlPromise('putObject', params)
 			.then(url => {
-				return [url, this._getDownloadUrl(domain, user_id, key, secret), domain, key];
+				return [url, this._getDownloadUrl(domain, user_id, key, secret)];
 			});
 	}
 
