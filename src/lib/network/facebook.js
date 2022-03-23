@@ -8,6 +8,7 @@
 
 const _ = require("underscore");
 const graph = require('fbgraph');
+const superagent = require("superagent")
 
 /*
 validToken = (token, callback)->
@@ -26,9 +27,38 @@ validToken = (token, callback)->
 			callback err, res
 */
 
-const FIELDS = "email,id,last_name,first_name,third_party_id,name,locale,picture{url}";
+const validToken = (token, useBusinessManager = false, callback) => {
 
-const validToken = function (token, callback) {
+	let endpoint = "https://graph.facebook.com/v13.0/me?";
+	let fields = "email,id,last_name,first_name,name,locale,picture{url}";
+
+	if(useBusinessManager) fields += ",token_for_business";
+	endpoint += `fields=${fields}`;
+	endpoint += `&access_token=${token}`;
+
+	return superagent
+		.get(endpoint)
+		.accept('json')
+		.set('Accept-Encoding', 'gzip, deflate')
+		.set('Content-Type', 'application/json;charset=UTF-8')
+		.end((err, res) => {
+			if(err != null) {
+				const status = err.status
+				err = res.body.error
+				err.source = "facebook"
+				err.status = status
+				return callback(err, null)
+			}
+			
+			let user = res.body;
+			if (user != null && user != {}){
+				if(useBusinessManager) user.id = user.token_for_business;
+				if (__guard__(user.picture != null ? user.picture.data : undefined, x => x.url) != null) { user.avatar = user.picture.data.url; }
+			}
+			callback(null, user);
+		})
+	
+	/* 
 	graph.setAccessToken(token);
 	graph.setVersion("2.5");
 	return graph.get(`me?fields=token_for_business,${FIELDS}`, function (error, business) {
@@ -51,6 +81,7 @@ const validToken = function (token, callback) {
 			});
 		}
 	});
+	 */
 };
 
 const validFriendsIDs = function (friends, options, callback) {
