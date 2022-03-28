@@ -288,18 +288,15 @@ class StoreAPI extends AbstractAPI {
 	// Callback: (err, storeType, product, transactionId, storeResponseJson)
 	_validateGooglePlayReceipt(game, user_id, product, receipt, cb) {
 		return this.xtralifeApi.game.getCerts(game.appid, (err, certs) => {
-			let keyObject, receiptObject;
+			let receiptObject;
 			if (err != null) { return cb(err != null); }
 
 			if (!certs.android.packageid) {
-				return cb(new errors.PurchaseNotConfirmed(5, "Package ID not configured in the backoffice"));
+				return cb(new errors.PurchaseNotConfirmed(5, "Package ID not configured in the configuration file"));
 			}
 
-			try {
-				keyObject = JSON.parse(certs.android.keyobject);
-			} catch (error) {
-				err = error;
-				return cb(new errors.PurchaseNotConfirmed(5, "Google Service Account not configured in the backoffice"));
+			if(!certs.android.serviceAccount) {
+				return cb(new errors.PurchaseNotConfirmed(5, "Google Service Account not configured in the configuration file"));
 			}
 
 			try {
@@ -314,7 +311,7 @@ class StoreAPI extends AbstractAPI {
 					receipt: receiptObject.purchaseToken,
 					productId: product.googlePlayId,
 					packageName: certs.android.packageid,
-					keyObject
+					keyObject: certs.android.serviceAccount
 				};
 
 				return this.IAP.verifyPayment('google', payment, (error, response) => {
