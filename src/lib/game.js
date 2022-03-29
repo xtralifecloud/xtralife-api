@@ -232,14 +232,19 @@ class GameAPI extends AbstractAPI {
 	}
 
 	runBatchWithLock(context, domain, hookName, params, resource = null) {
-		if (hookName.slice(0, 2) !== '__') { hookName = '__' + hookName; }
+		let timeout = 200;
+		if(xlenv.options.redlock != null) {
+			if(xlenv.options.redlock.timeout) timeout = xlenv.options.redlock.timeout;
+			if(xlenv.options.redlock.overrideTimeoutViaParams && params.timeout) timeout = params.timeout;
+		}
 
+		if (hookName.slice(0, 2) !== '__') { hookName = '__' + hookName; }
 		if (resource == null) { resource = hookName; }
 		const lockName = `${domain}.${resource}`;
 
-		return this.redlock.lock(lockName, 200).then(lock => {
+		return this.redlock.lock(lockName, timeout).then(lock => {
 			return this.handleHook(hookName, context, domain, params)
-				.timeout(200)
+				.timeout(timeout)
 				.tap(result => {
 					return lock.unlock();
 				}).catch(err => {
