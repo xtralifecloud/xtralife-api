@@ -82,7 +82,9 @@ class XtralifeAPI {
 			return each.afterConfigure(this, localcb);
 		}
 			, err => {
-				logger.info("All Xtralife-API modules post configured");
+				// @ts-ignore
+				const { version } = require("../package.json");
+				logger.info(`All Xtralife-API modules post configured (${version})`);
 				return cb(err);
 			});
 	}

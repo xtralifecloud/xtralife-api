@@ -327,16 +327,23 @@ class ConnectAPI extends AbstractAPI {
 		});
 	}
 
-	logingp(game, googleToken, options, cb) {
-		return google.validToken(googleToken, (err, me) => {
+	loginGoogle(game, googleToken, options, cb) {
+		let clientID = null;
+		if(game.config.google != null && game.config.google.clientID != null) clientID = game.config.google.clientID
+		if(clientID === null) return cb(new errors.MissingGoogleClientID("Missing google client ID in config file"))
+
+		return google.validToken(
+			googleToken,
+			clientID,
+			(err, me) => {
 			if (err != null) { return cb(err); }
-			return this.collusers().findOne({ network: "googleplus", networkid: me.id }, (err, user) => {
+			return this.collusers().findOne({ network: "google", networkid: me.sub }, (err, user) => {
 				if (err != null) { return cb(err); }
 				if (user != null) { return cb(null, user, false); }
 				if (options != null ? options.preventRegistration : undefined) { return cb(new errors.PreventRegistration(me), null, false); }
 
 				// create account
-				return this.register(game, "googleplus", me.id, null, this._buildGooglePlusProfile(me), (err, user) => {
+				return this.register(game, "google", me.sub, null, this._buildGoogleProfile(me), (err, user) => {
 					return cb(err, user, true);
 				});
 			});
@@ -647,15 +654,15 @@ class ConnectAPI extends AbstractAPI {
 		return profile;
 	} */
 
-	_buildGooglePlusProfile(me) {
+	_buildGoogleProfile(me) {
 		let profile = {
-			displayName: me.displayName,
-			lang: me.language
+			displayName: me.name,
+			lang: me.locale
 		};
-		if (me.image != null) { profile.avatar = me.image.url; }
-		if ((me.emails != null ? me.emails[0].value : undefined) != null) { profile.email = me.emails[0].value; }
-		if (me.name != null) { profile.firstName = me.name.givenName; }
-		if (me.name != null) { profile.lastName = me.name.familyName; }
+		if (me.picture != null) { profile.avatar = me.picture; }
+		if (me.email != null) { profile.email = me.email; }
+		if (me.given_name != null) { profile.firstName = me.given_name; }
+		if (me.family_name != null) { profile.lastName = me.family_name; }
 		if (xlenv.options.profileFields != null) {
 			profile = _.pick(profile, xlenv.options.profileFields);
 		}

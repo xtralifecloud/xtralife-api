@@ -4,10 +4,24 @@
  * DS207: Consider shorter variations of null checks
  * Full docs: https://github.com/decaffeinate/decaffeinate/blob/master/docs/suggestions.md
  */
-const request = require("request");
+const {OAuth2Client} = require('google-auth-library');
 
-const validToken = function (token, cb) {
-	const options = {
+const validToken = function (token, clientID, cb) {
+	const client = new OAuth2Client(clientID);
+	async function verify() {
+	const ticket = await client.verifyIdToken({
+		idToken: token,
+		audience: clientID
+	});
+	return cb(null, ticket.getPayload());
+	}
+	verify().catch(err => {
+		err.source = "google"
+		if(err.message.includes(":")) err.message = err.message.split(":")[0]
+		cb(err)
+	 });
+
+/*  const options = {
 		method: 'GET',
 		url: 'https://www.googleapis.com/plus/v1/people/me',
 		headers: {
@@ -34,7 +48,7 @@ const validToken = function (token, cb) {
 		}
 
 		return cb(err, me);
-	});
+	}); */
 };
 
 module.exports.validToken = validToken;
