@@ -18,6 +18,7 @@ const {
 const facebook = require("./network/facebook.js");
 const google = require("./network/google.js");
 //const gamecenter = require('gamecenter-identity-verifier');
+const steam = require("./network/steam.js");
 const errors = require("./../errors.js");
 
 const AbstractAPI = require("../AbstractAPI.js");
@@ -346,6 +347,31 @@ class ConnectAPI extends AbstractAPI {
 				return this.register(game, "google", me.sub, null, this._buildGoogleProfile(me), (err, user) => {
 					return cb(err, user, true);
 				});
+			});
+		});
+	}
+
+	loginSteam(game, steamToken, options, cb) {
+		let webApiKey, steamAppId = null;
+
+		if(game.config.steam != null && game.config.steam.webApiKey != null) webApiKey = game.config.steam.webApiKeywebApiKey
+		if(webApiKey === null) return cb(new errors.MissingSteamWebApiKey("Missing steam web api key in config file"))
+		if(game.config.steam != null && game.config.steam.steamAppId != null) steamAppId = game.config.steam.steamAppId
+		if(steamAppId === null) return cb(new errors.MissingSteamAppId("Missing steam app id in config file"))
+	
+		return steam.validToken(
+			steamToken,
+			webApiKey,
+			steamAppId,
+			(err, me) => {
+			if (err != null) { return cb(err); }
+			return this.collusers().findOne({ network: "steam", networkid: me.steamid }, (err, user) => {
+				if (err != null) { return cb(err); }
+				if (user != null) { return cb(null, user, false); }
+				if (options != null ? options.preventRegistration : undefined) { return cb(new errors.PreventRegistration(me), null, false); }
+
+				// create account
+				return this.register(game, "steam", me.steamid, null, this._buildSteamProfile(me), (err, user) => cb(err, user, true));
 			});
 		});
 	}
