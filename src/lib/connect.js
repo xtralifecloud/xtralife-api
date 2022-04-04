@@ -17,9 +17,10 @@ const {
 
 const facebook = require("./network/facebook.js");
 const google = require("./network/google.js");
+const firebase = require("./network/firebase.js");
 //const gamecenter = require('gamecenter-identity-verifier');
 const errors = require("./../errors.js");
-
+const firebaseAdmin = require("firebase-admin");
 const AbstractAPI = require("../AbstractAPI.js");
 
 const Promise = require('bluebird');
@@ -39,6 +40,10 @@ class ConnectAPI extends AbstractAPI {
 		this.xtralifeapi = xtralifeapi;
 		this.facebookValidTokenAsync = Promise.promisify(facebook.validToken, { context: facebook });
 		this.googleValidTokenAsync = Promise.promisify(google.validToken, { context: google });
+
+		if(xlenv.firebase && xlenv.firebase.type != null) {
+			this.firebase = firebaseAdmin.initializeApp({credential: firebaseAdmin.credential.cert(xlenv.firebase)});
+		}
 
 		return xlenv.inject(["=redisClient"], (err, rc) => {
 			this.rc = rc;
@@ -344,6 +349,25 @@ class ConnectAPI extends AbstractAPI {
 
 				// create account
 				return this.register(game, "google", me.sub, null, this._buildGoogleProfile(me), (err, user) => {
+					return cb(err, user, true);
+				});
+			});
+		});
+	}
+
+	loginFirebase(game, firebaseToken, options, cb) {
+		if(!this.firebase) return cb(new errors.MissingFirebaseCredentials("Missing firebase credentials in config file"))
+		return firebase.validToken(
+			firebaseToken,
+			(err, me) => {
+			if (err != null) { return cb(err); }
+			return this.collusers().findOne({ network: "firebase", networkid: me.uid }, (err, user) => {
+				if (err != null) { return cb(err); }
+				if (user != null) { return cb(null, user, false); }
+				if (options != null ? options.preventRegistration : undefined) { return cb(new errors.PreventRegistration(me), null, false); }
+				
+				// create account
+				return this.register(game, "firebase", me.uid, null, this._buildFirebaseProfile(me), (err, user) => {
 					return cb(err, user, true);
 				});
 			});
@@ -666,6 +690,16 @@ class ConnectAPI extends AbstractAPI {
 		if (xlenv.options.profileFields != null) {
 			profile = _.pick(profile, xlenv.options.profileFields);
 		}
+		return profile;
+	}
+
+	_buildFirebaseProfile(me) {
+		let profile = {};
+
+		if(me.name != null) { profile.displayName = me.name; }
+		if (me.picture != null) { profile.avatar = me.picture; }
+		if (me.email != null) { profile.email = me.email; }
+
 		return profile;
 	}
 
