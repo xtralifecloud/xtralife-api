@@ -1,8 +1,8 @@
 const firebaseAuth = require("firebase-admin/auth");
 
-const validToken = (token, cb) => {
+const validToken = (token, firebaseApp, cb) => {
   return firebaseAuth
-    .getAuth()
+    .getAuth(firebaseApp)
     .verifyIdToken(token)
     .then((me) => cb(null, me))
     .catch((err) => {

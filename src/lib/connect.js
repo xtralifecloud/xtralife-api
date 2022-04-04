@@ -41,10 +41,24 @@ class ConnectAPI extends AbstractAPI {
 		this.facebookValidTokenAsync = Promise.promisify(facebook.validToken, { context: facebook });
 		this.googleValidTokenAsync = Promise.promisify(google.validToken, { context: google });
 
-		if(xlenv.firebase && xlenv.firebase.type != null) {
-			this.firebase = firebaseAdmin.initializeApp({credential: firebaseAdmin.credential.cert(xlenv.firebase)});
-		}
+		this.firebaseApps = {};
+		const games = xlenv.xtralife.games
 
+		for (const gameId in games){
+			const game = games[gameId]
+			const firebaseConfig = game.config.firebase
+			if(firebaseConfig && firebaseConfig.type){
+				try {
+					this.firebaseApps[gameId] = firebaseAdmin.initializeApp({credential: firebaseAdmin.credential.cert(firebaseConfig)}, gameId);
+				} catch (err) {
+					logger.error(`firebase config error for ${gameId}`);
+					return callback(err);
+				}
+			}else{
+				this.firebaseApps[gameId] = null
+			}
+		};
+		
 		return xlenv.inject(["=redisClient"], (err, rc) => {
 			this.rc = rc;
 			if (err != null) { return callback(err); }
@@ -356,9 +370,11 @@ class ConnectAPI extends AbstractAPI {
 	}
 
 	loginFirebase(game, firebaseToken, options, cb) {
-		if(!this.firebase) return cb(new errors.MissingFirebaseCredentials("Missing firebase credentials in config file"))
+		if(this.firebaseApps[game.appid] == null) return cb(new errors.MissingFirebaseCredentials("Missing firebase credentials in config file"))
+
 		return firebase.validToken(
 			firebaseToken,
+			this.firebaseApps[game.appid],
 			(err, me) => {
 			if (err != null) { return cb(err); }
 			return this.collusers().findOne({ network: "firebase", networkid: me.uid }, (err, user) => {
