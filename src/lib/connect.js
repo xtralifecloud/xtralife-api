@@ -352,17 +352,16 @@ class ConnectAPI extends AbstractAPI {
 	}
 
 	loginSteam(game, steamToken, options, cb) {
-		let webApiKey, steamAppId = null;
+		let webApiKey, appId = null;
 
-		if(game.config.steam != null && game.config.steam.webApiKey != null) webApiKey = game.config.steam.webApiKeywebApiKey
-		if(webApiKey === null) return cb(new errors.MissingSteamWebApiKey("Missing steam web api key in config file"))
-		if(game.config.steam != null && game.config.steam.steamAppId != null) steamAppId = game.config.steam.steamAppId
-		if(steamAppId === null) return cb(new errors.MissingSteamAppId("Missing steam app id in config file"))
+		if(game.config.steam && game.config.steam.webApiKey) webApiKey = game.config.steam.webApiKey
+		if(game.config.steam && game.config.steam.appId) appId = game.config.steam.appId
+		if(!webApiKey || !appId) return cb(new errors.MissingSteamCredentials("Missing steam credentials in config file"))
 	
 		return steam.validToken(
 			steamToken,
 			webApiKey,
-			steamAppId,
+			appId,
 			(err, me) => {
 			if (err != null) { return cb(err); }
 			return this.collusers().findOne({ network: "steam", networkid: me.steamid }, (err, user) => {
@@ -371,7 +370,7 @@ class ConnectAPI extends AbstractAPI {
 				if (options != null ? options.preventRegistration : undefined) { return cb(new errors.PreventRegistration(me), null, false); }
 
 				// create account
-				return this.register(game, "steam", me.steamid, null, this._buildSteamProfile(me), (err, user) => cb(err, user, true));
+				return this.register(game, "steam", me.steamid, null, {}, (err, user) => cb(err, user, true));
 			});
 		});
 	}

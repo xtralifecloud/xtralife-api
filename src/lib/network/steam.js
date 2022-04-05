@@ -1,12 +1,12 @@
 const superagent = require("superagent");
 
 //call steam verify token to get the steam id
-const validToken = (token, webApiKey, steamAppId, cb) => {
+const validToken = (token, webApiKey, appId, cb) => {
   let endpoint =
   "https://partner.steam-api.com/ISteamUserAuth/AuthenticateUserTicket/v1/?";
 
   endpoint += `key=${webApiKey}`;
-  endpoint += `&appid=${steamAppId}`;
+  endpoint += `&appid=${appId}`;
   endpoint += `&ticket=${token}`;
 
   console.log('endpoint:', endpoint)
@@ -18,14 +18,20 @@ const validToken = (token, webApiKey, steamAppId, cb) => {
     .set("Content-Type", "application/json;charset=UTF-8")
     .end((err, res) => {
       if (err != null) {
-        console.log("err:", err.message);
         err.source = "steam";
         return cb(err, null);
       }
-      let user = res.body;
-      console.log("user:", user);
-
-      cb(null, user);
+      if("params" in res.body.response && "result" in res.body.response.params) {
+        const resParams = res.body.response.params;
+        if(resParams.result == "OK" && resParams.vacbanned == false)
+          return cb(null, resParams);
+      }else if("error" in res.body.response) {
+        err = {}
+        err.source = "steam";
+        err.message = res.body.response.error.errordesc;
+        return cb(err, null);
+      }
+      return cb(new Error("Steam API returned an unknown response"), null);
     });
 };
 
