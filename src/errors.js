@@ -300,6 +300,12 @@ MissingGoogleClientID.prototype.name = "MissingGoogleClientID";
 MissingGoogleClientID.prototype.message = "Missing google client ID in config file";
 MissingGoogleClientID.prototype.xtralifecode = 1;
 
+
+class MissingFirebaseCredentials extends XLAPIError {}
+MissingFirebaseCredentials.prototype.name = "MissingFirebaseCredentials";
+MissingFirebaseCredentials.prototype.message = "Missing firebase credentials in config file";
+MissingFirebaseCredentials.prototype.xtralifecode = 1;
+
 module.exports = {
 	XLAPIError, XLAPIRetryableError, InternalError
 	, ConnectError, PreventRegistration
@@ -314,5 +320,5 @@ module.exports = {
 	, QueryError, PreconditionError
 	, PurchaseNotConfirmed, ExternalStoreError, ExternalStoreEnvironmentError
 	, ConcurrentModification, HookRecursionError, HookError, ExternalServerTempError
-	, GameCenterError, MissingGoogleClientID
+	, GameCenterError, MissingGoogleClientID, MissingFirebaseCredentials
 };
