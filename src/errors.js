@@ -295,6 +295,10 @@ SponsorshipRefusedByHook.prototype.name = "SponsorshipRefusedByHook";
 SponsorshipRefusedByHook.prototype.message = "The social-godfather hook refused sponsorship";
 SponsorshipRefusedByHook.prototype.xtralifecode = 70;
 
+class MissingGoogleClientID extends XLAPIError {}
+MissingGoogleClientID.prototype.name = "MissingGoogleClientID";
+MissingGoogleClientID.prototype.message = "Missing google client ID in config file";
+MissingGoogleClientID.prototype.xtralifecode = 1;
 
 module.exports = {
 	XLAPIError, XLAPIRetryableError, InternalError
@@ -310,5 +314,5 @@ module.exports = {
 	, QueryError, PreconditionError
 	, PurchaseNotConfirmed, ExternalStoreError, ExternalStoreEnvironmentError
 	, ConcurrentModification, HookRecursionError, HookError, ExternalServerTempError
-	, GameCenterError
+	, GameCenterError, MissingGoogleClientID
 };
