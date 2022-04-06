@@ -300,6 +300,11 @@ MissingGoogleClientID.prototype.name = "MissingGoogleClientID";
 MissingGoogleClientID.prototype.message = "Missing google client ID in config file";
 MissingGoogleClientID.prototype.xtralifecode = 1;
 
+class MissingAppleClientID extends XLAPIError {}
+MissingAppleClientID.prototype.name = "MissingAppleClientID";
+MissingAppleClientID.prototype.message = "Missing apple client ID in config file";
+MissingAppleClientID.prototype.xtralifecode = 1;
+
 module.exports = {
 	XLAPIError, XLAPIRetryableError, InternalError
 	, ConnectError, PreventRegistration
@@ -314,5 +319,5 @@ module.exports = {
 	, QueryError, PreconditionError
 	, PurchaseNotConfirmed, ExternalStoreError, ExternalStoreEnvironmentError
 	, ConcurrentModification, HookRecursionError, HookError, ExternalServerTempError
-	, GameCenterError, MissingGoogleClientID
+	, GameCenterError, MissingGoogleClientID, MissingAppleClientID
 };

@@ -17,7 +17,8 @@ const {
 
 const facebook = require("./network/facebook.js");
 const google = require("./network/google.js");
-//const gamecenter = require('gamecenter-identity-verifier');
+const apple = require("./network/apple.js");
+// const gamecenter = require('gamecenter-identity-verifier');
 const errors = require("./../errors.js");
 
 const AbstractAPI = require("../AbstractAPI.js");
@@ -350,6 +351,29 @@ class ConnectAPI extends AbstractAPI {
 		});
 	}
 
+	loginApple(game, appleToken, options, cb) {
+		let clientID = null;
+		if(game.config.apple && game.config.apple.clientID) clientID = game.config.apple.clientID
+		if(!clientID) return cb(new errors.MissingAppleClientID("Missing apple client ID in config file"))
+
+		return apple.validToken(
+			appleToken,
+			clientID,
+			(err, me) => {
+			if (err != null) { return cb(err); }
+			return this.collusers().findOne({ network: "apple", networkid: me.sub }, (err, user) => {
+				if (err != null) { return cb(err); }
+				if (user != null) { return cb(null, user, false); }
+				if (options != null ? options.preventRegistration : undefined) { return cb(new errors.PreventRegistration(me), null, false); }
+
+				// create account
+				return this.register(game, "apple", me.sub, null, this._buildAppleProfile(me), (err, user) => {
+					return cb(err, user, true);
+				});
+			});
+		});
+	}
+
 /* 	logingc(game, id, secret, options, cb) {
 		// TODO replace new Error with proper Nasa Errors
 		if (id !== secret.playerId) { return cb(new errors.GameCenterError("token is not for this player")); }
@@ -640,6 +664,11 @@ class ConnectAPI extends AbstractAPI {
 			profile = _.pick(profile, xlenv.options.profileFields);
 		}
 		return profile;
+	}
+
+	_buildAppleProfile(me) {
+		let profile = {}
+		return profile
 	}
 
 /* 	_buildGameCenterProfile(options) {
