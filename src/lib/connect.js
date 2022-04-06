@@ -303,7 +303,10 @@ class ConnectAPI extends AbstractAPI {
 	}
 
 	loginfb(game, facebookToken, options, cb) {
-		return facebook.validToken(facebookToken, (err, me) => {
+		return facebook.validToken(
+			facebookToken,
+			game.config.facebook != null ? game.config.facebook.useBusinessManager: null, 
+			(err, me) => {
 			if (err != null) { return cb(err); }
 			return this.collusers().findOne({ network: "facebook", networkid: me.id }, (err, user) => {
 				if (err != null) { return cb(err); }
@@ -311,13 +314,15 @@ class ConnectAPI extends AbstractAPI {
 
 				if (options != null ? options.preventRegistration : undefined) { return cb(new errors.PreventRegistration(me), null, false); }
 
-				return this.register(game, "facebook", me.id, null, this._buildFacebookProfile(me), function (err, user) {
+				return this.register(game, "facebook", me.id, null, this._buildFacebookProfile(me), (err, user) => cb(err, user, true));
+
+				/* {
 					if (me.noBusinessManager) {
 						//logger.warn "Business Manager for #{game.appid} doesn't exit! "
 						if ((user != null) && me.noBusinessManager) { user.noBusinessManager = me.noBusinessManager; }
 					}
-					return cb(err, user, true);
-				});
+					return ;
+				} */
 			});
 		});
 	}
