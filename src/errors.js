@@ -306,6 +306,11 @@ MissingFirebaseCredentials.prototype.name = "MissingFirebaseCredentials";
 MissingFirebaseCredentials.prototype.message = "Missing firebase credentials in config file";
 MissingFirebaseCredentials.prototype.xtralifecode = 1;
 
+class MissingSteamCredentials extends XLAPIError {}
+MissingSteamCredentials.prototype.name = "MissingSteamCredentials";
+MissingSteamCredentials.prototype.message = "Missing steam credentials in config file";
+MissingSteamCredentials.prototype.xtralifecode = 1;
+
 module.exports = {
 	XLAPIError, XLAPIRetryableError, InternalError
 	, ConnectError, PreventRegistration
@@ -320,5 +325,5 @@ module.exports = {
 	, QueryError, PreconditionError
 	, PurchaseNotConfirmed, ExternalStoreError, ExternalStoreEnvironmentError
 	, ConcurrentModification, HookRecursionError, HookError, ExternalServerTempError
-	, GameCenterError, MissingGoogleClientID, MissingFirebaseCredentials
+	, GameCenterError, MissingGoogleClientID, MissingFirebaseCredentials, MissingSteamCredentials
 };
