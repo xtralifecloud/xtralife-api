@@ -1,4 +1,5 @@
 const superagent = require("superagent");
+const {SteamError} = require("../../errors");
 
 //call steam verify token to get the steam id
 const validToken = (token, webApiKey, appId, cb) => {
@@ -9,8 +10,6 @@ const validToken = (token, webApiKey, appId, cb) => {
   endpoint += `&appid=${appId}`;
   endpoint += `&ticket=${token}`;
 
-  console.log('endpoint:', endpoint)
-
   return superagent
     .get(endpoint)
     .accept("json")
@@ -18,20 +17,18 @@ const validToken = (token, webApiKey, appId, cb) => {
     .set("Content-Type", "application/json;charset=UTF-8")
     .end((err, res) => {
       if (err != null) {
-        err.source = "steam";
-        return cb(err, null);
+        return cb(new SteamError(err.message), null);
       }
       if("params" in res.body.response && "result" in res.body.response.params) {
         const resParams = res.body.response.params;
         if(resParams.result == "OK" && resParams.vacbanned == false)
           return cb(null, resParams);
       }else if("error" in res.body.response) {
-        err = {}
-        err.source = "steam";
-        err.message = res.body.response.error.errordesc;
-        return cb(err, null);
+        const message = res.body.response.error?.errordesc;
+        const details = res.body.response.error;
+        if (details) delete details.errordesc;
+        return cb(new SteamError(message, details), null);
       }
-      return cb(new Error("Steam API returned an unknown response"), null);
     });
 };
 

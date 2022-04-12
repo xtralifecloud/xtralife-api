@@ -311,6 +311,51 @@ MissingSteamCredentials.prototype.name = "MissingSteamCredentials";
 MissingSteamCredentials.prototype.message = "Missing steam credentials in config file";
 MissingSteamCredentials.prototype.xtralifecode = 1;
 
+class FacebookError extends XLAPIError {
+	static initClass() {
+		this.prototype.name = "FacebookError";
+	}
+	constructor(message, details) {
+		super(message);
+		this.details = details;
+	}
+}
+FacebookError.initClass();
+
+class GoogleError extends XLAPIError {
+	static initClass() {
+		this.prototype.name = "GoogleError";
+	}
+	constructor(message, details) {
+		super(message);
+		this.details = details;
+	}
+}
+GoogleError.initClass();
+
+class FirebaseError extends XLAPIError {
+	static initClass() {
+		this.prototype.name = "FirebaseError";
+	}
+	constructor(message, details) {
+		super(message);
+		this.details = details;
+	}
+}
+FirebaseError.initClass();
+class SteamError extends XLAPIError {
+	static initClass() {
+		this.prototype.name = "SteamError";
+	}
+	constructor(message, details) {
+		super(message);
+		this.details = details;
+	}
+}
+SteamError.initClass();
+
+
+
 module.exports = {
 	XLAPIError, XLAPIRetryableError, InternalError
 	, ConnectError, PreventRegistration
@@ -325,5 +370,5 @@ module.exports = {
 	, QueryError, PreconditionError
 	, PurchaseNotConfirmed, ExternalStoreError, ExternalStoreEnvironmentError
 	, ConcurrentModification, HookRecursionError, HookError, ExternalServerTempError
-	, GameCenterError, MissingGoogleClientID, MissingFirebaseCredentials, MissingSteamCredentials
+	, GameCenterError, MissingGoogleClientID, MissingFirebaseCredentials, MissingSteamCredentials, FacebookError, GoogleError, FirebaseError, SteamError
 };

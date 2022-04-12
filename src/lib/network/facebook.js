@@ -8,8 +8,8 @@
 
 const _ = require("underscore");
 const graph = require('fbgraph');
-const superagent = require("superagent")
-
+const superagent = require("superagent");
+const {FacebookError} = require('../../errors');
 /*
 validToken = (token, callback)->
 	graph.setAccessToken token
@@ -43,11 +43,10 @@ const validToken = (token, useBusinessManager = false, callback) => {
 		.set('Content-Type', 'application/json;charset=UTF-8')
 		.end((err, res) => {
 			if(err != null) {
-				const status = err.status
-				err = res.body.error
-				err.source = "facebook"
-				err.status = status
-				return callback(err, null)
+				const message = res.body.error.message
+				const details = res.body.error
+				if(details) delete details.message
+				return callback(new FacebookError(message, details), null)
 			}
 			
 			let user = res.body;

@@ -5,6 +5,7 @@
  * Full docs: https://github.com/decaffeinate/decaffeinate/blob/master/docs/suggestions.md
  */
 const {OAuth2Client} = require('google-auth-library');
+const {GoogleError} = require('../../errors');
 
 const validToken = function (token, clientID, cb) {
 	const client = new OAuth2Client(clientID);
@@ -16,9 +17,8 @@ const validToken = function (token, clientID, cb) {
 	return cb(null, ticket.getPayload());
 	}
 	verify().catch(err => {
-		err.source = "google"
 		if(err.message.includes(":")) err.message = err.message.split(":")[0]
-		cb(err)
+		cb(new GoogleError(err.message))
 	 });
 
 /*  const options = {

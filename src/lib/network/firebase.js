@@ -1,4 +1,5 @@
 const firebaseAuth = require("firebase-admin/auth");
+const {FirebaseError} = require("../../errors");
 
 const validToken = (token, firebaseApp, cb) => {
   return firebaseAuth
@@ -6,8 +7,10 @@ const validToken = (token, firebaseApp, cb) => {
     .verifyIdToken(token)
     .then((me) => cb(null, me))
     .catch((err) => {
-      err.source = "firebase";
-      return cb(err, null);
+      const message = err.message || err.errorInfo?.message
+      const details = err.errorInfo
+      if(details) delete details.message
+      return cb(new FirebaseError(message, details));
     });
 };
 

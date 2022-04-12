@@ -41,6 +41,8 @@ class ConnectAPI extends AbstractAPI {
 		this.xtralifeapi = xtralifeapi;
 		this.facebookValidTokenAsync = Promise.promisify(facebook.validToken, { context: facebook });
 		this.googleValidTokenAsync = Promise.promisify(google.validToken, { context: google });
+		this.firebaseValidTokenAsync = Promise.promisify(firebase.validToken, { context: firebase });
+		this.steamValidTokenAsync = Promise.promisify(steam.validToken, { context: steam });
 
 		this.firebaseApps = {};
 		const games = xlenv.xtralife.games
@@ -322,7 +324,7 @@ class ConnectAPI extends AbstractAPI {
 		});
 	}
 
-	loginfb(game, facebookToken, options, cb) {
+	loginFacebook(game, facebookToken, options, cb) {
 		return facebook.validToken(
 			facebookToken,
 			game.config.facebook != null ? game.config.facebook.useBusinessManager: null, 
@@ -335,21 +337,13 @@ class ConnectAPI extends AbstractAPI {
 				if (options != null ? options.preventRegistration : undefined) { return cb(new errors.PreventRegistration(me), null, false); }
 
 				return this.register(game, "facebook", me.id, null, this._buildFacebookProfile(me), (err, user) => cb(err, user, true));
-
-				/* {
-					if (me.noBusinessManager) {
-						//logger.warn "Business Manager for #{game.appid} doesn't exit! "
-						if ((user != null) && me.noBusinessManager) { user.noBusinessManager = me.noBusinessManager; }
-					}
-					return ;
-				} */
 			});
 		});
 	}
 
 	loginGoogle(game, googleToken, options, cb) {
 		let clientID = null;
-		if(game.config.google != null && game.config.google.clientID != null) clientID = game.config.google.clientID
+		if(game.config.google && game.config.google.clientID) clientID = game.config.google.clientID
 		if(clientID === null) return cb(new errors.MissingGoogleClientID("Missing google client ID in config file"))
 
 		return google.validToken(
@@ -410,7 +404,7 @@ class ConnectAPI extends AbstractAPI {
 				if (options != null ? options.preventRegistration : undefined) { return cb(new errors.PreventRegistration(me), null, false); }
 
 				// create account
-				return this.register(game, "steam", me.steamid, null, {}, (err, user) => cb(err, user, true));
+				return this.register(game, "steam", me.steamid, null, {lang: "en"}, (err, user) => cb(err, user, true));
 			});
 		});
 	}
@@ -441,7 +435,7 @@ class ConnectAPI extends AbstractAPI {
 		});
 	} */
 
-	convertAccountToEmail(user_id, email, sha_password) {
+	convertAccountToEmail(user_id, email, sha_password, options) {
 		if (!/^[^@ ]+@[^\.@ ]+\.[^@ ]+$/.test(email)) { return Promise.reject(new errors.BadArgument); }
 		return this._checkAccountForConversion("email", user_id, email)
 			.then(() => {
@@ -450,9 +444,10 @@ class ConnectAPI extends AbstractAPI {
 						network: "email",
 						networkid: email,
 						networksecret: sha_password,
-						profile: this._buildEmailProfile(email)
 					}
 				};
+
+				options && options.updateProfile === false ? null : modification.$set.profile = this._buildEmailProfile(email)
 				return this.collusers().findOneAndUpdate({ _id: user_id }, modification, { returnDocument: "after" });
 			})
 			.then(function (result) {
@@ -461,8 +456,10 @@ class ConnectAPI extends AbstractAPI {
 			});
 	}
 
-	convertAccountToFacebook(user_id, facebookToken) {
-		return this.facebookValidTokenAsync(facebookToken)
+	convertAccountToFacebook(game, user_id, facebookToken, options) {
+		return this.facebookValidTokenAsync(
+			facebookToken,
+			game.config.facebook != null ? game.config.facebook.useBusinessManager: null)
 			.then(me => {
 				return this._checkAccountForConversion("facebook", user_id, me.id)
 					.then(() => {
@@ -471,9 +468,10 @@ class ConnectAPI extends AbstractAPI {
 								network: "facebook",
 								networkid: me.id,
 								networksecret: null,
-								profile: this._buildFacebookProfile(me)
 							}
 						};
+						
+						options && options.updateProfile === false ? null : modification.$set.profile = this._buildFacebookProfile(me)
 						return this.collusers().findOneAndUpdate({ _id: user_id }, modification, { returnDocument: "after" });
 					})
 					.then(function (result) {
@@ -483,23 +481,80 @@ class ConnectAPI extends AbstractAPI {
 			});
 	}
 
-	convertAccountToGooglePlus(user_id, googleToken) {
-		return this.googleValidTokenAsync(googleToken)
+	convertAccountToGoogle(game, user_id, googleToken, options) {
+		let clientID = null;
+		if(game.config.google && game.config.google.clientID) clientID = game.config.google.clientID
+		if(clientID === null) throw new errors.MissingGoogleClientID("Missing google client ID in config file")
+
+		return this.googleValidTokenAsync(googleToken, clientID)
 			.then(me => {
-				return this._checkAccountForConversion("googleplus", user_id, me.id)
+				return this._checkAccountForConversion("google", user_id, me.sub)
 					.then(() => {
 						const modification = {
 							$set: {
-								network: "googleplus",
-								networkid: me.id,
+								network: "google",
+								networkid: me.sub,
 								networksecret: null,
-								profile: this._buildGooglePlusProfile(me)
+							}
+						};
+
+						options && options.updateProfile === false ? null : modification.$set.profile = this._buildGoogleProfile(me)
+						return this.collusers().findOneAndUpdate({ _id: user_id }, modification, { returnDocument: "after" });
+					})
+					.then(function (result) {
+						if (typeof err === 'undefined' || err === null) { logger.debug(`converted to google account for ${me.sub}`); }
+						return (result != null ? result.value : undefined);
+					});
+			});
+	}
+
+	convertAccountToFirebase(game, user_id, firebaseToken, options) {
+		if(this.firebaseApps[game.appid] == null) throw new errors.MissingFirebaseCredentials("Missing firebase credentials in config file")
+
+		return this.firebaseValidTokenAsync(firebaseToken, this.firebaseApps[game.appid])
+			.then(me => {
+				return this._checkAccountForConversion("firebase", user_id, me.uid)
+					.then(() => {
+						const modification = {
+							$set: {
+								network: "firebase",
+								networkid: me.uid,
+								networksecret: null,
+							}
+						};
+
+						options && options.updateProfile === false ? null : modification.$set.profile = this._buildFirebaseProfile(me)
+						return this.collusers().findOneAndUpdate({ _id: user_id }, modification, { returnDocument: "after" });
+					})
+					.then(function (result) {
+						if (typeof err === 'undefined' || err === null) { logger.debug(`converted to firebase account for ${me.uid}`); }
+						return (result != null ? result.value : undefined);
+					});
+			});
+	}
+
+	convertAccountToSteam(game, user_id, SteamToken) {
+		let webApiKey, appId = null;
+
+		if(game.config.steam && game.config.steam.webApiKey) webApiKey = game.config.steam.webApiKey
+		if(game.config.steam && game.config.steam.appId) appId = game.config.steam.appId
+		if(!webApiKey || !appId) throw new errors.MissingSteamCredentials("Missing steam credentials in config file")
+
+		return this.steamValidTokenAsync(SteamToken, webApiKey, appId)
+			.then(me => {
+				return this._checkAccountForConversion("steam", user_id, me.steamid)
+					.then(() => {
+						const modification = {
+							$set: {
+								network: "steam",
+								networkid: me.steamid,
+								networksecret: null,
 							}
 						};
 						return this.collusers().findOneAndUpdate({ _id: user_id }, modification, { returnDocument: "after" });
 					})
 					.then(function (result) {
-						if (typeof err === 'undefined' || err === null) { logger.debug(`converted to google+ account for ${me.id}`); }
+						if (typeof err === 'undefined' || err === null) { logger.debug(`converted to steam account for ${me.steamid}`); }
 						return (result != null ? result.value : undefined);
 					});
 			});
@@ -693,15 +748,19 @@ class ConnectAPI extends AbstractAPI {
 	}
 
 	_buildFacebookProfile(me) {
+		console.log('me:', me)
 		let profile = {
-			email: me.email,
-			firstName: me.first_name,
-			lastName: me.last_name,
-			avatar: me.avatar,
-			displayName: me.name,
-			lang: ((me.locale != null) ? me.locale.substr(0, 2) : undefined)
+			lang: "en"
 		};
-		if (xlenv.options.profileFields != null) {
+		if(me.name) profile.email = me.email;
+		if(me.first_name) profile.firstName = me.first_name;
+		if(me.last_name) profile.lastName = me.last_name;
+		if(me.avatar) profile.avatar = me.avatar;
+		if(me.locale) profile.lang = me.locale.substring(0, 2);
+		if(me.name) profile.displayName = me.name;
+		else if(me.first_name) profile.displayName = me.first_name;
+		
+		if (xlenv.options.profileFields) {
 			profile = _.pick(profile, xlenv.options.profileFields);
 		}
 		return profile;
@@ -721,21 +780,24 @@ class ConnectAPI extends AbstractAPI {
 
 	_buildGoogleProfile(me) {
 		let profile = {
-			displayName: me.name,
-			lang: me.locale
+			lang: "en"
 		};
-		if (me.picture != null) { profile.avatar = me.picture; }
-		if (me.email != null) { profile.email = me.email; }
-		if (me.given_name != null) { profile.firstName = me.given_name; }
-		if (me.family_name != null) { profile.lastName = me.family_name; }
-		if (xlenv.options.profileFields != null) {
+		if(me.name) profile.displayName = me.name;
+		if(me.locale) profile.lang = me.locale; 
+		if (me.picture) { profile.avatar = me.picture; }
+		if (me.email) { profile.email = me.email; }
+		if (me.given_name) { profile.firstName = me.given_name; }
+		if (me.family_name) { profile.lastName = me.family_name; }
+		if (xlenv.options.profileFields) {
 			profile = _.pick(profile, xlenv.options.profileFields);
 		}
 		return profile;
 	}
 
 	_buildFirebaseProfile(me) {
-		let profile = {};
+		let profile = {
+			lang: "en"
+		};
 
 		if(me.name != null) { profile.displayName = me.name; }
 		if (me.picture != null) { profile.avatar = me.picture; }
