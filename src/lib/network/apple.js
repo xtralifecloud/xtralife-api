@@ -1,4 +1,5 @@
 const appleAuth = require("apple-signin-auth");
+const {AppleError} = require("../../errors");
 
 const validToken = async (token, clientID, cb) => {
     try {
@@ -9,11 +10,9 @@ const validToken = async (token, clientID, cb) => {
             ignoreExpiration: true,
           }
         );
-        console.log(user);
         return cb(null, user);
       } catch (err) {
-        err.source = "apple";
-        return cb(err, null);
+        return cb(new AppleError(err.message), null);
       }
 }
 

@@ -40,6 +40,7 @@ class ConnectAPI extends AbstractAPI {
 		this.xtralifeapi = xtralifeapi;
 		this.facebookValidTokenAsync = Promise.promisify(facebook.validToken, { context: facebook });
 		this.googleValidTokenAsync = Promise.promisify(google.validToken, { context: google });
+		this.appleValidTokenAsync = Promise.promisify(apple.validToken, { context: apple });
 
 		return xlenv.inject(["=redisClient"], (err, rc) => {
 			this.rc = rc;
@@ -464,6 +465,31 @@ class ConnectAPI extends AbstractAPI {
 			});
 	}
 
+	convertAccountToApple(game, user_id, appleToken, options) {
+		let clientID = null;
+		if(game.config.apple && game.config.apple.clientID) clientID = game.config.apple.clientID
+		if(!clientID) throw new errors.MissingAppleClientID("Missing apple client ID in config file")
+
+		return this.appleValidTokenAsync(appleToken, clientID)
+			.then(me => {
+				return this._checkAccountForConversion("apple", user_id, me.sub)
+					.then(() => {
+						const modification = {
+							$set: {
+								network: "apple",
+								networkid: me.sub,
+								networksecret: null,
+							}
+						};
+						options && options.updateProfile === false? null : (modification.$set.profile = this._buildAppleProfile(me));
+						return this.collusers().findOneAndUpdate({ _id: user_id }, modification, { returnDocument: "after" });
+					})
+					.then(function (result) {
+						if (typeof err === 'undefined' || err === null) { logger.debug(`converted to apple account for ${me.sub}`); }
+						return (result != null ? result.value : undefined);
+					});
+			});
+	}
 /* 	convertAccountToGameCenter(user_id, id, options) {
 		return this._checkAccountForConversion("gamecenter", user_id, id)
 			.then(() => {
@@ -667,7 +693,10 @@ class ConnectAPI extends AbstractAPI {
 	}
 
 	_buildAppleProfile(me) {
-		let profile = {}
+		let profile = {
+			lang : "en"
+		}
+		if(me.email) profile.email = me.email
 		return profile
 	}
 
