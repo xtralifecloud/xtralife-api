@@ -807,7 +807,6 @@ class ConnectAPI extends AbstractAPI {
 	}
 
 	_buildFacebookProfile(me) {
-		console.log('me:', me)
 		let profile = {
 			lang: "en"
 		};
