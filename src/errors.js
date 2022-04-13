@@ -311,6 +311,11 @@ MissingSteamCredentials.prototype.name = "MissingSteamCredentials";
 MissingSteamCredentials.prototype.message = "Missing steam credentials in config file";
 MissingSteamCredentials.prototype.xtralifecode = 1;
 
+class MissingAppleClientID extends XLAPIError {}
+MissingAppleClientID.prototype.name = "MissingAppleClientID";
+MissingAppleClientID.prototype.message = "Missing apple client ID in config file";
+MissingAppleClientID.prototype.xtralifecode = 1;
+
 class FacebookError extends XLAPIError {
 	static initClass() {
 		this.prototype.name = "FacebookError";
@@ -353,7 +358,16 @@ class SteamError extends XLAPIError {
 	}
 }
 SteamError.initClass();
-
+class AppleError extends XLAPIError {
+	static initClass() {
+		this.prototype.name = "AppleError";
+	}
+	constructor(message, details) {
+		super(message);
+		this.details = details;
+	}
+}
+AppleError.initClass();
 
 
 module.exports = {
@@ -371,4 +385,5 @@ module.exports = {
 	, PurchaseNotConfirmed, ExternalStoreError, ExternalStoreEnvironmentError
 	, ConcurrentModification, HookRecursionError, HookError, ExternalServerTempError
 	, GameCenterError, MissingGoogleClientID, MissingFirebaseCredentials, MissingSteamCredentials, FacebookError, GoogleError, FirebaseError, SteamError
+	, AppleError, MissingAppleClientID
 };

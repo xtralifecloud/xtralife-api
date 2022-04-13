@@ -18,8 +18,9 @@ const {
 const facebook = require("./network/facebook.js");
 const google = require("./network/google.js");
 const firebase = require("./network/firebase.js");
-//const gamecenter = require('gamecenter-identity-verifier');
 const steam = require("./network/steam.js");
+const apple = require("./network/apple.js");
+const gamecenter = require('./network/gamecenter.js');
 const errors = require("./../errors.js");
 const firebaseAdmin = require("firebase-admin");
 const AbstractAPI = require("../AbstractAPI.js");
@@ -43,6 +44,8 @@ class ConnectAPI extends AbstractAPI {
 		this.googleValidTokenAsync = Promise.promisify(google.validToken, { context: google });
 		this.firebaseValidTokenAsync = Promise.promisify(firebase.validToken, { context: firebase });
 		this.steamValidTokenAsync = Promise.promisify(steam.validToken, { context: steam });
+		this.appleValidTokenAsync = Promise.promisify(apple.validToken, { context: apple });
+		this.gameCenterValidTokenAsync = Promise.promisify(gamecenter.verify, { context: gamecenter });
 
 		this.firebaseApps = {};
 		const games = xlenv.xtralife.games
@@ -385,6 +388,29 @@ class ConnectAPI extends AbstractAPI {
 		});
 	}
 	
+	loginApple(game, appleToken, options, cb) {
+		let clientID = null;
+		if(game.config.apple && game.config.apple.clientID) clientID = game.config.apple.clientID
+		if(!clientID) return cb(new errors.MissingAppleClientID("Missing apple client ID in config file"))
+
+		return apple.validToken(
+			appleToken,
+			clientID,
+			(err, me) => {
+			if (err != null) { return cb(err); }
+			return this.collusers().findOne({ network: "apple", networkid: me.sub }, (err, user) => {
+				if (err != null) { return cb(err); }
+				if (user != null) { return cb(null, user, false); }
+				if (options != null ? options.preventRegistration : undefined) { return cb(new errors.PreventRegistration(me), null, false); }
+
+				// create account
+				return this.register(game, "apple", me.sub, null, this._buildAppleProfile(me), (err, user) => {
+					return cb(err, user, true);
+				});
+			});
+		});
+	}
+	
 	loginSteam(game, steamToken, options, cb) {
 		let webApiKey, appId = null;
 
@@ -409,31 +435,29 @@ class ConnectAPI extends AbstractAPI {
 		});
 	}
 
-/* 	logingc(game, id, secret, options, cb) {
-		// TODO replace new Error with proper Nasa Errors
-		if (id !== secret.playerId) { return cb(new errors.GameCenterError("token is not for this player")); }
-		if (!(game.config.socialSettings != null ? game.config.socialSettings.gameCenterBundleIdRE : undefined)) { return cb(new errors.GameCenterError("socialSettings.gameCenterBundleIdRE must be set for GameCenter login")); }
-		if (!secret.bundleId.match(game.config.socialSettings.gameCenterBundleIdRE)) { return cb(new errors.GameCenterError("Invalid bundleId")); }
-		// TODO check secret expiry against optional options.expireGCtoken seconds
-		if ((xlenv.options.GameCenterTokenMaxage != null) && ((Date.now() - secret.timestamp) > (1000 * xlenv.options.GameCenterTokenMaxage))) {
+	loginGameCenter(game, credentials, options, cb) {
+
+		if (!game.config.apple || !game.config.apple.gameCenterBundleIdRE) { return cb(new errors.GameCenterError("apple.gameCenterBundleIdRE must be set for GameCenter login")); }
+		if (!credentials.bundleId.match(game.config.apple.gameCenterBundleIdRE)) { return cb(new errors.GameCenterError("Invalid bundleId")); }
+		if ((xlenv.options.gameCenterTokenMaxAge) && ((Date.now() - credentials.timestamp) > (1000 * xlenv.options.gameCenterTokenMaxAge))) {
 			return cb(new errors.GameCenterError('Expired gamecenter token'));
 		}
 
-		return gamecenter.verify(secret, (err, token) => {
+		return gamecenter.verify(credentials, (err, me) => {
 			if (err != null) { return cb(new errors.GameCenterError(err.message)); }
 
-			return this.collusers().findOne({ network: "gamecenter", networkid: id }, (err, user) => {
+			return this.collusers().findOne({ network: "gamecenter", networkid: me.id }, (err, user) => {
 				if (err != null) { return cb(err); }
 				if (user != null) { return cb(null, user, false); }
 				if (options != null ? options.preventRegistration : undefined) { return cb(new errors.PreventRegistration((options != null ? options.gamecenter : undefined) || {}), null, false); }
 
 				// create account
-				return this.register(game, "gamecenter", id, null, this._buildGameCenterProfile(options), (err, user) => {
+				return this.register(game, "gamecenter", me.id, null, {lang: "en"}, (err, user) => {
 					return cb(err, user, true);
 				});
 			});
 		});
-	} */
+	}
 
 	convertAccountToEmail(user_id, email, sha_password, options) {
 		if (!/^[^@ ]+@[^\.@ ]+\.[^@ ]+$/.test(email)) { return Promise.reject(new errors.BadArgument); }
@@ -560,15 +584,49 @@ class ConnectAPI extends AbstractAPI {
 			});
 	}
 
-/* 	convertAccountToGameCenter(user_id, id, options) {
-		return this._checkAccountForConversion("gamecenter", user_id, id)
+	convertAccountToApple(game, user_id, appleToken, options) {
+		let clientID = null;
+		if(game.config.apple && game.config.apple.clientID) clientID = game.config.apple.clientID
+		if(!clientID) throw new errors.MissingAppleClientID("Missing apple client ID in config file")
+
+		return this.appleValidTokenAsync(appleToken, clientID)
+			.then(me => {
+				return this._checkAccountForConversion("apple", user_id, me.sub)
+					.then(() => {
+						const modification = {
+							$set: {
+								network: "apple",
+								networkid: me.sub,
+								networksecret: null,
+							}
+						};
+						options && options.updateProfile === false? null : (modification.$set.profile = this._buildAppleProfile(me));
+						return this.collusers().findOneAndUpdate({ _id: user_id }, modification, { returnDocument: "after" });
+					})
+					.then(function (result) {
+						if (typeof err === 'undefined' || err === null) { logger.debug(`converted to apple account for ${me.sub}`); }
+						return (result != null ? result.value : undefined);
+					});
+			});
+	}
+	
+	convertAccountToGameCenter(game, user_id, credentials) {
+
+		if (!game.config.apple || !game.config.apple.gameCenterBundleIdRE) { throw new errors.GameCenterError("apple.gameCenterBundleIdRE must be set for GameCenter login"); }
+		if (!credentials.bundleId.match(game.config.apple.gameCenterBundleIdRE)) { throw new errors.GameCenterError("Invalid bundleId"); }
+		if ((xlenv.options.gameCenterTokenMaxAge) && ((Date.now() - credentials.timestamp) > (1000 * xlenv.options.gameCenterTokenMaxAge))) {
+			throw new errors.GameCenterError('Expired gamecenter token');
+		}
+
+		return this.gameCenterValidTokenAsync(credentials)
+		.then(me => {
+			return this._checkAccountForConversion("gamecenter", user_id, me.id)
 			.then(() => {
 				const modification = {
 					$set: {
 						network: "gamecenter",
-						networkid: id,
+						networkid: me.id,
 						networksecret: null,
-						profile: this._buildGameCenterProfile(options)
 					}
 				};
 				return this.collusers().findOneAndUpdate({ _id: user_id }, modification, { returnDocument: "after" });
@@ -577,7 +635,8 @@ class ConnectAPI extends AbstractAPI {
 				if (typeof err === 'undefined' || err === null) { logger.debug(`converted to game center account for ${user_id}`); }
 				return (result != null ? result.value : undefined);
 			});
-	} */
+		});
+	} 
 
 	linkAccountWithFacebook(user, token, cb) {
 		return facebook.validToken(token, (err, me) => {
@@ -766,17 +825,13 @@ class ConnectAPI extends AbstractAPI {
 		return profile;
 	}
 
-/* 	_buildGameCenterProfile(options) {
+	_buildAppleProfile(me) {
 		let profile = {
-			displayName: __guard__(options != null ? options.gamecenter : undefined, x => x.gcdisplayname) || "",
-			firstName: __guard__(options != null ? options.gamecenter : undefined, x1 => x1.gcalias) || "",
-			lang: "en"
-		};
-		if (xlenv.options.profileFields != null) {
-			profile = _.pick(profile, xlenv.options.profileFields);
+			lang : "en"
 		}
-		return profile;
-	} */
+		if(me.email) profile.email = me.email
+		return profile
+	}
 
 	_buildGoogleProfile(me) {
 		let profile = {
