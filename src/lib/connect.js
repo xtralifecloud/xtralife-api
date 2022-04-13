@@ -18,7 +18,7 @@ const {
 const facebook = require("./network/facebook.js");
 const google = require("./network/google.js");
 const apple = require("./network/apple.js");
-// const gamecenter = require('gamecenter-identity-verifier');
+const gamecenter = require('./network/gamecenter.js');
 const errors = require("./../errors.js");
 
 const AbstractAPI = require("../AbstractAPI.js");
@@ -41,6 +41,7 @@ class ConnectAPI extends AbstractAPI {
 		this.facebookValidTokenAsync = Promise.promisify(facebook.validToken, { context: facebook });
 		this.googleValidTokenAsync = Promise.promisify(google.validToken, { context: google });
 		this.appleValidTokenAsync = Promise.promisify(apple.validToken, { context: apple });
+		this.gameCenterValidTokenAsync = Promise.promisify(gamecenter.verify, { context: gamecenter });
 
 		return xlenv.inject(["=redisClient"], (err, rc) => {
 			this.rc = rc;
@@ -375,31 +376,29 @@ class ConnectAPI extends AbstractAPI {
 		});
 	}
 
-/* 	logingc(game, id, secret, options, cb) {
-		// TODO replace new Error with proper Nasa Errors
-		if (id !== secret.playerId) { return cb(new errors.GameCenterError("token is not for this player")); }
-		if (!(game.config.socialSettings != null ? game.config.socialSettings.gameCenterBundleIdRE : undefined)) { return cb(new errors.GameCenterError("socialSettings.gameCenterBundleIdRE must be set for GameCenter login")); }
-		if (!secret.bundleId.match(game.config.socialSettings.gameCenterBundleIdRE)) { return cb(new errors.GameCenterError("Invalid bundleId")); }
-		// TODO check secret expiry against optional options.expireGCtoken seconds
-		if ((xlenv.options.GameCenterTokenMaxage != null) && ((Date.now() - secret.timestamp) > (1000 * xlenv.options.GameCenterTokenMaxage))) {
+	loginGameCenter(game, credentials, options, cb) {
+
+		if (!game.config.apple || !game.config.apple.gameCenterBundleIdRE) { return cb(new errors.GameCenterError("apple.gameCenterBundleIdRE must be set for GameCenter login")); }
+		if (!credentials.bundleId.match(game.config.apple.gameCenterBundleIdRE)) { return cb(new errors.GameCenterError("Invalid bundleId")); }
+		if ((xlenv.options.gameCenterTokenMaxAge) && ((Date.now() - credentials.timestamp) > (1000 * xlenv.options.gameCenterTokenMaxAge))) {
 			return cb(new errors.GameCenterError('Expired gamecenter token'));
 		}
 
-		return gamecenter.verify(secret, (err, token) => {
+		return gamecenter.verify(credentials, (err, me) => {
 			if (err != null) { return cb(new errors.GameCenterError(err.message)); }
 
-			return this.collusers().findOne({ network: "gamecenter", networkid: id }, (err, user) => {
+			return this.collusers().findOne({ network: "gamecenter", networkid: me.id }, (err, user) => {
 				if (err != null) { return cb(err); }
 				if (user != null) { return cb(null, user, false); }
 				if (options != null ? options.preventRegistration : undefined) { return cb(new errors.PreventRegistration((options != null ? options.gamecenter : undefined) || {}), null, false); }
 
 				// create account
-				return this.register(game, "gamecenter", id, null, this._buildGameCenterProfile(options), (err, user) => {
+				return this.register(game, "gamecenter", me.id, null, {lang: "en"}, (err, user) => {
 					return cb(err, user, true);
 				});
 			});
 		});
-	} */
+	}
 
 	convertAccountToEmail(user_id, email, sha_password) {
 		if (!/^[^@ ]+@[^\.@ ]+\.[^@ ]+$/.test(email)) { return Promise.reject(new errors.BadArgument); }
@@ -490,15 +489,24 @@ class ConnectAPI extends AbstractAPI {
 					});
 			});
 	}
-/* 	convertAccountToGameCenter(user_id, id, options) {
-		return this._checkAccountForConversion("gamecenter", user_id, id)
+	
+	convertAccountToGameCenter(game, user_id, credentials) {
+
+		if (!game.config.apple || !game.config.apple.gameCenterBundleIdRE) { throw new errors.GameCenterError("apple.gameCenterBundleIdRE must be set for GameCenter login"); }
+		if (!credentials.bundleId.match(game.config.apple.gameCenterBundleIdRE)) { throw new errors.GameCenterError("Invalid bundleId"); }
+		if ((xlenv.options.gameCenterTokenMaxAge) && ((Date.now() - credentials.timestamp) > (1000 * xlenv.options.gameCenterTokenMaxAge))) {
+			throw new errors.GameCenterError('Expired gamecenter token');
+		}
+
+		return this.gameCenterValidTokenAsync(credentials)
+		.then(me => {
+			return this._checkAccountForConversion("gamecenter", user_id, me.id)
 			.then(() => {
 				const modification = {
 					$set: {
 						network: "gamecenter",
-						networkid: id,
+						networkid: me.id,
 						networksecret: null,
-						profile: this._buildGameCenterProfile(options)
 					}
 				};
 				return this.collusers().findOneAndUpdate({ _id: user_id }, modification, { returnDocument: "after" });
@@ -507,7 +515,8 @@ class ConnectAPI extends AbstractAPI {
 				if (typeof err === 'undefined' || err === null) { logger.debug(`converted to game center account for ${user_id}`); }
 				return (result != null ? result.value : undefined);
 			});
-	} */
+		});
+	} 
 
 	linkAccountWithFacebook(user, token, cb) {
 		return facebook.validToken(token, (err, me) => {
@@ -699,18 +708,6 @@ class ConnectAPI extends AbstractAPI {
 		if(me.email) profile.email = me.email
 		return profile
 	}
-
-/* 	_buildGameCenterProfile(options) {
-		let profile = {
-			displayName: __guard__(options != null ? options.gamecenter : undefined, x => x.gcdisplayname) || "",
-			firstName: __guard__(options != null ? options.gamecenter : undefined, x1 => x1.gcalias) || "",
-			lang: "en"
-		};
-		if (xlenv.options.profileFields != null) {
-			profile = _.pick(profile, xlenv.options.profileFields);
-		}
-		return profile;
-	} */
 
 	_buildGoogleProfile(me) {
 		let profile = {
