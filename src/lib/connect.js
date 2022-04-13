@@ -389,13 +389,13 @@ class ConnectAPI extends AbstractAPI {
 	}
 	
 	loginApple(game, appleToken, options, cb) {
-		let clientID = null;
-		if(game.config.apple && game.config.apple.clientID) clientID = game.config.apple.clientID
-		if(!clientID) return cb(new errors.MissingAppleClientID("Missing apple client ID in config file"))
+		let bundleID = null;
+		if(game.config.apple && game.config.apple.bundleID) bundleID = game.config.apple.bundleID
+		if(!bundleID) return cb(new errors.MissingAppleClientID("Missing apple client ID in config file"))
 
 		return apple.validToken(
 			appleToken,
-			clientID,
+			bundleID,
 			(err, me) => {
 			if (err != null) { return cb(err); }
 			return this.collusers().findOne({ network: "apple", networkid: me.sub }, (err, user) => {
@@ -585,11 +585,11 @@ class ConnectAPI extends AbstractAPI {
 	}
 
 	convertAccountToApple(game, user_id, appleToken, options) {
-		let clientID = null;
-		if(game.config.apple && game.config.apple.clientID) clientID = game.config.apple.clientID
-		if(!clientID) throw new errors.MissingAppleClientID("Missing apple client ID in config file")
+		let bundleID = null;
+		if(game.config.apple && game.config.apple.bundleID) bundleID = game.config.apple.bundleID
+		if(!bundleID) throw new errors.MissingAppleClientID("Missing apple client ID in config file")
 
-		return this.appleValidTokenAsync(appleToken, clientID)
+		return this.appleValidTokenAsync(appleToken, bundleID)
 			.then(me => {
 				return this._checkAccountForConversion("apple", user_id, me.sub)
 					.then(() => {

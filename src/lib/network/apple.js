@@ -1,12 +1,12 @@
 const appleAuth = require("apple-signin-auth");
 const {AppleError} = require("../../errors");
 
-const validToken = async (token, clientID, cb) => {
+const validToken = async (token, bundleID, cb) => {
     try {
         const user = await appleAuth.verifyIdToken(
           token,
           {
-            audience: clientID,
+            audience: bundleID,
             ignoreExpiration: true,
           }
         );
