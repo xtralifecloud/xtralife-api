@@ -273,36 +273,33 @@ class ConnectAPI extends AbstractAPI {
 		});
 	}
 
-	loginExternal(game, external, id, token, options, cb) {
-		if (id == null) { return cb(new errors.BadArgument); }
-		if (token == null) { return cb(new errors.BadArgument); }
-		if (external == null) { return cb(new errors.BadArgument); }
+	loginExternal(game, external, credentials, options, cb) {
+		if (!external) { return cb(new errors.BadArgument); }
+		if (!credentials) { return cb(new errors.BadArgument); }
 
-		const _check_auth = (external, id, token, cb) => {
-			return this.handleHook(`__auth_${external}_${game.appid.replace(/[^0-9a-z]/gi, '')}`, { game }, `${game.appid}.${game.apisecret}`, {
-				user_id: id,
-				user_token: token
-			}).then(status => {
+		const _check_auth = (external, credentials, cb) => {
+			return this.handleHook(`__auth_${external}_${game.appid.replace(/[^0-9a-z]/gi, '')}`, { game }, `${game.appid}.${game.apisecret}`, credentials).then(status => {
 				return cb(null, status);
 			}).catch(err => {
 				return cb(err);
 			});
 		};
 
-		return this.collusers().findOne({ network: external, networkid: id }, (err, user) => {
+		return _check_auth(external, credentials, (err, status) => {
 			if (err != null) { return cb(err); }
-			return _check_auth(external, id, token, (err, status) => {
-				console.log("status", status);
+			if (!status) { return cb(new errors.BadUserCredentials); }
+			if (status.verified !== true) { return cb(new errors.BadUserCredentials); }
+			if (!status.id) { return cb(new errors.BadUserCredentials); }
+			return this.collusers().findOne({ network: external, networkid: status.id }, (err, user) => {
 				if (err != null) { return cb(err); }
-				if (status == null) { return cb(new errors.BadUserCredentials); }
-				if (status.verified !== true) { return cb(new errors.BadUserCredentials); }
 				if (user != null) { return cb(null, user, false); }
 
-				if (options != null ? options.preventRegistration : undefined) { return cb(new errors.PreventRegistration(id), null, false); }
+				if (options != null ? options.preventRegistration : undefined) { return cb(new errors.PreventRegistration(status.id), null, false); }
 				// create account
-				return this.register(game, external, id, token, { displayName: id, lang: "en" }, (err, user) => cb(err, user, true));
+				return this.register(game, external, status.id, null, { displayName: status.id, lang: "en" }, (err, user) => cb(err, user, true));
 			});
 		});
+	
 	}
 
 

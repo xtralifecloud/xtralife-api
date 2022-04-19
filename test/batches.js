@@ -81,7 +81,7 @@ module.exports = {
 		},
 
 		__testLoginExternal: function (params, customData, mod) {
-			return this.game.loginExternal("customNetwork", params.id, params.secret, {})
+			return this.game.loginExternal("customNetwork", params, {})
 				.then(gamer => {
 					return mod.debug(JSON.stringify(gamer));
 				})
@@ -91,8 +91,7 @@ module.exports = {
 		},
 
 		"__auth_customNetwork_comclanofthecloudcloudbuilder": function (params, customData, mod) {
-			var { user_id, user_token } = params;
-			return { verified: user_token == user_id };
+			return { verified: params.id == params.secret, id: params.id };
 		},
 
 		"__auth_http_comclanofthecloudcloudbuilder": function (params, customData, mod) {

@@ -33,33 +33,27 @@ describe("Xtralife external network", function () {
         });
     });
 
-    it('should prevent registration', done => xtralife.api.connect.loginExternal(game, "customNetwork", "user", "user", { preventRegistration: true }, (err, user, created) => {
-        console.log(err.name)
-        //should(err.name).eql("PreventRegistration");
-        return done();
+    it('should prevent registration',  () => xtralife.api.connect.loginExternal(game, "customNetwork", {id: "user", secret: "user"}, { preventRegistration: true }, (err, user, created) => {
+        return err.name.should.eql("PreventRegistration");
     }));
 
-    it('should not connect with a id!=token', done => xtralife.api.connect.loginExternal(game, "customNetwork", "user", "pass", { preventRegistration: true }, (err, user, created) => {
-        err.name.should.eql("BadUserCredentials");
-        return done();
+    it('should not connect with a id!=token', () => xtralife.api.connect.loginExternal(game, "customNetwork", {id: "user", secret: "pass"}, { preventRegistration: true }, (err, user, created) => {
+        return err.name.should.eql("BadUserCredentials");
     }));
 
-    it('should connect with a id==token', done => xtralife.api.connect.loginExternal(game, "customNetwork", "good", "good", {}, (err, user, created) => {
+    it('should connect with a id==token', () => xtralife.api.connect.loginExternal(game, "customNetwork", {id: "good", secret: "good"}, {}, (err, user, created) => {
         user.network.should.eql("customNetwork");
-        user.networkid.should.eql("good");
-        return done();
+        return user.networkid.should.eql("good");;
     }));
 
-    it('should not connect with a bad network', done => xtralife.api.connect.loginExternal(game, "Unknown", "good", "good", {}, (err, user, created) => {
-        err.name.should.eql("HookError");
-        return done();
+    it('should not connect with a bad network', () => xtralife.api.connect.loginExternal(game, "Unknown", {id: "good", secret: "good"}, {}, (err, user, created) => {
+        return err.name.should.eql("HookError");
     }));
 
-    it.skip('should not connect with a http custom network', done => xtralife.api.connect.loginExternal(game, "http", "good", "good", {}, (err, user, created) => {
+    it.skip('should not connect with a http custom network', () => xtralife.api.connect.loginExternal(game, "http", {id: "good", secret: "good"}, {}, (err, user, created) => {
         console.log(err);
         user.network.should.eql("http");
-        user.networkid.should.eql("good");
-        return done();
+        return user.networkid.should.eql("good");
     }));
 
     it('should also work from a batch', () => xtralife.api.game.runBatch(context, domain, 'testLoginExternal', { id: "good", secret: "good" }));

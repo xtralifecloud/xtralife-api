@@ -318,11 +318,11 @@ class GameAPI extends AbstractAPI {
 		};
 
 		return {
-			loginExternal: (external, id, token, options) => {
+			loginExternal: (external, credentials, options) => {
 				const loginAsync = Promise.promisify(this.xtralifeapi.connect.loginExternal, { context: this.xtralifeapi.connect });
 				const addGameAsync = Promise.promisify(this.xtralifeapi.connect.addGameToUser, { context: this.xtralifeapi.connect });
 
-				return loginAsync(context.game, external, id, token, options)
+				return loginAsync(context.game, external, credentials, options)
 					.then((gamer, created) => {
 						return addGameAsync(context.game, gamer).then(count => {
 							const result = gamer;
