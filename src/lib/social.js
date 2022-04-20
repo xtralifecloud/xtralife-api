@@ -308,7 +308,7 @@ class SocialAPI extends AbstractAPI {
 					if (err != null) { return cb(err); }
 					if (blacklisted != null) { return cb(null, { done: 0 }); }
 					return this.colldomains.updateOne({ domain, user_id }, { $addToSet: { "relations.friends": friend_id } }, { upsert: true }, (err, result) => {
-						return cb(err, { done: result.upsertedCount });
+						return cb(err, { done: result.modifiedCount });
 					});
 				});
 
@@ -318,7 +318,7 @@ class SocialAPI extends AbstractAPI {
 				return this.colldomains.updateOne({ domain, user_id }, { $pull: { "relations.blacklist": friend_id } }, { upsert: true }, (err, result) => {
 					if (err != null) { return cb(err); }
 					return this.colldomains.updateOne({ domain, user_id }, { $pull: { "relations.friends": friend_id } }, { upsert: true }, (err, other) => {
-						return cb(err, { done: result.modifiedCount || other.result.n });
+						return cb(err, { done: result.modifiedCount || other.modifiedCount });
 					});
 				});
 
