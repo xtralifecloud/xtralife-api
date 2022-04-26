@@ -683,31 +683,47 @@ class MatchAPI extends AbstractAPI {
 	// BACKOFFICE ###########################################################################
 
 	list(domain, skip, limit, hideFinished, withGamer_id, customProperties) {
+		console.log('withGamer_id:', withGamer_id)
 		const filter = { domain };
-		if (hideFinished === true) { filter.status = { $ne: 'finished' }; }
-		if ((withGamer_id != null) && (withGamer_id.length === 24)) { filter.players = ObjectId(withGamer_id); }
+		if (hideFinished === "true") { filter.status = { $ne: 'finished' }; }
+		if (withGamer_id && (withGamer_id.length === 24)) { filter.players = ObjectId(withGamer_id); }
 		// https://github.com/clutchski/coffeelint/issues/189
 		try {
-			if (customProperties != null) { filter.customProperties = JSON.parse(customProperties); }
+			if (customProperties) { filter.customProperties = JSON.parse(customProperties); }
 		} catch (err) {
-			undefined;
+			return err;
 		}
 
 		const cursor = this.coll('matches').find(filter, {
 			skip,
 			limit
-		}
-			//				fields :
-			//					password : 0
-			//					networksecret : 0
-		);
-		return cursor.count()
-			.then(count => {
-				return cursor.toArray()
-					.then(docs => {
-						return [count, docs];
-					});
+		});
+		return cursor.toArray()
+			.then(docs => {
+				return [docs];
+			})
+			.catch(err => {
+				return err;
 			});
+	}
+
+	count(domain, hideFinished, withGamer_id, customProperties) {
+		const filter = { domain };
+		if (hideFinished === "true") { filter.status = { $ne: 'finished' }; }
+		if (withGamer_id != null && withGamer_id.length === 24) { filter.players = ObjectId(withGamer_id); }
+		try {
+			if (customProperties) { filter.customProperties = JSON.parse(customProperties); }
+		} catch (err) {
+			return err;
+		}
+		
+		return this.coll('matches').count(filter)
+		.then(count => {
+			return count;
+		})
+		.catch(err => {
+			return err;
+		});
 	}
 
 	updateMatch(matchId, updatedMatch) {
