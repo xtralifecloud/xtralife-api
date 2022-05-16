@@ -138,17 +138,16 @@ class GameVFSAPI extends AbstractAPI {
 			.catch(callback)
 	}
 
-	deleteURL(domain, key, callback) {
+	deleteURL(domain, key) {
 		this.pre(check => ({
 			"domain must be a valid domain": check.nonEmptyString(domain)
 		}));
-
-		try{
-			const result = this.parent.virtualfs.deleteURL(domain, "GAME", key)
-			return callback(null, result);
-		}catch (err){
-			return callback(err);
-		}
+		return this.parent.virtualfs.deleteURL(domain, "GAME", key)
+			.then(result => result)
+			.catch(err => {
+				logger.error(`deleteURL ${domain} ${key}`, err);
+				return err;
+			});
 	}
 
 	sandbox(context) {

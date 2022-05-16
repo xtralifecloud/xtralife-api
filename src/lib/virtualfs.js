@@ -12,7 +12,8 @@ const extend = require('util')._extend;
 const {
 	ObjectId
 } = require('mongodb');
-const AWS = require('aws-sdk');
+const { S3Client, ListObjectsV2Command, DeleteObjectsCommand, PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 
 const AbstractAPI = require("../AbstractAPI.js");
 const errors = require("../errors.js");
@@ -43,8 +44,7 @@ class VirtualfsAPI extends AbstractAPI {
 		});
 
 		if (xlenv.AWS != null) {
-			AWS.config.update(xlenv.AWS.S3.credentials);
-			return this.s3bucket = new AWS.S3({ params: { Bucket: xlenv.AWS.S3.bucket } });
+			return this.s3bucket = new S3Client({region: xlenv.AWS.S3.region, credentials: xlenv.AWS.S3.credentials});
 		}
 	}
 	//Promise.promisifyAll(this.s3bucket)
@@ -55,14 +55,17 @@ class VirtualfsAPI extends AbstractAPI {
 			if (docs == null) { return cb(err); }
 			if (err != null) { return cb(err); }
 			return async.forEach(docs, (item, localcb) => {
-				let params = { Bucket: xlenv.AWS.S3.bucket, Delimiter: `${item.domain}/${user_id}/`, Delete: undefined };
-				return this.s3bucket.listObjects(params, (err, data) => {
+				let params = { Bucket: xlenv.AWS.S3.bucket, Prefix: `${item.domain}/${user_id}/`, Delete: undefined };
+				const list = new ListObjectsV2Command(params);
+				return this.s3bucket.send(list, (err, data) => {
 					if (err != null) { logger.error(err); }
 					if (err != null) { return localcb(null); }
+					if(!data.Contents) { return localcb(null); }
 					const keys = [];
-					for (let each of Array.from(data.Contents)) { keys.push(each.Key); }
+					for (let each of Array.from(data.Contents)) { keys.push({ Key: each.Key }); }
 					params = { Bucket: xlenv.AWS.S3.bucket, Delete: { Objects: keys }, Delimiter: undefined };
-					return this.s3bucket.deleteObjects(params, err => {
+					const del = new DeleteObjectsCommand(params);
+					return this.s3bucket.send(del, err => {
 						logger.warn(`remove s3 objects ${keys} : ${err}`);
 						return localcb(null);
 					});
@@ -215,7 +218,7 @@ class VirtualfsAPI extends AbstractAPI {
 	}
 
 	_getDownloadUrl(domain, user_id, key, secret) {
-		return `https://s3-${xlenv.AWS.S3.credentials.region}.amazonaws.com/${xlenv.AWS.S3.bucket}/${domain}/${user_id}/${key}-${secret}`;
+		return `https://s3-${xlenv.AWS.S3.region}.amazonaws.com/${xlenv.AWS.S3.bucket}/${domain}/${user_id}/${key}-${secret}`;
 	}
 
 	createSignedURL(domain, user_id, key, contentType = null) {
@@ -232,7 +235,8 @@ class VirtualfsAPI extends AbstractAPI {
 			params.ContentType = contentType;
 		}
 		// @ts-ignore
-		return this.s3bucket.getSignedUrlPromise('putObject', params)
+		const put = new PutObjectCommand(params);
+		return getSignedUrl(this.s3bucket, put)
 			.then(url => {
 				return [url, this._getDownloadUrl(domain, user_id, key, secret)];
 			});
@@ -246,10 +250,14 @@ class VirtualfsAPI extends AbstractAPI {
 		// TODO refactor, used in gameFS
 		// forbids checking type of user_id
 		const secret = generateHash(user_id, key);
-		const keys3 = `${domain}/${user_id}/${key}-${secret}`;
-		const params = { Bucket: xlenv.AWS.S3.bucket, Key: keys3 };
-		// @ts-ignore
-		return this.s3bucket.deleteObject(params);
+		const params = { Bucket: xlenv.AWS.S3.bucket, Key: `${domain}/${user_id}/${key}-${secret}` };
+		const del = new DeleteObjectCommand(params);
+		return this.s3bucket.send(del).then(result => {
+			return result;
+		}).catch(err => {
+			logger.error(`deleteURL ${domain} ${key}`, err);
+			return err;
+		});
 	}
 
 	sandbox(context) {

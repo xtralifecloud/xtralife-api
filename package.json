@@ -1,6 +1,6 @@
 {
   "name": "xtralife-api",
-  "version": "4.2.4",
+  "version": "4.2.5-beta",
   "description": "Xtralife.cloud business logic shared between components",
   "main": "src/index.js",
   "scripts": {
@@ -20,10 +20,11 @@
     "node": ">=v10.18.1"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.87.0",
+    "@aws-sdk/s3-request-presigner": "^3.88.0",
     "apn": "^2.2.0",
     "apple-signin-auth": "^1.5.1",
     "async": "^3.2.1",
-    "aws-sdk": "^2.998.0",
     "bluebird": "^3.7.2",
     "check-types": "^11.1.2",
     "dtimer": "^0.3.3",
