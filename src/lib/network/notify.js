@@ -4,6 +4,8 @@
  * DS207: Consider shorter variations of null checks
  * Full docs: https://github.com/decaffeinate/decaffeinate/blob/master/docs/suggestions.md
  */
+
+const api = require("../../api.js");
 // import service implementations
 const { APNService, AndroidService } = require("./notifyServices.js");
 
@@ -23,11 +25,11 @@ const _SenderFactory = function (os, config, appid) {
 			}
 
 		case "android":
-			try {
-				return new AndroidService(config, appid);
-			} catch (error1) {
-				logger.error(`Unable to init AndroidService(${JSON.stringify(config)})`);
-				return null;
+			if(api.connect.firebaseApps[appid]) {
+				return new AndroidService(api.connect.firebaseApps[appid])
+			}else{
+				logger.error(`Missing firebase credentials for appid ${appid}`);
+				return null
 			}
 		default:
 			logger.error(`Unknown service OS (${os})`);
@@ -38,7 +40,7 @@ const _SenderFactory = function (os, config, appid) {
 // Gets a sender for an appid/os combination
 // Uses caching of Senders
 // config is only used when not already in cache
-var _getSender = function (appid, os, config) {
+const _getSender = function (appid, os, config) {
 	if (_services[appid] != null) {
 		if (_services[appid][os] != null) {
 			return _services[appid][os];
@@ -56,7 +58,7 @@ module.exports = {
 	send(app, domain, os, tokens, alert, cb) {
 		console.log(`notify ${domain} ${os} `);
 		const sender = _getSender(app.appid, os, app.certs[os]);
-		if (sender == null) { return cb(err); }
+		if (sender == null) { return cb("err"); }
 		return sender.send(domain, tokens, alert, cb);
 	}
 };
