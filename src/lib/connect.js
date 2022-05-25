@@ -64,7 +64,7 @@ class ConnectAPI extends AbstractAPI {
 				this.firebaseApps[gameId] = null
 			}
 		};
-		
+
 		return xlenv.inject(["=redisClient"], (err, rc) => {
 			this.rc = rc;
 			if (err != null) { return callback(err); }
@@ -728,13 +728,15 @@ class ConnectAPI extends AbstractAPI {
 	registerToken(user, os, token, domain, cb) {
 		const device = {
 			os,
-			token
+			token,
+			domain,
+			creationTime: new Date(),
 		};
-		//TODO: remove previous version with no domain TO BE REMOVED LATER
-		return this.collusers().updateOne({ _id: user._id }, { $pull: { tokens: device } }, (err, result) => {
+		return this.collusers().findOne({ _id: user._id},(err, user) => {
 			if (err != null) { return cb(err); }
-			device.domain = domain;
-			// add current version with domain
+			if(user.tokens?.some(e => e.token === token)){
+				return cb(null, 0);
+			}
 			return this.collusers().updateOne({ _id: user._id }, { $addToSet: { tokens: device } }, (err, result) => {
 				if (err != null) { return cb(err); }
 				//logger.info "user: #{user._id}, token: #{token}, count : #{count}"
@@ -746,17 +748,12 @@ class ConnectAPI extends AbstractAPI {
 	unregisterToken(user, os, token, domain, cb) {
 		const device = {
 			os,
-			token
+			token,
+			domain,
 		};
-		//TODO: remove previous version with no domain TO BE REMOVED LATER
-		return this.collusers().updateOne({ _id: user._id }, { $pull: { tokens: device } }, (err, result) => {
-			if (err != null) { return cb(err); }
-			device.domain = domain;
-			// remove current version with domain
-			return this.collusers().updateOne({ _id: user._id }, { $pull: { tokens: device } }, (err, result) => {
+		return this.collusers().updateOne({ _id: user._id}, { $pull: { tokens: device } }, (err, result) => {
 				if (err != null) { return cb(err); }
 				return cb(null, result.modifiedCount);
-			});
 		});
 	}
 
@@ -764,7 +761,6 @@ class ConnectAPI extends AbstractAPI {
 		this.pre(check => ({
 			"domain must be a valid domain": check.nonEmptyString(domain)
 		}));
-
 		return this.collusers().findOne({ _id: new ObjectId(user_id) }, { projection: { "profile.lang": 1, tokens: 1 } }, (err, user) => {
 			if (err != null) { return cb(err); }
 			if ((user != null ? user.tokens : undefined) == null) { return cb(null, null); }

@@ -5,12 +5,12 @@
  * Full docs: https://github.com/decaffeinate/decaffeinate/blob/master/docs/suggestions.md
  */
 const apn = require("apn");
-const gcm = require("node-gcm");
 const _ = require("underscore");
+const firebaseAdmin = require("firebase-admin");
+const { getMessaging } = require("firebase-admin/messaging");
 
 class APNService {
 	constructor(config, appid) {
-		console.log(config);
 		if ((config.cert == null) || (config.cert === "")) { logger.error(`no cert for ${appid}`); return null; }
 		if ((config.key == null) || (config.key === "")) { logger.error(`no keyfor ${appid}`); return null; }
 
@@ -55,26 +55,32 @@ class APNService {
 }
 
 class AndroidService {
-	constructor(config) {
-		this.service = new gcm.Sender(config.apikey);
+	constructor(firebaseAdmin) {
+		this.service = firebaseAdmin
 	}
 
 	send(domain, tokens, alert, cb) {
 		if (this.service == null) { return cb(null); }
-
 		if (!_.isArray(tokens)) { tokens = [tokens]; }
 
-		const message = new gcm.Message;
+		const message = alert.message
+		message.tokens = tokens;
 
-		message.addData('message', alert.message);
-		message.collapseKey = domain;
-		message.delayWhileIdle = false;
-
-		return this.service.send(message, tokens, 4, function (err, result) {
-			if (err != null) { logger.error(`GCM error ${domain} : ${JSON.stringify(err)}`); }
-			if (err == null) { logger.debug(`message sent to ${tokens}`); }
-			return cb(err);
-		});
+		getMessaging(this.service).sendMulticast(message)
+			.then((result) => {
+				if(result.successCount === tokens.length) {
+					logger.debug(`message sent to ${tokens}`)
+				} else {
+					result.responses.forEach(response => {
+						if(response.error) {
+							logger.debug(`FCM error ${domain} : ${JSON.stringify(response.error)}`)
+						}
+					})
+				}
+			}).catch((err) => {
+				logger.error(`FCM error ${domain} : ${JSON.stringify(err)}`);
+				cb(err);
+			});
 	}
 }
 
