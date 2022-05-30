@@ -176,28 +176,41 @@ class GameAPI extends AbstractAPI {
 		});
 	}
 
-	getCerts(appid, cb) {
-		const empty = {
-			android: {
-				enable: false,
-				senderID: '',
-				apikey: ''
-			},
-			ios: {
-				enable: false,
-				cert: '',
-				key: ''
-			},
-			macos: {
-				enable: false,
-				cert: '',
-				key: ''
-			}
-		};
-		const game = this.dynGames[appid];
-		return cb(null, game.config.certs || empty);
-	}
+	// getCerts(appid, cb) {
+	// 	const empty = {
+	// 		android: {
+	// 			enable: false,
+	// 			senderID: '',
+	// 			apikey: ''
+	// 		},
+	// 		ios: {
+	// 			enable: false,
+	// 			cert: '',
+	// 			key: ''
+	// 		},
+	// 		macos: {
+	// 			enable: false,
+	// 			cert: '',
+	// 			key: ''
+	// 		}
+	// 	};
+	// 	const game = this.dynGames[appid];
+	// 	return cb(null, game.config.certs || empty);
+	// }
 
+	getGoogleCerts(appId, cb) {
+		const empty = {
+			packageID: '',
+			serviceAccount: {
+				private_key_id: '',
+				client_email: '',
+				client_id: '',
+				type: 'service_account',
+			},
+		};
+		const game = this.dynGames[appId];
+		return cb(null, game.config.google.inApp || empty);
+	}
 
 	hasListener(domain) {
 		return this.eventedDomains[domain] === true;
