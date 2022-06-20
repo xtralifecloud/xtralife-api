@@ -315,7 +315,10 @@ class StoreAPI extends AbstractAPI {
 				};
 
 				return this.IAP.verifyPayment('google', payment, (error, response) => {
-					if (error != null) { return cb(new errors.PurchaseNotConfirmed(2, "Error checking the purchase: " + JSON.stringify(error))); }
+					if (error != null) {
+						console.log("IAP.verifyPayment error: ", error);
+						return cb(new errors.PurchaseNotConfirmed(2, "Error checking the purchase: " + JSON.stringify(error)));
+					}
 					return cb(null, product, response.transactionId, response);
 				});
 			} else {

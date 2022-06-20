@@ -234,7 +234,7 @@ class GameAPI extends AbstractAPI {
 		if (appid == null) { return cb(null, null); }
 
 		const game = this.dynGames[appid];
-		this.appsForDomain[domain] = { appid, certs: game.config.certs };
+		this.appsForDomain[domain] = { appid, config: game.config };
 		return cb(null, this.appsForDomain[domain]);
 	}
 

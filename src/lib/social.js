@@ -308,7 +308,7 @@ class SocialAPI extends AbstractAPI {
 					if (err != null) { return cb(err); }
 					if (blacklisted != null) { return cb(null, { done: 0 }); }
 					return this.colldomains.updateOne({ domain, user_id }, { $addToSet: { "relations.friends": friend_id } }, { upsert: true }, (err, result) => {
-						return cb(err, { done: result.modifiedCount });
+						return cb(err, { done: result.upsertedCount });
 					});
 				});
 

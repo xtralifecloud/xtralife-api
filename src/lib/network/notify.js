@@ -14,13 +14,14 @@ const _services = {};
 
 
 // Creates a new Sender of the right kind, with the specified config
-const _SenderFactory = function (os, config, appid) {
+const _SenderFactory = function (os, configApple, appid) {
 	switch (os) {
 		case "macos": case "ios":
 			try {
-				return new APNService(config, appid);
+				return new APNService(configApple, appid);
 			} catch (error) {
-				logger.error(`Unable to init APNService(${JSON.stringify(config)})`);
+				logger.error("error", error);
+				logger.error(`Unable to init APNService(${JSON.stringify(configApple)})`);
 				return null;
 			}
 
@@ -57,7 +58,7 @@ module.exports = {
 
 	send(app, domain, os, tokens, alert, cb) {
 		console.log(`notify ${domain} ${os} `);
-		const sender = _getSender(app.appid, os, app.certs[os]);
+		const sender = _getSender(app.appid, os, app.config.apple);
 		if (sender == null) { return cb("err"); }
 		return sender.send(domain, tokens, alert, cb);
 	}
