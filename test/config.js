@@ -3,7 +3,6 @@
  * DS102: Remove unnecessary code created because of implicit returns
  * Full docs: https://github.com/decaffeinate/decaffeinate/blob/master/docs/suggestions.md
  */
-const os = require('os');
 const xlenv = global.xlenv = require("xtralife-env");
 
 global.logger = require('winston');
@@ -45,7 +44,6 @@ xlenv.override(null, {
 			
 			w: 1,
 			readPreference: "primaryPreferred",
-			promiseLibrary: require('bluebird')
 		}
 	},
 
@@ -90,27 +88,56 @@ xlenv.override(null, {
 					enable: true,
 					domains: [],
 					eventedDomains: [],
-					certs: {
-						android: {
-							enable: false,
-							senderID: '',
-							apikey: ''
-						},
-						ios: {
-							enable: false,
-							cert: '',
-							key: ''
-						},
-						macos: {
-							enable: false,
-							cert: '',
-							key: ''
+
+					facebook: {
+						useBusinessManager : false
+					},
+
+					google: { // see google cloud platform
+						clientID: '', // login
+						inApp: { // in-app purchase android
+							packageID: '',
+							serviceAccount: {
+								private_key_id: '',
+								client_email: '',
+								client_id: '',
+								type: 'service_account'
+							}
 						}
 					},
-					socialSettings: {
-						facebookAppToken: '',
-						gameCenterBundleIdRE: /^not.the.correct.bundleId$/
-					}
+
+					apple: { // see apple developer console
+						bundleID: '', // for login & apn
+						gameCenterBundleIdRE: null, // login
+						inApp: { // In-app
+						},
+						apn: { //apple push notification
+							token: { // apn auth key
+								key: "",
+								keyId: "",
+								teamId: "",
+							},
+							production: false,
+						}
+					},
+
+					firebase: { // login & push Android (firebaseAdmin sdk), see firebase console
+						type: "",
+						project_id: "",
+						private_key_id: "",
+						private_key: "",
+						client_email: "",
+						client_id: "",
+						auth_uri: "",
+						token_uri: "",
+						auth_provider_x509_cert_url: "",
+						client_x509_cert_url: ""
+					},
+
+					steam: { // login
+						appId: null,
+						webApiKey: ''
+					},
 				}
 			},
 
@@ -122,27 +149,56 @@ xlenv.override(null, {
 					enable: true,
 					domains: ["com.clanofthecloud.cloudbuilder.m3Nsd85GNQd3", "com.clanofthecloud.cloudbuilder.test"],
 					eventedDomains: [],
-					certs: {
-						android: {
-							enable: false,
-							senderID: '',
-							apikey: ''
-						},
-						ios: {
-							enable: false,
-							cert: '',
-							key: ''
-						},
-						macos: {
-							enable: false,
-							cert: '',
-							key: ''
+
+					facebook: {
+						useBusinessManager : false
+					},
+
+					google: { // see google cloud platform
+						clientID: '', // login
+						inApp: { // in-app purchase android
+							packageID: '',
+							serviceAccount: {
+								private_key_id: '',
+								client_email: '',
+								client_id: '',
+								type: 'service_account'
+							}
 						}
 					},
-					socialSettings: {
-						facebookAppToken: '',
-						gameCenterBundleIdRE: /^cloud\.xtralife\..*$/
-					}
+
+					apple: { // see apple developer console
+						bundleID: '', // for login & apn
+						gameCenterBundleIdRE: null, // login
+						inApp: { // In-app
+						},
+						apn: { //apple push notification
+							token: { // apn auth key
+								key: "",
+								keyId: "",
+								teamId: "",
+							},
+							production: false,
+						}
+					},
+
+					firebase: { // login & push Android (firebaseAdmin sdk), see firebase console
+						type: "",
+						project_id: "",
+						private_key_id: "",
+						private_key: "",
+						client_email: "",
+						client_id: "",
+						auth_uri: "",
+						token_uri: "",
+						auth_provider_x509_cert_url: "",
+						client_x509_cert_url: ""
+					},
+
+					steam: { // login
+						appId: null,
+						webApiKey: ''
+					},
 				}
 			}
 		}
@@ -153,6 +209,5 @@ xlenv.override(null, {
 
 	hooks: {
 		functions: require('./batches.js'),
-		definitions: {}
 	}
 });
