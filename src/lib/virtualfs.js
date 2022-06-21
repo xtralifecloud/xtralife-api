@@ -43,7 +43,7 @@ class VirtualfsAPI extends AbstractAPI {
 			return callback(err, {});
 		});
 
-		if (xlenv.AWS != null) {
+		if (xlenv.AWS && xlenv.AWS.S3 && xlenv.AWS.S3.credentials && xlenv.AWS.S3.region) {
 			return this.s3bucket = new S3Client({region: xlenv.AWS.S3.region, credentials: xlenv.AWS.S3.credentials});
 		}
 	}

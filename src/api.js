@@ -46,7 +46,11 @@ class XtralifeAPI {
 		if (xlenv.options.disableIndexModule) {
 			this.modules = this.modules.filter( each => each !== this.index )
 		}
-		  
+
+		if(xlenv.context === "dashboard"){
+			this.modules = this.modules.filter( each => (each !== this.timer && each !== this.index) )
+		}
+
 		// WARNING @collections must always be first
 		// @ts-ignore
 		this.modules.unshift(this.collections);

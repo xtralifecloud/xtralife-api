@@ -50,7 +50,7 @@ class GameAPI extends AbstractAPI {
 		this.gamesByApiKey = {};
 
 		// start with the contents of xlenv.hooks.definitions
-		this.hooks = _.clone(xlenv.hooks.definitions);
+		this.hooks = _.clone(xlenv.hooks?.definitions);
 
 		return xlenv.inject(["xtralife.games"], (err, xtralifeGames) => {
 			if (err != null) { cb(err); }
@@ -106,7 +106,7 @@ class GameAPI extends AbstractAPI {
 
 		// if there's an init hook on the private domain of the game, call it
 		const privateDomain = this.getPrivateDomain(appid)
-		if (xlenv.hooks.functions && xlenv.hooks.functions[privateDomain] && xlenv.hooks.functions[privateDomain]['init']) {
+		if (xlenv.hooks?.functions && xlenv.hooks?.functions[privateDomain] && xlenv.hooks?.functions[privateDomain]['init']) {
 			// we've found an init hook, call it
 			xlenv.hooks.functions[privateDomain].init()
 		}
