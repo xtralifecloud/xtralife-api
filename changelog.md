@@ -1,10 +1,14 @@
 # xtralife api changelog
 
-## 4.2.6-beta
+## 4.2.6
 
 - change GCM to FCM for android push
+- update APN service
 - simplify register/unregister device token
-- update certs config for in app purchases
+- update config (in-app and pushs)
+- allow no hook definition
+- prevent missing config for AWS
+- Disable init for unused module of api in the dashboard
 
 ## 4.2.5
 
