@@ -44,6 +44,7 @@ xlenv.override(null, {
 			
 			w: 1,
 			readPreference: "primaryPreferred",
+			promiseLibrary: require("bluebird")
 		}
 	},
 

@@ -683,7 +683,6 @@ class MatchAPI extends AbstractAPI {
 	// BACKOFFICE ###########################################################################
 
 	list(domain, skip, limit, hideFinished, withGamer_id, customProperties) {
-		console.log('withGamer_id:', withGamer_id)
 		const filter = { domain };
 		if (hideFinished === "true") { filter.status = { $ne: 'finished' }; }
 		if (withGamer_id && (withGamer_id.length === 24)) { filter.players = ObjectId(withGamer_id); }
