@@ -2,6 +2,10 @@
 
 ## 4.2.6
 
+- fix hooks checks for dashboard
+
+## 4.2.6
+
 - change GCM to FCM for android push
 - update APN service
 - simplify register/unregister device token
