@@ -100,6 +100,7 @@ class AbstractAPI {
 		if (domain === 'private') { domain = xtralife.api.game.getPrivateDomain(context.game.appid); }
 
 		const _findHook = function (name, domain) {
+			if(!xlenv.hooks || !xlenv.hooks.functions) return null
 			const isCommon = name === "common";
 			if ((xlenv.hooks.functions[domain] != null) && (xlenv.hooks.functions[domain][name] != null)) {
 				return xlenv.hooks.functions[domain][name];

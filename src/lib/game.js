@@ -106,7 +106,7 @@ class GameAPI extends AbstractAPI {
 
 		// if there's an init hook on the private domain of the game, call it
 		const privateDomain = this.getPrivateDomain(appid)
-		if (xlenv.hooks?.functions && xlenv.hooks?.functions[privateDomain] && xlenv.hooks?.functions[privateDomain]['init']) {
+		if (xlenv.hooks && xlenv.hooks.functions && xlenv.hooks.functions[privateDomain] && xlenv.hooks.functions[privateDomain]['init']) {
 			// we've found an init hook, call it
 			xlenv.hooks.functions[privateDomain].init()
 		}
@@ -175,28 +175,6 @@ class GameAPI extends AbstractAPI {
 			});
 		});
 	}
-
-	// getCerts(appid, cb) {
-	// 	const empty = {
-	// 		android: {
-	// 			enable: false,
-	// 			senderID: '',
-	// 			apikey: ''
-	// 		},
-	// 		ios: {
-	// 			enable: false,
-	// 			cert: '',
-	// 			key: ''
-	// 		},
-	// 		macos: {
-	// 			enable: false,
-	// 			cert: '',
-	// 			key: ''
-	// 		}
-	// 	};
-	// 	const game = this.dynGames[appid];
-	// 	return cb(null, game.config.certs || empty);
-	// }
 
 	getGoogleCerts(appId, cb) {
 		const empty = {
