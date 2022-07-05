@@ -1,6 +1,11 @@
 # xtralife api changelog
 
-## 4.2.6
+
+## 4.2.8
+
+- prevent undefined s3bucket in virtualvfs onDeleteUser
+
+## 4.2.7
 
 - fix hooks checks for dashboard
 
