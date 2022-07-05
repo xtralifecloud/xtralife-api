@@ -44,35 +44,39 @@ class VirtualfsAPI extends AbstractAPI {
 		});
 
 		if (xlenv.AWS && xlenv.AWS.S3 && xlenv.AWS.S3.credentials && xlenv.AWS.S3.region) {
-			return this.s3bucket = new S3Client({region: xlenv.AWS.S3.region, credentials: xlenv.AWS.S3.credentials});
+			this.s3bucket = new S3Client({region: xlenv.AWS.S3.region, credentials: xlenv.AWS.S3.credentials});
 		}
 	}
 	//Promise.promisifyAll(this.s3bucket)
 
 	onDeleteUser(user_id, cb) {
 		logger.debug(`delete user ${user_id} for virtualfs`);
-		return this.domains.find({ user_id, fs: { "$exists": true } }, { domain: 1, fs: 1 }).toArray((err, docs) => {
-			if (docs == null) { return cb(err); }
-			if (err != null) { return cb(err); }
-			return async.forEach(docs, (item, localcb) => {
-				let params = { Bucket: xlenv.AWS.S3.bucket, Prefix: `${item.domain}/${user_id}/`, Delete: undefined };
-				const list = new ListObjectsV2Command(params);
-				return this.s3bucket.send(list, (err, data) => {
-					if (err != null) { logger.error(err); }
-					if (err != null) { return localcb(null); }
-					if(!data.Contents) { return localcb(null); }
-					const keys = [];
-					for (let each of Array.from(data.Contents)) { keys.push({ Key: each.Key }); }
-					params = { Bucket: xlenv.AWS.S3.bucket, Delete: { Objects: keys }, Delimiter: undefined };
-					const del = new DeleteObjectsCommand(params);
-					return this.s3bucket.send(del, err => {
-						logger.warn(`remove s3 objects ${keys} : ${err}`);
-						return localcb(null);
-					});
-				});
-			}
-				, err => cb(null));
-		});
+		if(this.s3bucket){
+			return this.domains.find({ user_id, fs: { "$exists": true } }, { domain: 1, fs: 1 }).toArray((err, docs) => {
+				if (docs == null) { return cb(err); }
+				if (err != null) { return cb(err); }
+				return async.forEach(docs, (item, localcb) => {
+						let params = { Bucket: xlenv.AWS.S3.bucket, Prefix: `${item.domain}/${user_id}/`, Delete: undefined };
+						const list = new ListObjectsV2Command(params);
+						return this.s3bucket.send(list, (err, data) => {
+							if (err != null) { logger.error(err); }
+							if (err != null) { return localcb(null); }
+							if(!data.Contents) { return localcb(null); }
+							const keys = [];
+							for (let each of Array.from(data.Contents)) { keys.push({ Key: each.Key }); }
+							params = { Bucket: xlenv.AWS.S3.bucket, Delete: { Objects: keys }, Delimiter: undefined };
+							const del = new DeleteObjectsCommand(params);
+							return this.s3bucket.send(del, err => {
+								logger.warn(`remove s3 objects ${keys} : ${err}`);
+								return localcb(null);
+							});
+						});
+					}
+					, err => cb(null));
+			});
+		}else {
+			return cb(null)
+		}
 	}
 
 	read(context, domain, user_id, key) {
