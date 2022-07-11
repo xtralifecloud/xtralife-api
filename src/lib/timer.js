@@ -22,6 +22,7 @@ const Promise = require('bluebird');
 const async = require('async');
 
 const _ = require('underscore');
+const { v4: uuidv4 } = require('uuid');
 
 
 // How timers work
@@ -81,31 +82,29 @@ class TimerAPI extends AbstractAPI {
 	}
 
 	configure(xtralifeapi, callback) {
-
 		this.xtralifeapi = xtralifeapi;
-		return xlenv.inject(['redisClient', 'redisChannel'], (err, redis, pubsub) => {
+		return xlenv.inject(['redisClient', 'redisChannel'], async (err, redis, pubsub) => {
+			this.redis = redis
+			this.pubsub = pubsub
 
-			// replace ch1 with a unique id for this node (host ? process ?)
-			this.dtimer = new DTimer(`${os.hostname()}_${process.pid}`, redis, pubsub);
+			await this.redis.configSet('notify-keyspace-events', 'Ex');
 
-			this.dtimer.on('event', ev => {
-				this._messageReceived(ev.timer);
-				return this.dtimer.confirm(ev.id, err => { });
+			this.pubsub.subscribe("__keyevent@0__:expired", async (shadowKey) => {
+				const key = shadowKey.slice(shadowKey.indexOf(':') + 1);
+				const type = shadowKey.slice(0, shadowKey.indexOf(':'));
+				if(type !== "shadow_key_timer"){
+					return
+				}
+				const value = await this.redis.get(key).catch(err => logger.error(err))
+				const message = JSON.parse(value)
+				await this._messageReceived(message)
+				return await this.redis.del(key)
 			});
-			// confirmed
 
-			this.dtimer.on('error', err => {
-				return logger.error(err);
-			});
-
-			return this.dtimer.join()
-				.then(() => {
-					this.timersColl = this.coll('timers');
-					return this.timersColl.createIndex({ domain: 1, user_id: 1 }, { unique: true })
-						.then(() => {
-							return callback(null);
-						});
-				}).catch(callback);
+			this.timersColl = this.coll('timers');
+			return this.timersColl.createIndex({ domain: 1, user_id: 1 }, { unique: true })
+				.then(() => callback(null))
+				.catch(callback);
 		});
 	}
 
@@ -205,7 +204,6 @@ class TimerAPI extends AbstractAPI {
 	// retiming can also be relative and proportional
 	// retime(-0.2) will speedup by 20% for the not yet elapsed time
 	retime(context, domain, user_id, timerId, expirySeconds) {
-		var timers, expirySeconds;
 		this.pre(check => ({
 			"context must be an object with .game": check.like(context, {
 				game: {
@@ -274,9 +272,12 @@ class TimerAPI extends AbstractAPI {
 
 	// publish the message with the specified timeout
 	// will resolve to null, or reject if an error occurs
-	_publish(message, timeoutMs) {
 
-		return this.dtimer.post({ timer: message }, timeoutMs);
+	async _publish (message, timeoutMs) {
+		const key = uuidv4()
+		const shadowKey = `shadow_key_timer:${key}`
+		await this.redis.set(key, JSON.stringify(message));
+		await this.redis.set(shadowKey, '', { PX: Math.round(timeoutMs) });
 	}
 
 	// called for each new message

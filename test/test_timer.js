@@ -147,7 +147,7 @@ describe("Xtralife timer module", function () {
 			return timers.should.have.property("testTimer2");
 		}));
 
-	it("should change second timer to 1s", done => setTimeout(() => xtralife.api.timer.retime(context, domain, user_id, 'testTimer2', -0.33333333333)
+	it("should change second timer to 1s", done => setTimeout(() => xtralife.api.timer.retime(context, domain, user_id, 'testTimer2', -0.333333333)
 		.then(timers => done()).catch(done)
 		, 50)); // there's a race condition here...
 
