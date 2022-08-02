@@ -6,7 +6,6 @@
 const xlenv = global.xlenv = require("xtralife-env");
 
 global.logger = require('winston');
-//
 // const Promise = require('bluebird');
 // Promise.promisifyAll(require('redis'));
 

@@ -14,7 +14,7 @@ const {
 } = require('mongodb');
 const {
 	DTimer
-} = require('dtimer');
+} = require('./dtimer/dtimer');
 const os = require('os');
 const check = require('check-types');
 
@@ -22,7 +22,6 @@ const Promise = require('bluebird');
 const async = require('async');
 
 const _ = require('underscore');
-const { v4: uuidv4 } = require('uuid');
 
 
 // How timers work
@@ -82,29 +81,32 @@ class TimerAPI extends AbstractAPI {
 	}
 
 	configure(xtralifeapi, callback) {
+
 		this.xtralifeapi = xtralifeapi;
-		return xlenv.inject(['redisClient', 'redisChannel'], async (err, redis, pubsub) => {
-			this.redis = redis
-			this.pubsub = pubsub
+		return xlenv.inject(['redisClient', 'redisChannel'], (err, redis, pubsub) => {
+			this.redis = redis;
+			// replace ch1 with a unique id for this node (host ? process ?)
+			this.dtimer = new DTimer(`${os.hostname()}_${process.pid}`, redis, pubsub);
 
-			await this.redis.configSet('notify-keyspace-events', 'Ex');
+			this.dtimer.on('event', ev => {
+				console.log('event received', ev.timer.timerId)
+				this._messageReceived(ev.timer);
+				return this.dtimer.confirm(ev.id)
+			});
+			// confirmed
 
-			this.pubsub.subscribe("__keyevent@0__:expired", async (shadowKey) => {
-				const key = shadowKey.slice(shadowKey.indexOf(':') + 1);
-				const type = shadowKey.slice(0, shadowKey.indexOf(':'));
-				if(type !== "shadow_key_timer"){
-					return
-				}
-				const value = await this.redis.get(key).catch(err => logger.error(err))
-				const message = JSON.parse(value)
-				await this._messageReceived(message)
-				return await this.redis.del(key)
+			this.dtimer.on('error', err => {
+				return logger.error(err);
 			});
 
-			this.timersColl = this.coll('timers');
-			return this.timersColl.createIndex({ domain: 1, user_id: 1 }, { unique: true })
-				.then(() => callback(null))
-				.catch(callback);
+			return this.dtimer.join()
+				.then(() => {
+					this.timersColl = this.coll('timers');
+					return this.timersColl.createIndex({ domain: 1, user_id: 1 }, { unique: true })
+						.then(() => {
+							return callback(null);
+						});
+				}).catch(callback);
 		});
 	}
 
@@ -114,12 +116,12 @@ class TimerAPI extends AbstractAPI {
 	get(context, domain, user_id) {
 		this.pre(check => ({
 			"context must be an object with .game": check.like(context, {
-				game: {
-					apikey: 'cloudbuilder-key',
-					apisecret: 'azerty',
-					appid: 'com.clanofthecloud.cloudbuilder'
+					game: {
+						apikey: 'cloudbuilder-key',
+						apisecret: 'azerty',
+						appid: 'com.clanofthecloud.cloudbuilder'
+					}
 				}
-			}
 			),
 
 			"domain is not a valid domain": check.nonEmptyString(domain),
@@ -133,12 +135,12 @@ class TimerAPI extends AbstractAPI {
 	add(context, domain, user_id, timerObject, batchToRun) {
 		this.pre(check => ({
 			"context must be an object with .game": check.like(context, {
-				game: {
-					apikey: 'cloudbuilder-key',
-					apisecret: 'azerty',
-					appid: 'com.clanofthecloud.cloudbuilder'
+					game: {
+						apikey: 'cloudbuilder-key',
+						apisecret: 'azerty',
+						appid: 'com.clanofthecloud.cloudbuilder'
+					}
 				}
-			}
 			),
 
 			"domain is not a valid domain": check.nonEmptyString(domain),
@@ -169,7 +171,10 @@ class TimerAPI extends AbstractAPI {
 					return this._publish(message, expirySeconds * 1000)
 						.then(() => {
 							return this._setAlreadyPublished(domain, user_id, timerId, true)
-								.then(() => timers);
+								.then(() => this.timersColl.findOne({ domain, user_id })).then(updatedTimers => {
+									this.redis.HGETALL('dt:ed').then(keys => console.log("keys", keys)).catch(err => console.log("err", err));
+									return updatedTimers
+								});
 						});
 				} else {
 					return timers;
@@ -180,10 +185,10 @@ class TimerAPI extends AbstractAPI {
 	delete(context, domain, user_id, timerId) {
 		this.pre(check => ({
 			"context must be an object with .game": check.like(context, {
-				game: {
-					appid: 'com.clanofthecloud.cloudbuilder'
+					game: {
+						appid: 'com.clanofthecloud.cloudbuilder'
+					}
 				}
-			}
 			),
 
 			"domain is not a valid domain": check.nonEmptyString(domain),
@@ -204,12 +209,13 @@ class TimerAPI extends AbstractAPI {
 	// retiming can also be relative and proportional
 	// retime(-0.2) will speedup by 20% for the not yet elapsed time
 	retime(context, domain, user_id, timerId, expirySeconds) {
+		var timers, expirySeconds;
 		this.pre(check => ({
 			"context must be an object with .game": check.like(context, {
-				game: {
-					appid: 'com.clanofthecloud.cloudbuilder'
+					game: {
+						appid: 'com.clanofthecloud.cloudbuilder'
+					}
 				}
-			}
 			),
 
 			"domain is not a valid domain": check.nonEmptyString(domain),
@@ -272,12 +278,9 @@ class TimerAPI extends AbstractAPI {
 
 	// publish the message with the specified timeout
 	// will resolve to null, or reject if an error occurs
-
-	async _publish (message, timeoutMs) {
-		const key = uuidv4()
-		const shadowKey = `shadow_key_timer:${key}`
-		await this.redis.set(key, JSON.stringify(message));
-		await this.redis.set(shadowKey, '', { PX: Math.round(timeoutMs) });
+	_publish(message, timeoutMs) {
+		console.log("ts publish", Date.now(), message.timerId)
+		return this.dtimer.post({ timer: message }, timeoutMs);
 	}
 
 	// called for each new message
@@ -288,18 +291,18 @@ class TimerAPI extends AbstractAPI {
 	_messageReceived(message) {
 		const _messageHasCorrectModel = () => {
 			return check.like(message, {
-				domain: "com.company.game.key",
-				user_id: "55c885e75ecd563765faf612",
-				timerId: "timerId",
-				baseTime: 1439203492270,
-				expirySeconds: 1.0,
-				batchToRun: 'timerTrigger',
-				context: {
-					game: {
-						appid: 'com.clanofthecloud.cloudbuilder'
+					domain: "com.company.game.key",
+					user_id: "55c885e75ecd563765faf612",
+					timerId: "timerId",
+					baseTime: 1439203492270,
+					expirySeconds: 1.0,
+					batchToRun: 'timerTrigger',
+					context: {
+						game: {
+							appid: 'com.clanofthecloud.cloudbuilder'
+						}
 					}
 				}
-			}
 			);
 		};
 
@@ -317,6 +320,8 @@ class TimerAPI extends AbstractAPI {
 					if (timer == null) { return null; }
 
 					// return if the earliest timer isn't this one
+					console.log("from timers array", getEarliestTimerId(timers))
+					console.log("from message.timerId", message.timerId)
 					if (getEarliestTimerId(timers) !== message.timerId) { return null; }
 					// return if the message doesn't coincide exactly with timer
 					if ((message.baseTime !== timer.baseTime) || (message.expirySeconds !== timer.expirySeconds)) { return null; }
@@ -324,13 +329,14 @@ class TimerAPI extends AbstractAPI {
 					// delete triggered timer then call batch (asynchronously)
 					return this.delete(message.context, message.domain, new ObjectId(message.user_id), message.timerId)
 						.then(timers => {
-							logger.debug(`Calling batch from timer ${timer.batchToRun}`, { message, timer });
+							// logger.debug(`Calling batch from timer ${timer.batchToRun}`, { message, timer });
 							api.game.runBatch(message.context, message.domain, '__' + timer.batchToRun, { domain: message.domain, user_id: new ObjectId(message.user_id), timerId: message.timerId, now: Date.now(), expiredAt: (timer.baseTime + (timer.expirySeconds * 1000)), description: timer.description, customData: timer.customData })
 								.then(() => {
+									return
 									return logger.debug(`Batch returned from timer ${timer.batchToRun}`, { message, timer });
 								})
 								.catch(err => {
-									logger.debug(`Error during timer batch ${message.domain}.__${timer.batchToRun}`);
+									// logger.debug(`Error during timer batch ${message.domain}.__${timer.batchToRun}`);
 									return logger.debug(err, { stack: err.stack });
 								})
 								.done();
@@ -363,6 +369,7 @@ class TimerAPI extends AbstractAPI {
 				batchToRun: nextTimer.batchToRun,
 				context: nextTimer.context
 			};
+
 			return this._publish(message, newDelay)
 				.then(() => {
 					return this._setAlreadyPublished(timers.domain, timers.user_id, nextTimerId, true);
@@ -390,10 +397,10 @@ class TimerAPI extends AbstractAPI {
 	sandbox(context) {
 		this.pre(check => ({
 			"context must be an object with .game": check.like(context, {
-				game: {
-					appid: 'com.clanofthecloud.cloudbuilder'
+					game: {
+						appid: 'com.clanofthecloud.cloudbuilder'
+					}
 				}
-			}
 			)
 		}));
 
