@@ -9,7 +9,7 @@
 class XLAPIError extends Error {
 	constructor(message) {
 		super();
-		this.message = message
+		if(message) this.message = message
 	}
 
 	isRetryable() { return false; }

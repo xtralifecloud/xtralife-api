@@ -53,9 +53,18 @@ xlenv.override(null, {
 		return require("mongodb").MongoClient.connect(xlenv.mongodb.url, xlenv.mongodb.options, (err, mongodb) => cb(err, mongodb));
 	},
 
-	elastic(cb) {	
-		const elastic = require("elasticsearch");
-		const client = new elastic.Client();
+	elastic(cb) {
+		const { Client } = require('@elastic/elasticsearch')
+		const client = new Client({
+			node: 'https://localhost:9200' ,
+			tls: {
+				rejectUnauthorized: false
+			},
+			auth: {
+				username: 'elastic',
+				password: 'password'
+			}
+		})
 		return cb(null, client);
 	},
 
