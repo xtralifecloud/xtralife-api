@@ -10,6 +10,7 @@ const _ = require("underscore");
 const graph = require('fbgraph');
 const superagent = require("superagent");
 const {FacebookError} = require('../../errors');
+const defaultGraphVersion = '13.0';
 /*
 validToken = (token, callback)->
 	graph.setAccessToken token
@@ -27,9 +28,9 @@ validToken = (token, callback)->
 			callback err, res
 */
 
-const validToken = (token, useBusinessManager = false, callback) => {
+const validToken = (game, token, useBusinessManager = false, callback) => {
 
-	let endpoint = "https://graph.facebook.com/v13.0/me?";
+	let endpoint = `https://graph.facebook.com/v${game.config.facebook.graphVersion ?? defaultGraphVersion}/me?`;
 	let fields = "email,id,last_name,first_name,name,locale,picture{url}";
 
 	if(useBusinessManager) fields += ",token_for_business";
@@ -83,9 +84,9 @@ const validToken = (token, useBusinessManager = false, callback) => {
 	 */
 };
 
-const validFriendsIDs = function (friends, options, callback) {
+const validFriendsIDs = function (game, friends, options, callback) {
 	graph.setAccessToken(options != null ? options.facebookAppToken : undefined);
-	graph.setVersion("2.5");
+	graph.setVersion(game.config.facebook.graphVersion ?? defaultGraphVersion);
 	let ids = Object.keys(friends);
 	const listids = ids.join(",");
 	return graph.get(`?ids=${listids}&fields=token_for_business`, function (error, business) {

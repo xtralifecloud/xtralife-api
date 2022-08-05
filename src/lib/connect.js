@@ -325,9 +325,9 @@ class ConnectAPI extends AbstractAPI {
 	}
 
 	loginFacebook(game, facebookToken, options, cb) {
-		return facebook.validToken(
+		return facebook.validToken(game,
 			facebookToken,
-			game.config.facebook != null ? game.config.facebook.useBusinessManager: null, 
+			game.config.facebook.useBusinessManager ?? null, 
 			(err, me) => {
 			if (err != null) { return cb(err); }
 			return this.collusers().findOne({ network: "facebook", networkid: me.id }, (err, user) => {
@@ -478,7 +478,7 @@ class ConnectAPI extends AbstractAPI {
 	}
 
 	convertAccountToFacebook(game, user_id, facebookToken, options) {
-		return this.facebookValidTokenAsync(
+		return this.facebookValidTokenAsync(game,
 			facebookToken,
 			game.config.facebook != null ? game.config.facebook.useBusinessManager: null)
 			.then(me => {
@@ -635,8 +635,8 @@ class ConnectAPI extends AbstractAPI {
 		});
 	} 
 
-	linkAccountWithFacebook(user, token, cb) {
-		return facebook.validToken(token, (err, me) => {
+	linkAccountWithFacebook(game, user, token, cb) {
+		return facebook.validToken(game, token, (err, me) => {
 			if (err != null) { return cb(err); }
 			return this.collusers().findOne({ _id: user._id }, (err, user) => {
 				if (err != null) { return cb(err); }
