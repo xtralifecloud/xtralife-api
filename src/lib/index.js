@@ -4,14 +4,8 @@
  * DS207: Consider shorter variations of null checks
  * Full docs: https://github.com/decaffeinate/decaffeinate/blob/master/docs/suggestions.md
  */
-const api = require("../api.js");
 const AbstractAPI = require("../AbstractAPI.js");
 const errors = require("../errors.js");
-const {
-	ObjectId
-} = require('mongodb');
-
-const Promise = require('bluebird');
 
 class IndexAPI extends AbstractAPI {
 	constructor() {
@@ -99,7 +93,7 @@ class IndexAPI extends AbstractAPI {
 		});
 	}
 
-	// query : https://www.elastic.co/guide/en/elasticsearch/guide/current/full-body-search.html
+	// query : https://www.elastic.co/guide/en/elasticsearch/reference/8.3/query-dsl.html
 	query(context, domain, indexName, query, from, max, search_type) {
 		if (search_type == null) { search_type = 'query_then_fetch'; }
 		return this.handleHook("before-index-query", context, domain, {
@@ -170,7 +164,7 @@ class IndexAPI extends AbstractAPI {
 				}
 			},
 
-			// query : https://www.elastic.co/guide/en/elasticsearch/guide/current/full-body-search.html
+			// query : https://www.elastic.co/guide/en/elasticsearch/reference/8.3/query-dsl.html
 			query: (domain, indexName, query, from, max, search_type) => {
 				if (from == null) { from = 0; }
 				if (max == null) { max = 10; }

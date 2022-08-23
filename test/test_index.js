@@ -3,7 +3,6 @@
  * DS102: Remove unnecessary code created because of implicit returns
  * Full docs: https://github.com/decaffeinate/decaffeinate/blob/master/docs/suggestions.md
  */
-const should = require('should');
 
 global.xlenv = require("xtralife-env");
 
@@ -37,7 +36,13 @@ describe("Xtralife Index module", function () {
 			result._shards.successful.should.eql(1)
 		}));
 
-	it("should have stored the document", () => xtralife.api.index.search(context, domain, indexName, "_id: firstDocumentId AND a:1 AND b:2", ["a"])
+	it("should retrieve a document with get", () => xtralife.api.index.get(context, domain, indexName, "firstDocumentId")
+		.then(result => {
+			result._index.should.eql("test");
+			result._id.should.eql("firstDocumentId");
+		}));
+
+	it("should retrieve a document with search", () => xtralife.api.index.search(context, domain, indexName, "_id: firstDocumentId AND a:1 AND b:2", ["a"])
 		.then(result => {
 			result.hits.total.value.should.eql(1)
 		}));
