@@ -139,6 +139,11 @@ xlenv.override(null, {
 						appId: null,
 						webApiKey: ''
 					},
+
+					epic: { // client credentials
+						clientId: '',
+						clientSecret: ''
+					},
 				}
 			},
 
@@ -199,6 +204,11 @@ xlenv.override(null, {
 					steam: { // login
 						appId: null,
 						webApiKey: ''
+					},
+
+					epic: { // client credentials
+						clientId: '',
+						clientSecret: ''
 					},
 				}
 			}

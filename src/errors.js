@@ -311,6 +311,11 @@ MissingSteamCredentials.prototype.name = "MissingSteamCredentials";
 MissingSteamCredentials.prototype.message = "Missing steam credentials in config file";
 MissingSteamCredentials.prototype.xtralifecode = 1;
 
+class MissingEpicCredentials extends XLAPIError {}
+MissingEpicCredentials.prototype.name = "MissingEpicCredentials";
+MissingEpicCredentials.prototype.message = "Missing epic games credentials in config file";
+MissingEpicCredentials.prototype.xtralifecode = 1;
+
 class MissingAppleClientID extends XLAPIError {}
 MissingAppleClientID.prototype.name = "MissingAppleClientID";
 MissingAppleClientID.prototype.message = "Missing apple client ID in config file";
@@ -358,6 +363,17 @@ class SteamError extends XLAPIError {
 	}
 }
 SteamError.initClass();
+
+class EpicError extends XLAPIError {
+	static initClass() {
+		this.prototype.name = "EpicError";
+	}
+	constructor(message, details) {
+		super(message);
+		this.details = details;
+	}
+}
+EpicError.initClass();
 class AppleError extends XLAPIError {
 	static initClass() {
 		this.prototype.name = "AppleError";
@@ -384,6 +400,6 @@ module.exports = {
 	, QueryError, PreconditionError
 	, PurchaseNotConfirmed, ExternalStoreError, ExternalStoreEnvironmentError
 	, ConcurrentModification, HookRecursionError, HookError, ExternalServerTempError
-	, GameCenterError, MissingGoogleClientID, MissingFirebaseCredentials, MissingSteamCredentials, FacebookError, GoogleError, FirebaseError, SteamError
+	, GameCenterError, MissingGoogleClientID, MissingFirebaseCredentials, MissingSteamCredentials, MissingEpicCredentials, FacebookError, GoogleError, FirebaseError, SteamError, EpicError
 	, AppleError, MissingAppleClientID
 };

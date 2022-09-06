@@ -19,6 +19,7 @@ const facebook = require("./network/facebook.js");
 const google = require("./network/google.js");
 const firebase = require("./network/firebase.js");
 const steam = require("./network/steam.js");
+const epic = require("./network/epic.js");
 const apple = require("./network/apple.js");
 const gamecenter = require('./network/gamecenter.js');
 const errors = require("./../errors.js");
@@ -44,6 +45,7 @@ class ConnectAPI extends AbstractAPI {
 		this.googleValidTokenAsync = Promise.promisify(google.validToken, { context: google });
 		this.firebaseValidTokenAsync = Promise.promisify(firebase.validToken, { context: firebase });
 		this.steamValidTokenAsync = Promise.promisify(steam.validToken, { context: steam });
+		this.epicValidTokenAsync = Promise.promisify(epic.validToken, { context: epic });
 		this.appleValidTokenAsync = Promise.promisify(apple.validToken, { context: apple });
 		this.gameCenterValidTokenAsync = Promise.promisify(gamecenter.verify, { context: gamecenter });
 
@@ -432,6 +434,28 @@ class ConnectAPI extends AbstractAPI {
 		});
 	}
 
+	loginEpic(game, epicToken, options, cb) {
+		let clientId, clientSecret = null;
+
+		if(game.config.epic && game.config.epic.clientId) clientId = game.config.epic.clientId
+		if(game.config.epic && game.config.epic.clientSecret) clientSecret = game.config.epic.clientSecret
+		if(!clientId || !clientSecret) return cb(new errors.MissingEpicCredentials("Missing epic credentials in config file"))
+	
+		return epic.validToken(
+			epicToken,
+			(err, me) => {
+			if (err != null) { return cb(err); }
+			return this.collusers().findOne({ network: "epic", networkid: me.client_id }, (err, user) => {
+				if (err != null) { return cb(err); }
+				if (user != null) { return cb(null, user, false); }
+				if (options != null ? options.preventRegistration : undefined) { return cb(new errors.PreventRegistration(me), null, false); }
+
+				// create account
+				return this.register(game, "epic", me.client_id, null, {lang: "en"}, (err, user) => cb(err, user, true));
+			});
+		});
+	}
+
 	loginGameCenter(game, credentials, options, cb) {
 
 		if (!game.config.apple || !game.config.apple.gameCenterBundleIdRE) { return cb(new errors.GameCenterError("apple.gameCenterBundleIdRE must be set for GameCenter login")); }
@@ -576,6 +600,33 @@ class ConnectAPI extends AbstractAPI {
 					})
 					.then(function (result) {
 						if (typeof err === 'undefined' || err === null) { logger.debug(`converted to steam account for ${me.steamid}`); }
+						return (result != null ? result.value : undefined);
+					});
+			});
+	}
+
+	convertAccountToEpic(game, user_id, EpicToken) {
+		let clientId, clientSecret = null;
+
+		if(game.config.epic && game.config.epic.clientId) clientId = game.config.epic.clientId
+		if(game.config.epic && game.config.epic.clientSecret) clientSecret = game.config.epic.clientSecret
+		if(!clientId || !clientSecret) return cb(new errors.MissingEpicCredentials("Missing epic credentials in config file"))
+
+		return this.epicValidTokenAsync(EpicToken, webApiKey, appId)
+			.then(me => {
+				return this._checkAccountForConversion("epic", user_id, me.epicid)
+					.then(() => {
+						const modification = {
+							$set: {
+								network: "epic",
+								networkid: me.epicid,
+								networksecret: null,
+							}
+						};
+						return this.collusers().findOneAndUpdate({ _id: user_id }, modification, { returnDocument: "after" });
+					})
+					.then(function (result) {
+						if (typeof err === 'undefined' || err === null) { logger.debug(`converted to epic account for ${me.epicid}`); }
 						return (result != null ? result.value : undefined);
 					});
 			});
