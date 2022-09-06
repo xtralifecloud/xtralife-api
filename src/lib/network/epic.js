@@ -7,10 +7,11 @@ const validToken = (authToken, cb) => {
     let endpoint = "https://api.epicgames.dev/epic/oauth/v1/tokenInfo";
 
     return superagent
-        .get(endpoint)
+        .post(endpoint)
         .accept("json")
         .set("Accept-Encoding", "gzip, deflate")
         .set("Content-Type", "application/x-www-form-urlencoded;charset=UTF-8")
+        .type('form')
         .send({ token: authToken })
         .end((err, res) => {
             if (err != null) {

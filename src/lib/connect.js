@@ -435,23 +435,18 @@ class ConnectAPI extends AbstractAPI {
 	}
 
 	loginEpic(game, epicToken, options, cb) {
-		let clientId, clientSecret = null;
-
-		if(game.config.epic && game.config.epic.clientId) clientId = game.config.epic.clientId
-		if(game.config.epic && game.config.epic.clientSecret) clientSecret = game.config.epic.clientSecret
-		if(!clientId || !clientSecret) return cb(new errors.MissingEpicCredentials("Missing epic credentials in config file"))
 	
 		return epic.validToken(
 			epicToken,
 			(err, me) => {
 			if (err != null) { return cb(err); }
-			return this.collusers().findOne({ network: "epic", networkid: me.client_id }, (err, user) => {
+			return this.collusers().findOne({ network: "epic", networkid: me.account_id }, (err, user) => {
 				if (err != null) { return cb(err); }
 				if (user != null) { return cb(null, user, false); }
 				if (options != null ? options.preventRegistration : undefined) { return cb(new errors.PreventRegistration(me), null, false); }
 
 				// create account
-				return this.register(game, "epic", me.client_id, null, {lang: "en"}, (err, user) => cb(err, user, true));
+				return this.register(game, "epic", me.account_id, null, {lang: "en"}, (err, user) => cb(err, user, true));
 			});
 		});
 	}
@@ -606,27 +601,22 @@ class ConnectAPI extends AbstractAPI {
 	}
 
 	convertAccountToEpic(game, user_id, EpicToken) {
-		let clientId, clientSecret = null;
 
-		if(game.config.epic && game.config.epic.clientId) clientId = game.config.epic.clientId
-		if(game.config.epic && game.config.epic.clientSecret) clientSecret = game.config.epic.clientSecret
-		if(!clientId || !clientSecret) return cb(new errors.MissingEpicCredentials("Missing epic credentials in config file"))
-
-		return this.epicValidTokenAsync(EpicToken, webApiKey, appId)
+		return this.epicValidTokenAsync(EpicToken)
 			.then(me => {
-				return this._checkAccountForConversion("epic", user_id, me.epicid)
+				return this._checkAccountForConversion("epic", user_id, me.account_id)
 					.then(() => {
 						const modification = {
 							$set: {
 								network: "epic",
-								networkid: me.epicid,
+								networkid: me.account_id,
 								networksecret: null,
 							}
 						};
 						return this.collusers().findOneAndUpdate({ _id: user_id }, modification, { returnDocument: "after" });
 					})
 					.then(function (result) {
-						if (typeof err === 'undefined' || err === null) { logger.debug(`converted to epic account for ${me.epicid}`); }
+						if (typeof err === 'undefined' || err === null) { logger.debug(`converted to epic account for ${me.account_id}`); }
 						return (result != null ? result.value : undefined);
 					});
 			});
