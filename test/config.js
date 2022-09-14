@@ -9,7 +9,8 @@ global.logger = require('winston');
 // const Promise = require('bluebird');
 // Promise.promisifyAll(require('redis'));
 
-const redis = require('redis')
+const Redis = require('ioredis')
+
 xlenv.override(null, {
 	nbworkers: 1,
 	privateKey: "CONFIGURE : This is a private key and you should customize it",
@@ -22,45 +23,25 @@ xlenv.override(null, {
 	},
 
 	redis: {
-		config: { // refer to https://github.com/redis/node-redis/blob/master/docs/client-configuration.md
-			socket: {
+		config: { // refer to https://github.com/luin/ioredis/blob/v4/API.md#new-redisport-host-options
 				port: 6378,
 				host: "localhost"
-			},
 		}
 	},
 
-	async redisClient(cb){
-		const client = await redis.createClient(xlenv.redis.config);
-		await client.connect();
-		const ready = await client.ping();
-		if (ready === 'PONG') {
-			return cb(null, client);
-		}
+	redisClient(cb){
+		const redis = new Redis(xlenv.redis.config);
+		redis.info((err) => {
+			return cb(err, redis);
+		})
 	},
 
-	async redisChannel(cb){
-		const client = await redis.createClient(xlenv.redis.config);
-		await client.connect();
-		const ready = await client.ping();
-		if (ready === 'PONG') {
-			return cb(null, client);
-		}
+	redisChannel(cb){
+		const redis = new Redis(xlenv.redis.config);
+		redis.info((err) => {
+			return cb(err, redis);
+		})
 	},
-	// redis: {
-	// 	host: "localhost",
-	// 	port: 6378
-	// },
-	//
-	// redisClient(cb) {
-	// 	const client = require('redis').createClient(xlenv.redis.port, xlenv.redis.host);
-	// 	return client.info(err => cb(err, client));
-	// },
-	//
-	// redisChannel(cb) {
-	// 	const client = require('redis').createClient(xlenv.redis.port, xlenv.redis.host);
-	// 	return client.info(err => cb(err, client));
-	// },
 
 	mongodb: {
 		dbname: 'xtralife',

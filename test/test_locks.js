@@ -22,7 +22,7 @@ let user_id = null;
 let context = null;
 const Redlock = require('redlock');
 
-describe.skip("Xtralife batch with lock", function () {
+describe("Xtralife batch with lock", function () {
 
 	before('configure Xtralife', function (done) {
 		this.timeout(5000);
@@ -124,7 +124,7 @@ describe.skip("Xtralife batch with lock", function () {
 				});
 
 			return setTimeout(() => lock.unlock()
-				, 700);
+				, 800);
 		});
 
 		return null;

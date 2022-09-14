@@ -101,7 +101,7 @@ end
 
 numEvents = redis.call("ZCARD", KEYS[3])
 if numEvents == 0 then
-    redis.call("HDEL", KEYS[1], "expiresAt")
+    redis.call("DEL", KEYS[1])
 else
     local notify = true
     local nexp = tonumber(redis.call("ZRANGE", KEYS[3], 0, 0, "WITHSCORES")[2])

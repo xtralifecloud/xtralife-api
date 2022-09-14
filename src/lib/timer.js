@@ -83,13 +83,11 @@ class TimerAPI extends AbstractAPI {
 	configure(xtralifeapi, callback) {
 
 		this.xtralifeapi = xtralifeapi;
-		return xlenv.inject(['redisClient', 'redisChannel'], (err, redis, pubsub) => {
-			this.redis = redis;
+		return xlenv.inject(['redisClient', 'redisChannel'], (err, pub, sub) => {
 			// replace ch1 with a unique id for this node (host ? process ?)
-			this.dtimer = new DTimer(`${os.hostname()}_${process.pid}`, redis, pubsub);
+			this.dtimer = new DTimer(`${os.hostname()}_${process.pid}`, pub, sub);
 
 			this.dtimer.on('event', ev => {
-				console.log('event received', ev.timer.timerId)
 				this._messageReceived(ev.timer);
 				return this.dtimer.confirm(ev.id)
 			});
@@ -172,7 +170,6 @@ class TimerAPI extends AbstractAPI {
 						.then(() => {
 							return this._setAlreadyPublished(domain, user_id, timerId, true)
 								.then(() => this.timersColl.findOne({ domain, user_id })).then(updatedTimers => {
-									this.redis.HGETALL('dt:ed').then(keys => console.log("keys", keys)).catch(err => console.log("err", err));
 									return updatedTimers
 								});
 						});
@@ -279,7 +276,6 @@ class TimerAPI extends AbstractAPI {
 	// publish the message with the specified timeout
 	// will resolve to null, or reject if an error occurs
 	_publish(message, timeoutMs) {
-		console.log("ts publish", Date.now(), message.timerId)
 		return this.dtimer.post({ timer: message }, timeoutMs);
 	}
 
@@ -320,8 +316,6 @@ class TimerAPI extends AbstractAPI {
 					if (timer == null) { return null; }
 
 					// return if the earliest timer isn't this one
-					console.log("from timers array", getEarliestTimerId(timers))
-					console.log("from message.timerId", message.timerId)
 					if (getEarliestTimerId(timers) !== message.timerId) { return null; }
 					// return if the message doesn't coincide exactly with timer
 					if ((message.baseTime !== timer.baseTime) || (message.expirySeconds !== timer.expirySeconds)) { return null; }

@@ -24,8 +24,6 @@ let rc = null
 
 let context = null;
 
-const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
 describe("Xtralife timer module", function () {
 
 	before('configure Xtralife', function (done) {
@@ -84,12 +82,10 @@ describe("Xtralife timer module", function () {
 
 	it("should wait until messages are received (1 then 2)", done => {setTimeout(async () => {
 		const trigger1 = await xtralife.api.virtualfs.read(context, domain, user_id, "test-1-1");
-		console.log("--> ", trigger1);
 		const trigger2 = await xtralife.api.virtualfs.read(context, domain, user_id, "test-1-2");
-		console.log("--> ", trigger2);
 		trigger1["test-1-1"].should.be.below(trigger2['test-1-2']);
 		done();
-	}, 1000)});
+	}, 250)});
 
 	// Now messages are added in reverse order, so we'll have 2 timer messages in the queue
 	// tests avoiding to requeue a message if it's already in the queue
@@ -100,23 +96,18 @@ describe("Xtralife timer module", function () {
 
 	it("should add a second timer before the first one", () => xtralife.api.timer.add(context, domain, user_id, { expirySeconds: .1, timerId: 'testTimer2', description: 'second timer test', customData: { q: 2, verifKey: "test-2-2" } }, "timerTrigger")
 		.then(function (timers) {
-			console.log("--> timers", timers);
 			timers.should.have.property('testTimer1');
 			return timers.should.have.property("testTimer2");
 		}));
 
-	it("should wait until messages are received (2 then 1)", async () => {
-		await sleep(1000);
+	it("should wait until messages are received (2 then 1)",  (done) => {setTimeout(async () => {
 		const trigger1 = await xtralife.api.virtualfs.read(context, domain, user_id, "test-2-1");
-		console.log("--> ", trigger1);
 		const trigger2 = await xtralife.api.virtualfs.read(context, domain, user_id, "test-2-2");
-		console.log("--> ", trigger2);
 		trigger2["test-2-2"].should.be.below(trigger1['test-2-1']);
-		return trigger2
-	});
+		done();
+	}, 250)});
 
 	// tests retiming of already scheduled timer in a further future
-
 	it("Test 3: should add a first timer at 1s", () => xtralife.api.timer.add(context, domain, user_id, { expirySeconds: .1, timerId: 'testTimer1', description: 'first timer test', customData: { q: 1, verifKey: "test-3-1" } }, "timerTrigger")
 		.then(timers => timers.should.have.property('testTimer1')));
 
@@ -134,12 +125,10 @@ describe("Xtralife timer module", function () {
 	it("should wait until messages are received (1 then 2)", done => {
 		return setTimeout(async () => {
 			const trigger1 = await xtralife.api.virtualfs.read(context, domain, user_id, "test-3-1");
-			console.log("--> ", trigger1);
 			const trigger2 = await xtralife.api.virtualfs.read(context, domain, user_id, "test-3-2");
-			console.log("--> ", trigger2);
 			trigger1["test-3-1"].should.be.below(trigger2['test-3-2']);
 			done();
-		}, 1000);
+		}, 250);
 	});
 
 	// tests retiming of already scheduled timer in a closer future
@@ -161,12 +150,10 @@ describe("Xtralife timer module", function () {
 
 	it("should wait until messages are received (2 then 1)", done => setTimeout(async () => {
 		const trigger1 = await xtralife.api.virtualfs.read(context, domain, user_id, "test-4-1");
-		console.log("--> ", trigger1);
 		const trigger2 = await xtralife.api.virtualfs.read(context, domain, user_id, "test-4-2");
-		console.log("--> ", trigger2);
 		trigger2["test-4-2"].should.be.below(trigger1['test-4-1']);
 		done();
-	}, 450));
+	}, 250));
 
 	// tests relative proportional retiming of already scheduled timer in a closer future
 
@@ -187,12 +174,10 @@ describe("Xtralife timer module", function () {
 		this.timeout(5000);
 		return setTimeout(async () => {
 			const trigger1 = await xtralife.api.virtualfs.read(context, domain, user_id, "test-5-1");
-			console.log("--> ", trigger1);
 			const trigger2 = await xtralife.api.virtualfs.read(context, domain, user_id, "test-5-2");
-			console.log("--> ", trigger2);
 			trigger2["test-5-2"].should.be.below(trigger1['test-5-1']);
 			done();
-		}, 2500);
+		}, 4500);
 	});
 
 	it("should add timer from batch", function (done) {
