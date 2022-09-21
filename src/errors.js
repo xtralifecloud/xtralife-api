@@ -369,6 +369,16 @@ class AppleError extends XLAPIError {
 }
 AppleError.initClass();
 
+class ElasticSearchError extends XLAPIError {
+	static initClass() {
+		this.prototype.name = "ElasticSearchError";
+	}
+	constructor(message, details) {
+		super(message);
+		this.details = details;
+	}
+}
+ElasticSearchError.initClass();
 
 module.exports = {
 	XLAPIError, XLAPIRetryableError, InternalError
@@ -385,5 +395,5 @@ module.exports = {
 	, PurchaseNotConfirmed, ExternalStoreError, ExternalStoreEnvironmentError
 	, ConcurrentModification, HookRecursionError, HookError, ExternalServerTempError
 	, GameCenterError, MissingGoogleClientID, MissingFirebaseCredentials, MissingSteamCredentials, FacebookError, GoogleError, FirebaseError, SteamError
-	, AppleError, MissingAppleClientID
+	, AppleError, MissingAppleClientID, ElasticSearchError
 };

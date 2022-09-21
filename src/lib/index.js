@@ -39,14 +39,19 @@ class IndexAPI extends AbstractAPI {
 			objectId,
 			properties,
 			contents
-		}).then(() => {
-			return this.elastic.index({
-				routing: domain.toLowerCase(),
-				index: indexName,
-				id: objectId,
-				body: document,
-				refresh: true
-			});
+		}).then(async () => {
+			try{
+				const { body } = await this.elastic.index({
+					type: indexName,
+					index: domain.toLowerCase(),
+					id: objectId,
+					body: document,
+					refresh: true
+				});
+				return body
+			}catch(e){
+				throw new errors.ElasticSearchError(e.meta.body.result, e.meta.body)
+			}
 		});
 	}
 
@@ -58,12 +63,17 @@ class IndexAPI extends AbstractAPI {
 			gamer_id: context.gamer_id,
 			indexName,
 			objectId
-		}).then(() => {
-			return this.elastic.get({
-				routing: domain.toLowerCase(),
-				index: indexName,
-				id: objectId
-			});
+		}).then(async () => {
+			try{
+				const { body } = await this.elastic.get({
+					type: indexName,
+					index: domain.toLowerCase(),
+					id: objectId
+				});
+				return body
+			}catch(e){
+				throw new errors.ElasticSearchError(e.meta.body.result, e.meta.body)
+			}
 		});
 	}
 
@@ -80,16 +90,21 @@ class IndexAPI extends AbstractAPI {
 			sort,
 			from,
 			max
-		}).then(() => {
-			return this.elastic.search({
-				routing: domain.toLowerCase(),
-				index: indexName,
-				q,
-				sort,
-				from,
-				size: max,
-				search_type
-			});
+		}).then(async () => {
+			try{
+				const { body } = await this.elastic.search({
+					type: indexName,
+					index: domain.toLowerCase(),
+					q,
+					sort,
+					from,
+					size: max,
+					search_type
+				});
+				return body
+			}catch(e){
+				throw new errors.ElasticSearchError(e.meta.body.result, e.meta.body)
+			}
 		});
 	}
 
@@ -104,15 +119,20 @@ class IndexAPI extends AbstractAPI {
 			query,
 			from,
 			max
-		}).then(() => {
-			return this.elastic.search({
-				routing: domain.toLowerCase(),
-				index: indexName,
-				query,
-				from,
-				size: max,
-				search_type
-			});
+		}).then(async () => {
+			try{
+				const { body } = await this.elastic.search({
+					type: indexName,
+					index: domain.toLowerCase(),
+					body: query,
+					from,
+					size: max,
+					search_type
+				});
+				return body
+			}catch(e){
+				throw new errors.ElasticSearchError(e.meta.body.result, e.meta.body)
+			}
 		});
 	}
 
@@ -123,12 +143,18 @@ class IndexAPI extends AbstractAPI {
 			gamer_id: context.gamer_id,
 			indexName,
 			objectId
-		}).then(() => {
-			return this.elastic.delete({
-				routing: domain.toLowerCase(),
-				index: indexName,
-				id: objectId
-			});
+		}).then(async () => {
+			try {
+				const { body } = await this.elastic.delete({
+					type: indexName,
+					index: domain.toLowerCase(),
+					id: objectId,
+					refresh: true
+				});
+				return body
+			}catch(e){
+				throw new errors.ElasticSearchError(e.meta.body.result, e.meta.body)
+			}
 		});
 	}
 
