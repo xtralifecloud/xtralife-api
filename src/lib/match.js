@@ -8,8 +8,6 @@
  * Full docs: https://github.com/decaffeinate/decaffeinate/blob/master/docs/suggestions.md
  */
 const async = require("async");
-const extend = require('util')._extend;
-const api = require("../api.js");
 const AbstractAPI = require("../AbstractAPI.js");
 const errors = require("../errors.js");
 const {
@@ -402,7 +400,7 @@ class MatchAPI extends AbstractAPI {
 											if (match == null) { throw new errors.BadArgument; }
 
 											// Notify the player
-											if (this.xtralifeApi.game.hasListener(match.domain)) { xlenv.broker.send(match.domain, invitee_id.toString(), event).done(); }
+											if (this.xtralifeApi.game.hasListener(match.domain)) { xlenv.broker.send(match.domain, invitee_id.toString(), event); }
 											return this.handleHook("after-match-invite", context, match.domain, {
 												user_id: caller_gamer_id,
 												match,
@@ -586,7 +584,7 @@ class MatchAPI extends AbstractAPI {
 			const result = [];
 			for (let player of Array.from(match.players)) {
 				if (!player.equals(originating_player_id) && this.xtralifeApi.game.hasListener(match.domain)) {
-					result.push(xlenv.broker.send(match.domain, player.toString(), message).done());
+					result.push(xlenv.broker.send(match.domain, player.toString(), message));
 				} else {
 					result.push(undefined);
 				}

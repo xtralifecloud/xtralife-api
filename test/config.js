@@ -6,9 +6,10 @@
 const xlenv = global.xlenv = require("xtralife-env");
 
 global.logger = require('winston');
+// const Promise = require('bluebird');
+// Promise.promisifyAll(require('redis'));
 
-const Promise = require('bluebird');
-Promise.promisifyAll(require('redis'));
+const Redis = require('ioredis')
 
 xlenv.override(null, {
 	nbworkers: 1,
@@ -22,18 +23,24 @@ xlenv.override(null, {
 	},
 
 	redis: {
-		host: "localhost",
-		port: 6378
+		config: { // refer to https://github.com/luin/ioredis/blob/v4/API.md#new-redisport-host-options
+				port: 6378,
+				host: "localhost"
+		}
 	},
 
-	redisClient(cb) {
-		const client = require('redis').createClient(xlenv.redis.port, xlenv.redis.host);
-		return client.info(err => cb(err, client));
+	redisClient(cb){
+		const redis = new Redis(xlenv.redis.config);
+		redis.info((err) => {
+			return cb(err, redis);
+		})
 	},
 
-	redisChannel(cb) {
-		const client = require('redis').createClient(xlenv.redis.port, xlenv.redis.host);
-		return client.info(err => cb(err, client));
+	redisChannel(cb){
+		const redis = new Redis(xlenv.redis.config);
+		redis.info((err) => {
+			return cb(err, redis);
+		})
 	},
 
 	mongodb: {

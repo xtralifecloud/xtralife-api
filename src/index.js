@@ -22,6 +22,9 @@ class Xtralife {
 	configure(cb) {
 		if (this._initialised) { return cb(null); }
 		this._initialised = true;
+
+		this.api = api;
+
 		xlenv.inject(["=redisClient", "redisClient"], (err, rc, pubSub) => {
 			if (err != null) { console.error(err); }
 			if (err != null) { return cb(err); }
@@ -65,7 +68,6 @@ class Xtralife {
 			return xlenv.broker = new MultiplexedBroker(rc, pubSub, timeoutHandler, 5000, 5000);
 		});
 
-		this.api = api;
 		return this.api.configure(null, err => {
 			if (err != null) { return cb(err); }
 			return this.api.afterConfigure(null, cb);

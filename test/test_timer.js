@@ -20,6 +20,7 @@ const Promise = require('bluebird')
 
 let game = null;
 let user_id = null;
+let rc = null
 
 let context = null;
 
@@ -32,13 +33,13 @@ describe("Xtralife timer module", function () {
 
 			game = xtralife.api.game.dynGames['com.clanofthecloud.cloudbuilder'];
 			context = { game };
-			return done();
+			done();
 		});
 	});
 
 	before('should create a new gamer', function (done) {
 		const profile = {
-			displayName: "Test user",
+			displayName: "Test timer user",
 			lang: "en"
 		};
 		return xtralife.api.connect.register(game, "anonymous", null, null, profile, function (err, user) {
@@ -47,19 +48,18 @@ describe("Xtralife timer module", function () {
 		});
 	});
 
-
 	// first messages are added in order, only one message in the queue at any time
 	// tests scheduling of next message
 
 	let upserted = null;
 
-	it("Test 1: should add a first timer", () => xtralife.api.timer.add(context, domain, user_id, { expirySeconds: .1, timerId: 'testTimer1', description: 'first timer test', customData: { q: 1 } }, "timerTrigger")
+	it("Test 1: should add a first timer", () => xtralife.api.timer.add(context, domain, user_id, { expirySeconds: .1, timerId: 'testTimer1', description: 'first timer test', customData: { q: 1, verifKey: "test-1-1" } }, "timerTrigger")
 		.then(function (timers) {
 			upserted = timers;
 			return timers.should.have.property('testTimer1');
 		}));
 
-	it("should add a second timer", () => xtralife.api.timer.add(context, domain, user_id, { expirySeconds: .2, timerId: 'testTimer2', description: 'second timer test', customData: { q: 2 } }, "timerTrigger")
+	it("should add a second timer", () => xtralife.api.timer.add(context, domain, user_id, { expirySeconds: .2, timerId: 'testTimer2', description: 'second timer test', customData: { q: 2, verifKey: "test-1-2" } }, "timerTrigger")
 		.then(function (timers) {
 			timers._id.should.eql(upserted._id); // check there's only one list of timers
 
@@ -80,50 +80,64 @@ describe("Xtralife timer module", function () {
 		}));
 
 
-	it("should wait until messages are received (1 then 2)", done => setTimeout(done, 250));
+	it("should wait until messages are received (1 then 2)", done => {setTimeout(async () => {
+		const trigger1 = await xtralife.api.virtualfs.read(context, domain, user_id, "test-1-1");
+		const trigger2 = await xtralife.api.virtualfs.read(context, domain, user_id, "test-1-2");
+		trigger1["test-1-1"].should.be.below(trigger2['test-1-2']);
+		done();
+	}, 250)});
 
 	// Now messages are added in reverse order, so we'll have 2 timer messages in the queue
 	// tests avoiding to requeue a message if it's already in the queue
 
-	it("Test 2: should add a first timer", () => xtralife.api.timer.add(context, domain, user_id, { expirySeconds: .2, timerId: 'testTimer1', description: 'first timer test', customData: { q: 1 } }, "timerTrigger")
-		.then(timers => timers.should.have.property('testTimer1')));
+	it("Test 2: should add a first timer", () => xtralife.api.timer.add(context, domain, user_id, { expirySeconds: .2, timerId: 'testTimer1', description: 'first timer test', customData: { q: 1, verifKey: "test-2-1"} }, "timerTrigger")
+		.then(timers => {
+			timers.should.have.property('testTimer1')}));
 
-	it("should add a second timer before the first one", () => xtralife.api.timer.add(context, domain, user_id, { expirySeconds: .1, timerId: 'testTimer2', description: 'second timer test', customData: { q: 2 } }, "timerTrigger")
+	it("should add a second timer before the first one", () => xtralife.api.timer.add(context, domain, user_id, { expirySeconds: .1, timerId: 'testTimer2', description: 'second timer test', customData: { q: 2, verifKey: "test-2-2" } }, "timerTrigger")
 		.then(function (timers) {
 			timers.should.have.property('testTimer1');
 			return timers.should.have.property("testTimer2");
 		}));
 
-	it("should wait until messages are received (2 then 1)", function (done) {
-		this.timeout(500);
-		return setTimeout(done, 250);
-	});
+	it("should wait until messages are received (2 then 1)",  (done) => {setTimeout(async () => {
+		const trigger1 = await xtralife.api.virtualfs.read(context, domain, user_id, "test-2-1");
+		const trigger2 = await xtralife.api.virtualfs.read(context, domain, user_id, "test-2-2");
+		trigger2["test-2-2"].should.be.below(trigger1['test-2-1']);
+		done();
+	}, 250)});
 
 	// tests retiming of already scheduled timer in a further future
-
-	it("Test 3: should add a first timer at 1s", () => xtralife.api.timer.add(context, domain, user_id, { expirySeconds: .1, timerId: 'testTimer1', description: 'first timer test', customData: { q: 1 } }, "timerTrigger")
+	it("Test 3: should add a first timer at 1s", () => xtralife.api.timer.add(context, domain, user_id, { expirySeconds: .1, timerId: 'testTimer1', description: 'first timer test', customData: { q: 1, verifKey: "test-3-1" } }, "timerTrigger")
 		.then(timers => timers.should.have.property('testTimer1')));
 
 
-	it("should add a second timer at 1s", () => xtralife.api.timer.add(context, domain, user_id, { expirySeconds: .1, timerId: 'testTimer2', description: 'second timer test', customData: { q: 2 } }, "timerTrigger")
+	it("should add a second timer at 1s", () => xtralife.api.timer.add(context, domain, user_id, { expirySeconds: .1, timerId: 'testTimer2', description: 'second timer test', customData: { q: 2, verifKey: "test-3-2" } }, "timerTrigger")
 		.then(function (timers) {
 			timers.should.have.property('testTimer1');
 			return timers.should.have.property("testTimer2");
 		}));
 
 	it("should change second timer to 2s", done => setTimeout(() => xtralife.api.timer.retime(context, domain, user_id, 'testTimer2', .2)
-		.then(timers => done()).catch(done)
+			.then(timers => done()).catch(done)
 		, 50)); // there's a race condition here...
 
-	it("should wait until messages are received (1 then 2)", done => setTimeout(done, 250));
+	it("should wait until messages are received (1 then 2)", done => {
+		return setTimeout(async () => {
+			const trigger1 = await xtralife.api.virtualfs.read(context, domain, user_id, "test-3-1");
+			const trigger2 = await xtralife.api.virtualfs.read(context, domain, user_id, "test-3-2");
+			trigger1["test-3-1"].should.be.below(trigger2['test-3-2']);
+			done();
+		}, 250);
+	});
 
 	// tests retiming of already scheduled timer in a closer future
 
-	it("Test 4: should add a first timer at 2s", () => xtralife.api.timer.add(context, domain, user_id, { expirySeconds: .2, timerId: 'testTimer1', description: 'first timer test', customData: { q: 1 } }, "timerTrigger")
+	it("Test 4: should add a first timer at 2s", () => xtralife.api.timer.add(context, domain, user_id, { expirySeconds: .2, timerId: 'testTimer1', description: 'first timer test', customData: { q: 1, verifKey: "test-4-1" } }, "timerTrigger")
 		.then(timers => timers.should.have.property('testTimer1')));
 
 
-	it("should add a second timer at 3s", () => xtralife.api.timer.add(context, domain, user_id, { expirySeconds: .3, timerId: 'testTimer2', description: 'second timer test', customData: { q: 2 } }, "timerTrigger")
+	it("should add a second timer at 3s", () => xtralife.api.timer.add(context, domain, user_id, { expirySeconds: .3, timerId: 'testTimer2', description: 'second timer test', customData: { q: 2, verifKey: "test-4-2" } }, "timerTrigger")
 		.then(function (timers) {
 			timers.should.have.property('testTimer1');
 			return timers.should.have.property("testTimer2");
@@ -131,29 +145,39 @@ describe("Xtralife timer module", function () {
 
 
 	it("should change second timer to 1s", done => setTimeout(() => xtralife.api.timer.retime(context, domain, user_id, 'testTimer2', .1)
-		.then(timers => done()).catch(done)
+			.then(timers => done()).catch(done)
 		, 50)); // there's a race condition here...
 
-	it("should wait until messages are received (2 then 1)", done => setTimeout(done, 250));
+	it("should wait until messages are received (2 then 1)", done => setTimeout(async () => {
+		const trigger1 = await xtralife.api.virtualfs.read(context, domain, user_id, "test-4-1");
+		const trigger2 = await xtralife.api.virtualfs.read(context, domain, user_id, "test-4-2");
+		trigger2["test-4-2"].should.be.below(trigger1['test-4-1']);
+		done();
+	}, 250));
 
 	// tests relative proportional retiming of already scheduled timer in a closer future
 
-	it("Test 5: should add a first timer at 2s", () => xtralife.api.timer.add(context, domain, user_id, { expirySeconds: 2, timerId: 'testTimer1', description: 'first timer test', customData: { q: 1 } }, "timerTrigger")
+	it("Test 5: should add a first timer at 2s", () => xtralife.api.timer.add(context, domain, user_id, { expirySeconds: 2, timerId: 'testTimer1', description: 'first timer test', customData: { q: 1, verifKey: "test-5-1" } }, "timerTrigger")
 		.then(timers => timers.should.have.property('testTimer1')));
 
-	it("should add a second timer at 3s", () => xtralife.api.timer.add(context, domain, user_id, { expirySeconds: 3, timerId: 'testTimer2', description: 'second timer test', customData: { q: 2 } }, "timerTrigger")
+	it("should add a second timer at 3s", () => xtralife.api.timer.add(context, domain, user_id, { expirySeconds: 3, timerId: 'testTimer2', description: 'second timer test', customData: { q: 2, verifKey: "test-5-2" } }, "timerTrigger")
 		.then(function (timers) {
 			timers.should.have.property('testTimer1');
 			return timers.should.have.property("testTimer2");
 		}));
 
-	it("should change second timer to 1s", done => setTimeout(() => xtralife.api.timer.retime(context, domain, user_id, 'testTimer2', -0.33333333333)
-		.then(timers => done()).catch(done)
+	it("should change second timer to 1s", done => setTimeout(() => xtralife.api.timer.retime(context, domain, user_id, 'testTimer2', -0.333333333)
+			.then(timers => done()).catch(done)
 		, 50)); // there's a race condition here...
 
 	it("should wait until messages are received (2 then 1)", function (done) {
 		this.timeout(5000);
-		return setTimeout(done, 2500);
+		return setTimeout(async () => {
+			const trigger1 = await xtralife.api.virtualfs.read(context, domain, user_id, "test-5-1");
+			const trigger2 = await xtralife.api.virtualfs.read(context, domain, user_id, "test-5-2");
+			trigger2["test-5-2"].should.be.below(trigger1['test-5-1']);
+			done();
+		}, 4500);
 	});
 
 	it("should add timer from batch", function (done) {

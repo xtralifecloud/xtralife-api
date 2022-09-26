@@ -28,13 +28,13 @@
     "async": "^3.2.1",
     "bluebird": "^3.7.2",
     "check-types": "^11.1.2",
-    "dtimer": "^0.3.3",
     "fbgraph": "^1.4.4",
     "firebase-admin": "^10.0.2",
     "flat": "^5.0.2",
     "gamecenter-identity-verifier": "^0.1.1",
     "google-auth-library": "^7.14.1",
     "iap": "^1.1.1",
+    "ioredis": "^5.2.3",
     "jsonwebtoken": "^8.5.1",
     "mongodb": "^4.1.2",
     "node-gcm": "^1.0.5",
@@ -46,12 +46,12 @@
     "superagent": "^6.1.0",
     "underscore": "^1.13.1",
     "underscore-contrib": "^0.3.0",
+    "uuid": "^8.3.2",
     "winston": "^3.3.3",
     "xtralife-msg": "^4.0.0"
   },
   "devDependencies": {
     "mocha": "^9.2.0",
-    "redis": "^3.1.2",
     "should": "^13.2.3",
     "xtralife-env": "^4.0.0"
   },

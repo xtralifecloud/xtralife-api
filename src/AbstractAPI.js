@@ -153,7 +153,7 @@ class AbstractAPI {
 						throw new xtralifeerrors.HookError(err.message);
 					}).tap(function (customData) {
 						durationms = Date.now() - durationms;
-						logger.debug(`Handling hook/batch ${domain}.${hookName} finished`, { batchTook: durationms });
+						// logger.debug(`Handling hook/batch ${domain}.${hookName} finished`, { batchTook: durationms });
 						return context.customData = customData;
 					});
 				} else {

@@ -8,11 +8,13 @@ module.exports = {
 				expirySeconds: 2,
 				timerId: 'testTimerFromBatch',
 				description: 'Test',
-				customData: 'test'
+				customData: { verifKey: "testTimerFromBatch" }
 			}, 'timerTrigger');
 		},
-		__timerTrigger: function (params, customData, mod) {
-			console.log('timer ' + params.timerId + ' triggered batch (' + (Date.now() % 10000) + ')');
+
+		__timerTrigger: async function (params, customData, mod) {
+			console.log("--> timer batch triggered: ", params.customData.verifKey);
+			return await this.virtualfs.write(params.domain, params.user_id, params.customData.verifKey, Date.now())
 		},
 		__testkvcreate: function (params, customData, mod) {
 			return this.kv.create('com.clanofthecloud.cloudbuilder.azerty', params.user_id, 'fromBatch', 'works too', {});
@@ -68,10 +70,10 @@ module.exports = {
 				timerId: "timerId",
 				expirySeconds: 2,
 				description: "description",
-				customData: { test: "hello" }
+				customData: { test: "hello", verifKey: "testTimerFromBatch" }
 			};
 
-			return self.timer.add(self.game.getPrivateDomain(), user_id, timerObject, "testRecursiveTimer")
+			return self.timer.add(self.game.getPrivateDomain(), user_id, timerObject, "testRecursiveTimer", )
 				.then(result => {
 					return mod.debug(result);
 				})
