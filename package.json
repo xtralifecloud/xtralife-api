@@ -20,8 +20,8 @@
     "node": ">=v10.18.1"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.87.0",
-    "@aws-sdk/s3-request-presigner": "^3.88.0",
+    "@aws-sdk/client-s3": "3.87.0",
+    "@aws-sdk/s3-request-presigner": "3.88.0",
     "@elastic/elasticsearch": "^5.6.22",
     "apn": "^2.2.0",
     "apple-signin-auth": "^1.5.1",
