@@ -39,19 +39,13 @@ class IndexAPI extends AbstractAPI {
 			objectId,
 			properties,
 			contents
-		}).then(async () => {
-			try{
-				const { body } = await this.elastic.index({
-					type: indexName,
-					index: domain.toLowerCase(),
-					id: objectId,
-					body: document,
-					refresh: true
-				});
-				return body
-			}catch(e){
-				throw new errors.ElasticSearchError(e.meta.body.result, e.meta.body)
-			}
+		}).then(() => {
+			return this.elastic.index({
+				index: domain.toLowerCase() + `.${indexName}`,
+				id: objectId,
+				body: document,
+				refresh: true
+			});
 		});
 	}
 
@@ -63,17 +57,11 @@ class IndexAPI extends AbstractAPI {
 			gamer_id: context.gamer_id,
 			indexName,
 			objectId
-		}).then(async () => {
-			try{
-				const { body } = await this.elastic.get({
-					type: indexName,
-					index: domain.toLowerCase(),
-					id: objectId
-				});
-				return body
-			}catch(e){
-				throw new errors.ElasticSearchError(e.meta.body.result, e.meta.body)
-			}
+		}).then(() => {
+			return this.elastic.get({
+				index: domain.toLowerCase() + `.${indexName}`,
+				id: objectId
+			});
 		});
 	}
 
@@ -90,21 +78,15 @@ class IndexAPI extends AbstractAPI {
 			sort,
 			from,
 			max
-		}).then(async () => {
-			try{
-				const { body } = await this.elastic.search({
-					type: indexName,
-					index: domain.toLowerCase(),
-					q,
-					sort,
-					from,
-					size: max,
-					search_type
-				});
-				return body
-			}catch(e){
-				throw new errors.ElasticSearchError(e.meta.body.result, e.meta.body)
-			}
+		}).then(() => {
+			return this.elastic.search({
+				index: domain.toLowerCase() + `.${indexName}`,
+				q,
+				sort,
+				from,
+				size: max,
+				search_type
+			});
 		});
 	}
 
@@ -119,20 +101,14 @@ class IndexAPI extends AbstractAPI {
 			query,
 			from,
 			max
-		}).then(async () => {
-			try{
-				const { body } = await this.elastic.search({
-					type: indexName,
-					index: domain.toLowerCase(),
-					body: query,
-					from,
-					size: max,
-					search_type
-				});
-				return body
-			}catch(e){
-				throw new errors.ElasticSearchError(e.meta.body.result, e.meta.body)
-			}
+		}).then(() => {
+			return this.elastic.search({
+				index: domain.toLowerCase() + `.${indexName}`,
+				query,
+				from,
+				size: max,
+				search_type
+			});
 		});
 	}
 
@@ -143,18 +119,11 @@ class IndexAPI extends AbstractAPI {
 			gamer_id: context.gamer_id,
 			indexName,
 			objectId
-		}).then(async () => {
-			try {
-				const { body } = await this.elastic.delete({
-					type: indexName,
-					index: domain.toLowerCase(),
-					id: objectId,
-					refresh: true
-				});
-				return body
-			}catch(e){
-				throw new errors.ElasticSearchError(e.meta.body.result, e.meta.body)
-			}
+		}).then(() => {
+			return this.elastic.delete({
+				index: domain.toLowerCase() + `.${indexName}`,
+				id: objectId
+			});
 		});
 	}
 

@@ -33,29 +33,23 @@ describe("Xtralife Index module", function () {
 
 	it("should index a document", () => xtralife.api.index.index(context, domain, indexName, "firstDocumentId", { a: 1, b: 2 }, { string: "This is a string", int: 5 })
 		.then(result => {
-			result.created.should.eql(true);
+			result._shards.successful.should.eql(1)
 		}));
 
 	it("should retrieve a document with get", () => xtralife.api.index.get(context, domain, indexName, "firstDocumentId")
 		.then(result => {
-			result._type.should.eql("test");
+			result._index.should.eql("com.clanofthecloud.cloudbuilder.azerty.test");
 			result._id.should.eql("firstDocumentId");
 		}));
 
 	it("should retrieve a document with search", () => xtralife.api.index.search(context, domain, indexName, "_id: firstDocumentId AND a:1 AND b:2", ["a"])
 		.then(result => {
-			result.hits.total.should.eql(1)
+			result.hits.total.value.should.eql(1)
 		}));
 
-	it("should perform a query", () => xtralife.api.index.query(context, domain, indexName, {
-		"query": {
-			"match": {
-				"_id":  "firstDocumentId"
-			}
-		}
-	}, 0, 10)
+	it("should perform a query", () => xtralife.api.index.query(context, domain, indexName, {match: { _id: "firstDocumentId" }}, 0, 10)
 		.then(result => {
-			result.hits.total.should.eql(1)
+			result.hits.total.value.should.eql(1)
 		}));
 
 

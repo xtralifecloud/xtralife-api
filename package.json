@@ -22,7 +22,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "3.87.0",
     "@aws-sdk/s3-request-presigner": "3.88.0",
-    "@elastic/elasticsearch": "^5.6.22",
+    "@elastic/elasticsearch": "^8.4.0",
     "apn": "^2.2.0",
     "apple-signin-auth": "^1.5.1",
     "async": "^3.2.1",
