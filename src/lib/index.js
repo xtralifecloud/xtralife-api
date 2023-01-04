@@ -41,7 +41,8 @@ class IndexAPI extends AbstractAPI {
 			contents
 		}).then(() => {
 			return this.elastic.index({
-				index: domain.toLowerCase() + `.${indexName}`,
+				index: `${domain}.${indexName}`.toLowerCase(),
+				type: '_doc',
 				id: objectId,
 				body: document,
 				refresh: true
@@ -59,7 +60,8 @@ class IndexAPI extends AbstractAPI {
 			objectId
 		}).then(() => {
 			return this.elastic.get({
-				index: domain.toLowerCase() + `.${indexName}`,
+				index: `${domain}.${indexName}`.toLowerCase(),
+				type: '_doc',
 				id: objectId
 			});
 		});
@@ -80,7 +82,7 @@ class IndexAPI extends AbstractAPI {
 			max
 		}).then(() => {
 			return this.elastic.search({
-				index: domain.toLowerCase() + `.${indexName}`,
+				index: `${domain}.${indexName}`.toLowerCase(),
 				q,
 				sort,
 				from,
@@ -103,8 +105,8 @@ class IndexAPI extends AbstractAPI {
 			max
 		}).then(() => {
 			return this.elastic.search({
-				index: domain.toLowerCase() + `.${indexName}`,
-				query,
+				index: `${domain}.${indexName}`.toLowerCase(),
+				body: query,
 				from,
 				size: max,
 				search_type
@@ -121,7 +123,8 @@ class IndexAPI extends AbstractAPI {
 			objectId
 		}).then(() => {
 			return this.elastic.delete({
-				index: domain.toLowerCase() + `.${indexName}`,
+				index: domain.toLowerCase() + `.${indexName.toLowerCase()}`,
+				type: '_doc',
 				id: objectId
 			});
 		});
