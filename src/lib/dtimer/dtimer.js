@@ -75,11 +75,11 @@ class DTimer extends EventEmitter {
       id = "post-only";
     }
     this._keys = {
-      gl: this._option.ns + ":gl",
-      ch: this._option.ns + ":ch",
-      ei: this._option.ns + ":ei",
-      ed: this._option.ns + ":ed",
-      et: this._option.ns + ":et",
+      gl: "{" + this._option.ns + "}" + ":gl",
+      ch: "{" + this._option.ns + "}" + ":ch",
+      ei: "{" + this._option.ns + "}" + ":ei",
+      ed: "{" + this._option.ns + "}" + ":ed",
+      et: "{" + this._option.ns + "}" + ":et",
     };
     this._id = this._keys.ch + ":" + id; // subscriber channel
     this._maxEvents = this._option.maxEvents;
