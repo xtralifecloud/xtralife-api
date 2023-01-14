@@ -43,7 +43,10 @@ class SocialAPI extends AbstractAPI {
 		this.getFriendsAsync = Promise.promisify(this.getFriends);
 
 		if (xlenv.options.removeUser) {
-			return async.parallel([
+			let iter = async.parallel;
+			if(xlenv.mongodb.aws_documentdb == true)
+				iter = async.series;
+			return iter([
 				cb => {
 					return this.colldomains.createIndex({ "relations.friends": 1 }, cb);
 				},

@@ -24,7 +24,10 @@ class MatchAPI extends AbstractAPI {
 	configure(xtralifeApi, callback) {
 		this.xtralifeApi = xtralifeApi;
 		logger.info("Matches initialized");
-		return async.parallel([
+		let iter = async.parallel;
+		if(xlenv.mongodb.aws_documentdb == true)
+			iter = async.series;
+		return iter([
 			cb => {
 				return this.coll('matches').createIndex({ domain: 1 }, { unique: false }, cb);
 			},

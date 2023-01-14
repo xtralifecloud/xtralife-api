@@ -70,7 +70,10 @@ class ConnectAPI extends AbstractAPI {
 		return xlenv.inject(["=redisClient"], (err, rc) => {
 			this.rc = rc;
 			if (err != null) { return callback(err); }
-			return async.parallel([
+			let iter = async.parallel;
+			if(xlenv.mongodb.aws_documentdb == true)
+				iter = async.series;
+			return iter([
 				// data related to user
 				cb => {
 					return this.collusers().createIndex({ network: 1, networkid: 1 }, { unique: true }, cb);
