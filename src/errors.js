@@ -411,5 +411,5 @@ module.exports = {
 	, PurchaseNotConfirmed, ExternalStoreError, ExternalStoreEnvironmentError
 	, ConcurrentModification, HookRecursionError, HookError, ExternalServerTempError
 	, GameCenterError, MissingGoogleClientID, MissingFirebaseCredentials, MissingSteamCredentials, FacebookError, GoogleError, FirebaseError, SteamError
-	, AppleError, MissingAppleClientID, ElasticSearchError, MissingEpicCredentials
+	, EpicError, AppleError, MissingAppleClientID, ElasticSearchError, MissingEpicCredentials
 };

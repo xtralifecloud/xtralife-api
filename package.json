@@ -22,7 +22,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "3.87.0",
     "@aws-sdk/s3-request-presigner": "3.88.0",
-    "@elastic/elasticsearch": "^7.10.0",
+    "@elastic/elasticsearch": "7.10.0",
     "apn": "^2.2.0",
     "apple-signin-auth": "^1.5.1",
     "async": "^3.2.1",
@@ -45,13 +45,13 @@
     "request": "^2.88.2",
     "superagent": "^6.1.0",
     "underscore": "^1.13.1",
-    "underscore-contrib": "^0.3.0",
-    "uuid": "^8.3.2",
+    "underscore-contrib": "~0.2.2",
+    "uuid": "^9.0.0",
     "winston": "^3.3.3",
     "xtralife-msg": "^4.0.0"
   },
   "devDependencies": {
-    "mocha": "^9.2.0",
+    "mocha": "^10.0.0",
     "should": "^13.2.3",
     "xtralife-env": "^4.0.0"
   },
