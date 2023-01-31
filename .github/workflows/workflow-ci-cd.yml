@@ -1,0 +1,44 @@
+name: CI/CD Workflow
+run-name: ${{ github.ref_name }} release (${{ github.actor }}) > CI/CD Workflow
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  npm_install_test:
+    name: Npm - Install & Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checking out repository
+        uses: actions/checkout@v3
+      - name: Setting up Node
+        uses: actions/setup-node@v3
+        with:
+          cache: npm
+          cache-dependency-path: package-lock.json
+          node-version: 18.12.1
+      - name: Installing dependencies
+        run: npm ci
+      - name: Testing package
+        run: npm test
+
+  npm_publish:
+    name: Npm - Publish
+    needs: npm_install_test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checking out repository
+        uses: actions/checkout@v3
+      - name: Setting up Node + package registry login config
+        uses: actions/setup-node@v3   # also creates a .npmrc file with registry login config inside the runner, which will use a npm automation token set in $NODE_AUTH_TOKEN env
+        with:
+          always-auth: true
+          cache: npm
+          cache-dependency-path: package-lock.json
+          node-version: 18.12.1
+          registry-url: https://registry.npmjs.org
+      - name: Package registry login + publish
+        run: npm publish   # will also login before publishing, using the config in .npmrc
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
