@@ -17,7 +17,7 @@
   "author": "devteam <devteam@xtralife.cloud>",
   "license": "(C) Xtralife.cloud, 2020",
   "engines": {
-    "node": ">=v10.18.1"
+    "node": "^18.13.0"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.87.0",
