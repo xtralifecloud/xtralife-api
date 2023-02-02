@@ -4,7 +4,7 @@
   "description": "Xtralife.cloud business logic shared between components",
   "main": "src/index.js",
   "scripts": {
-    "test": "mocha test/test_*.js"
+    "test": "mocha test/test_*.js --exit"
   },
   "keywords": [
     "backend",
