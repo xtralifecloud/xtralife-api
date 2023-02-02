@@ -75,8 +75,8 @@ describe("Xtralife timer module", function () {
 			timers.testTimer1.should.have.property("expiresInMs");
 			timers.testTimer2.should.have.property("expiresInMs");
 
-			should((90 < timers.testTimer1.expiresInMs && timers.testTimer1.expiresInMs < 100));
-			return should((190 < timers.testTimer2.expiresInMs && timers.testTimer2.expiresInMs < 200));
+			timers.testTimer1.expiresInMs.should.be.aboveOrEqual(50).and.belowOrEqual(100);
+			timers.testTimer2.expiresInMs.should.be.aboveOrEqual(150).and.belowOrEqual(200);
 		}));
 
 
