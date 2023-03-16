@@ -64,8 +64,6 @@ module.exports = {
 			var self = this;
 			var { user_id } = params;
 
-			console.log("Called !");
-
 			var timerObject = {
 				timerId: "timerId",
 				expirySeconds: 2,
