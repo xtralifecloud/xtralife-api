@@ -34,8 +34,8 @@ describe("Xtralife metrics", function () {
 		metric.labels("test").inc()
 	)
 
-	it("should get metrics", () => {
-		const metrics = xtralife.api.game.getMetrics().register.getMetricsAsJSON()
+	it("should get metrics", async () => {
+		const metrics = await xtralife.api.game.getMetrics().register.getMetricsAsJSON()
 		metrics[metrics.length - 1].name.should.eql('test_metric')
 		// @ts-ignore
 		metrics[metrics.length - 1].values[0].value.should.eql(1)
