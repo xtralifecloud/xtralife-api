@@ -53,13 +53,14 @@ class UserAPI extends AbstractAPI {
 		this.xtralifeapi = xtralifeapi;
 		this.domains = this.coll('domains');
 
-		return this.collusers().createIndex({"games.appid": 1}, function (err) {
-			if (err != null) {
+		return this.collusers().createIndex({ "games.appid": 1 })
+			.then(() => {
+				logger.info("User initialized");
+				return callback(null, {});
+			})
+			.catch(err => {
 				return callback(err);
-			}
-			logger.info("User initialized");
-			return callback(err, {});
-		});
+			});
 	}
 
 	afterConfigure(_xtralifeapi, cb) {
@@ -83,19 +84,29 @@ class UserAPI extends AbstractAPI {
 		}
 
 		if (needUpdate) {
-			return this.collusers().updateOne({_id: user._id}, {$set: updated}, (err, result) => {
-				return cb(err, {done: result.modifiedCount, profile: user.profile});
-			});
+			return this.collusers().updateOne({ _id: user._id }, { $set: updated })
+				.then(result => {
+					return cb (null, { done: result.modifiedCount, profile: user.profile });
+				})
+				.catch(err => {
+					return cb(err);
+				});
 		} else {
 			return cb(null, {done: 0});
 		}
+
 	}
 
 	updateProfile(user_id, profile, cb) {
-		return this.collusers().updateOne({_id: user_id}, {$set: {profile}}, (err, result) => {
-			return cb(err, {done: result.modifiedCount, profile});
-		});
+		return this.collusers().updateOne({ _id: user_id }, { $set: { profile } })
+			.then(result => {
+				return cb(null, {done: result.modifiedCount, profile});
+			})
+			.catch(err => {
+				return cb(err);
+			});
 	}
+
 
 	getProfile(user, cb) {
 		return cb(null, user.profile);
@@ -546,12 +557,13 @@ class UserAPI extends AbstractAPI {
 			}
 		}
 
-		return this.collusers().count(filter, (err, count) => {
-			if (err != null) {
+		return this.collusers().count(filter)
+			.then(count => {
+				return cb(null,count);
+			})
+			.catch(err => {
 				return cb(err);
-			}
-			return cb(err, count)
-		})
+			});
 	}
 
 	search(appId, q, skip, limit, cb) {
@@ -566,14 +578,20 @@ class UserAPI extends AbstractAPI {
 		query.games = {$elemMatch: {appid: appId}};
 
 		return this.collusers().find(query, {
-				limit,
-				skip,
-				projection: {
-					password: 0,
-					networksecret: 0
-				}
+			limit,
+			skip,
+			projection: {
+				password: 0,
+				networksecret: 0
 			}
-		).toArray((err, docs) => cb(err, docs));
+		}
+		).toArray()
+			.then(docs => {
+				return cb(null, docs);
+			})
+			.catch(err => {
+				return cb(err);
+			});
 	}
 
 	searchCount(appId, q, cb) {
@@ -587,12 +605,13 @@ class UserAPI extends AbstractAPI {
 		};
 		query.games = {$elemMatch: {appid: appId}};
 
-		return this.collusers().count(query, (err, count) => {
-			if (err != null) {
+		return this.collusers().count(query)
+			.then(count => {
+				return cb(null, count);
+			})
+			.catch(err => {
 				return cb(err);
-			}
-			return cb(err, count)
-		})
+			});
 	}
 }
 

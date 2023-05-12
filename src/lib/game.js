@@ -55,10 +55,8 @@ class GameAPI extends AbstractAPI {
 		return xlenv.inject(["xtralife.games"], (err, xtralifeGames) => {
 			if (err != null) { cb(err); }
 
-			return this.collgame().createIndex({ appid: 1 }, { unique: true }, err => {
-				if (err != null) { return cb(err); }
-
-
+			return this.collgame().createIndex({ appid: 1 }, { unique: true })
+			.then(() => {
 				for (let appid in xtralifeGames) { const game = xtralifeGames[appid]; this.dynGames[appid] = game; }
 				this.appsForDomain = {};
 
@@ -83,6 +81,9 @@ class GameAPI extends AbstractAPI {
 						, true);
 				} // silent
 					, err => cb(err));
+			})
+			.catch((err) => {
+				if (callback) callback(err);
 			});
 		});
 	}
@@ -165,13 +166,15 @@ class GameAPI extends AbstractAPI {
 			domain = this.getPrivateDomain(appid);
 		}
 
-		return this.collgame().findOne({ appid }, (err, game) => {
-			if (err != null) { return cb(err); }
-
-			return this.collDomainDefinition.findOne({ domain }, { projection: { leaderboards: 1 } }, function (err, domainDefinition) {
-				if (err != null) { return cb(err); }
-				game.leaderboards = (domainDefinition != null ? domainDefinition.leaderboards : undefined) || {};
-				return cb(null, game);
+		return this.collusers().findOne({appid})
+			.then(game => {
+				return this.collDomainDefinition.findOne({ domain }, { projection: { leaderboards: 1 } })
+					.then(domainDefinition => {
+						game.leaderboards = (domainDefinition != null ? domainDefinition.leaderboards : undefined) || {};
+						return cb(null, game);
+					})
+			.catch(err => {
+					return cb(err);
 			});
 		});
 	}

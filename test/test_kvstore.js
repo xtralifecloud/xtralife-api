@@ -37,21 +37,19 @@ describe("Xtralife KV store module", function () {
 		});
 	});
 
-	it('should create 2 new gamers', function (done) {
+	it('should create 2 new gamers', function () {
 		let profile = {
 			displayName: "Test user 1",
 			lang: "en"
 		};
 		return xtralife.api.connect.register(game, "anonymous", null, null, profile, function (err, user) {
 			user_id = user._id;
-
 			profile = {
 				displayName: "Test user 2",
 				lang: "en"
 			};
 			return xtralife.api.connect.register(game, "anonymous", null, null, profile, function (err, user) {
 				user_id2 = user._id;
-				return done();
 			});
 		});
 	});
@@ -59,14 +57,12 @@ describe("Xtralife KV store module", function () {
 	it('should create a new key', () => xtralife.api.kv.create(context, domain, user_id, 'hello', 'world', {})
 		.then(result => result.ok.should.eql(1)));
 
-	it('should send a duplicate key error if attempting to re-create the key', function (done) {
-		xtralife.api.kv.create(context, domain, user_id, 'hello', 'world', {})
-			.catch(function (err) {
-				err.code.should.eql(11000);
-				return done();
-			});
-		return null;
-	});
+		it('should send a duplicate key error if attempting to re-create the key', function () {
+			return xtralife.api.kv.create(context, domain, user_id, 'hello', 'world', {})
+				.catch(function (err) {
+					err.code.should.eql(11000);
+				});
+		});
 
 	it('should read the key', () => xtralife.api.kv.get(context, domain, user_id, 'hello')
 		.then(value => value.value.should.eql('world')));

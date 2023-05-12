@@ -36,12 +36,15 @@ class VirtualfsAPI extends AbstractAPI {
 		this.parent = parent;
 		this.domains = this.coll('domains');
 
-		this.domains.createIndex({ domain: 1, user_id: 1 }, { unique: true }, function (err) {
-			if (err != null) { return callback(err); }
-			logger.info("Virtualfs initialized");
+		this.domains.createIndex({ domain: 1, user_id: 1 }, { unique: true })
+			.then(() => {
+				logger.info("Virtualfs initialized");
+				return callback(null, {});
+			})
+			.catch(err => {
+				return callback(err);
+			});
 
-			return callback(err, {});
-		});
 
 		if (xlenv.AWS && xlenv.AWS.S3 && xlenv.AWS.S3.credentials && xlenv.AWS.S3.region) {
 			this.s3bucket = new S3Client({region: xlenv.AWS.S3.region, credentials: xlenv.AWS.S3.credentials});

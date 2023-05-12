@@ -28,11 +28,14 @@ class GameVFSAPI extends AbstractAPI {
 		this.readAsync = Promise.promisify(this.read, { context: this });
 		this.writeAsync = Promise.promisify(this.write, { context: this });
 
-		return this.domains.createIndex({ domain: 1 }, function (err) {
-			if (err != null) { return callback(err); }
-			logger.info("Gamevfs initialized");
-			return callback(err, {});
-		});
+		return this.domains.createIndex({ domain: 1 })
+			.then(() => {
+				logger.info("Gamevfs initialized");
+				if (callback) return callback(null, {});
+			})
+			.catch((err) => {
+				if (callback) return callback(err);
+			});
 	}
 
 	// remove common data
@@ -57,10 +60,13 @@ class GameVFSAPI extends AbstractAPI {
 			field[(key == null) ? 'fs' : `fs.${key}`] = 1;
 		}
 
-		return this.domains.findOne(query, { projection: field }, (err, value) => {
-			if (err != null) { return callback(err); }
-			return callback(null, ((value != null) && (value.fs != null) ? value.fs : {}));
-		});
+		return this.domains.findOne(query, { projection: field })
+			.then(value => {
+				return callback(null, ((value != null) && (value.fs != null) ? value.fs : {}));
+			})
+			.catch(err => {
+				return callback(err);
+			});
 	}
 
 	write(domain, key, value, callback) {
@@ -81,10 +87,13 @@ class GameVFSAPI extends AbstractAPI {
 			for (let k in key) { value = key[k]; set[`fs.${k}`] = value; }
 		}
 
-		return this.domains.updateOne(query, { $set: set }, { upsert: true }, (err, result) => {
-			if (err != null) { return callback(err); }
-			return callback(null, result.modifiedCount);
-		});
+		return this.domains.updateOne(query, { $set: set }, { upsert: true })
+			.then(result => {
+				return callback(null, result.modifiedCount);
+			})
+			.catch(err => {
+				return callback(err);
+			});
 	}
 
 	delete(domain, key, callback) {
@@ -97,11 +106,14 @@ class GameVFSAPI extends AbstractAPI {
 
 		const unset = {};
 		unset[(key == null) ? 'fs' : `fs.${key}`] = "";
-		return this.domains.updateOne(query, { $unset: unset }, (err, result) => {
-			if (err != null) { return callback(err); }
 
-			return callback(null, result.modifiedCount);
-		});
+		return this.domains.updateOne(query, { $unset: unset })
+			.then(result => {
+				return callback(null, result.modifiedCount);
+			})
+			.catch(err => {
+				return callback(err);
+			});
 	}
 
 	incr(context, domain, key, amount) {

@@ -30,23 +30,26 @@ class LeaderboardAPI extends AbstractAPI {
 		this.colldomains = this.coll('domains');
 		this.scoreAsync = Promise.promisify(this.score, { context: this });
 
-		return async.parallel([
-			cb => {
-				return this.domainDefinition.createIndex({ domain: 1 }, { unique: true }, cb);
-			},
-			cb => {
-				return xlenv.inject(["=redisClient"], (err, rc) => {
-					this.rc = rc;
-					if (err != null) { return cb(err); }
-					return cb(null);
+		return Promise.all([
+			this.domainDefinition.createIndex({ domain: 1 }, { unique: true }),
+			new Promise((resolve, reject) => {
+				xlenv.inject(["=redisClient"], (err, rc) => {
+					if (err) {
+						reject(err);
+					} else {
+						this.rc = rc;
+						resolve();
+					}
 				});
-			}
-
-		], function (err) {
-			if (err != null) { return callback(err); }
-			logger.info("Leaderboard initialized");
-			return callback();
-		});
+			})
+		])
+			.then(() => {
+				logger.info("Leaderboard initialized");
+				if (callback) return callback();
+			})
+			.catch((err) => {
+				if (callback) return callback(err);
+			});
 	}
 
 	afterConfigure(_xtralifeapi, cb) {
@@ -59,23 +62,23 @@ class LeaderboardAPI extends AbstractAPI {
 
 	onDeleteUser(userid, cb) {
 		logger.debug(`delete user ${userid.toString()} for leaderboard`);
-		return this.colldomains.find({ user_id: userid, lb: { "$exists": true } }, { domain: 1, lb: 1 }).toArray((err, docs) => {
-			if (docs == null) { return cb(err); }
-			if (err != null) { return cb(err); }
-			return async.forEach(docs, (item, localcb) => {
-				return async.forEach(Object.keys(item.lb), (board, innercb) => {
-					const key = `${item.domain}:leaderboards:${board}`;
-					return this.rc.zrem(key, userid.toString(), (err, out) => {
-						logger.warn(`delete lb.${board} for user ${userid.toString()} : ${out}, ${err} `);
-						return innercb(err);
-					});
-				}
-					, err => localcb(err));
-			}
-				, err => cb(err));
-		});
+		this.colldomains.find({ user_id: userid, lb: { "$exists": true } }, { domain: 1, lb: 1 }).toArray()
+			.then(docs => {
+				if (docs == null) { return cb(err); }
+				return async.forEach(docs, (item, localcb) => {
+					return async.forEach(Object.keys(item.lb), (board, innercb) => {
+						const key = `${item.domain}:leaderboards:${board}`;
+						return this.rc.zrem(key, userid.toString())
+							.then((out) => {
+								logger.warn(`delete lb.${board} for user ${userid.toString()} : ${out}`);
+								return innercb();
+							})
+							.catch(err => innercb(err));
+					}, err => localcb(err));
+				}, err => cb(err));
+			})
+			.catch(err => cb(err));
 	}
-
 
 	_describeScore(context, domain, board, scores, rank, card, page, count, cb) {
 		const before = new Date();
@@ -92,15 +95,12 @@ class LeaderboardAPI extends AbstractAPI {
 			{ user_id: 1 };
 		fields[`lb.${board}`] = 1;
 
-		return this.colldomains.find(query, { projection: fields }).toArray((err, userscores) => {
-			if (err != null) { return cb(err); }
+		return this.colldomains.find(query, { projection: fields }).toArray().then((userscores) => {
 			if (userscores == null) { return cb(null, []); }
 
 			return this.xtralifeapi.social.addProfile(context, domain, userscores, "user_id")
 				.then(function (scoreprofiles) {
-
 					const orderscores = [];
-
 					scoreprofiles = _.indexBy(scoreprofiles, item => item.user_id);
 
 					_.each(scores, function (user) {
@@ -126,7 +126,10 @@ class LeaderboardAPI extends AbstractAPI {
 
 					return cb(null, result);
 				}).catch(cb);
-		});
+		})
+			.catch((err) => {
+				return cb(err)
+			});
 	}
 
 
@@ -179,55 +182,63 @@ class LeaderboardAPI extends AbstractAPI {
 
 		// we should really cache this, to avoid writing each time... except if mongodb skips the write already
 		// it does grow the oplog with no reason, make replication slower, cause SSD access, etc...
-		return this.domainDefinition.updateOne({ domain }, { $set: set }, { upsert: true }, (err, result) => {
-			if (err != null) { return cb(err); }
 
-			const newscore = {};
-			newscore[`lb.${board}`] = {
-				timestamp: new Date(),
-				score,
-				info
-			};
+		return this.domainDefinition.updateOne({ domain }, { $set: set }, { upsert: true })
+			.then(result => {
+				const newscore = {};
+				newscore[`lb.${board}`] = {
+					timestamp: new Date(),
+					score,
+					info
+				};
 
-			const query = {
-				domain,
-				user_id
-			};
+				const query = {
+					domain,
+					user_id
+				};
 
-			const field = {};
-			field[`lb.${board}`] = 1;
+				const field = {};
+				field[`lb.${board}`] = 1;
 
-			//console.log "board=#{board}, order=#{order}, score=#{score}, info=#{info}"
-			return this.colldomains.findOne(query, { projection: field }, (err, doc) => {
-				let key;
-				if (err != null) { return cb(err); }
-				if ((!force) && ((__guard__(__guard__(doc != null ? doc.lb : undefined, x1 => x1[board]), x => x.score) != null) && (((order === "hightolow") && (doc.lb[board].score >= score)) || ((order === "lowtohigh") && (doc.lb[board].score <= score))))) {
-					key = `${domain}:leaderboards:${board}`;
-					return this._getRank(key, score, order, (err, rank) => {
-						return cb(null, { done: 0, msg: "this is not the highest score", rank });
-					});
-				} else {
-					return this.colldomains.updateOne(query, { $set: newscore }, { upsert: true }, (err, doc) => {
-						if (err != null) { return cb(err); }
-						key = `${domain}:leaderboards:${board}`;
-						return this.rc.zadd(key, score, user_id.toString(), (err, out) => {
-							if (err != null) { return cb(err); }
-							if (order === "hightolow") {
-								return this.rc.zrevrank(key, user_id.toString(), (err, rank) => {
-									rank++;
-									return cb(err, { done: 1, rank });
+				//console.log "board=#{board}, order=#{order}, score=#{score}, info=#{info}"
+				return this.colldomains.findOne(query, { projection: field })
+					.then(doc => {
+						let key;
+						if ((!force) && ((__guard__(__guard__(doc != null ? doc.lb : undefined, x1 => x1[board]), x => x.score) != null) && (((order === "hightolow") && (doc.lb[board].score >= score)) || ((order === "lowtohigh") && (doc.lb[board].score <= score))))) {
+							key = `${domain}:leaderboards:${board}`;
+							return this._getRank(key, score, order, (err, rank) => {
+								return cb(null, { done: 0, msg: "this is not the highest score", rank });
+							});
+						} else {
+							return this.colldomains.updateOne(query, { $set: newscore }, { upsert: true }).then(doc => {
+								key = `${domain}:leaderboards:${board}`;
+								return this.rc.zadd(key, score, user_id.toString(), (err, out) => {
+									if (err != null) { return cb(err); }
+									if (order === "hightolow") {
+										return this.rc.zrevrank(key, user_id.toString(), (err, rank) => {
+											rank++;
+											return cb(err, { done: 1, rank });
+										});
+									} else {
+										return this.rc.zrank(key, user_id.toString(), (err, rank) => {
+											rank++;
+											return cb(err, { done: 1, rank });
+										});
+									}
 								});
-							} else {
-								return this.rc.zrank(key, user_id.toString(), (err, rank) => {
-									rank++;
-									return cb(err, { done: 1, rank });
+							})
+								.catch(err => {
+									return cb(err);
 								});
-							}
-						});
+						}
+					})
+					.catch(err => {
+						return cb(err);
 					});
-				}
+			})
+			.catch(err => {
+				return cb(err);
 			});
-		});
 	}
 
 	getrank(domain, board, score, cb) {
@@ -237,22 +248,21 @@ class LeaderboardAPI extends AbstractAPI {
 			"score must be number": check.number(score),
 			"callback must be a function": check.function(cb)
 		}));
-
-		return this.domainDefinition.findOne({ domain }, { projection: { "leaderboards": 1 } }, (err, _domainDefinition) => {
-			if (err != null) { return cb(err); }
-
-			if (_domainDefinition == null) { return cb(new errors.MissingScore); }
-			if (_domainDefinition.leaderboards == null) { return cb(new errors.MissingScore); }
-			if (_domainDefinition.leaderboards[board] == null) { return cb(new errors.MissingScore); }
-
-			const {
-				order
-			} = _domainDefinition.leaderboards[board];
-
-			const key = `${domain}:leaderboards:${board}`;
-			return this._getRank(key, score, order, cb);
-		});
+	
+		return this.domainDefinition.findOne({ domain }, { projection: { "leaderboards": 1 } })
+			.then(_domainDefinition => {
+				if (_domainDefinition == null) { return cb(new errors.MissingScore()); }
+				if (_domainDefinition.leaderboards == null) { return cb (new errors.MissingScore()); }
+				if (_domainDefinition.leaderboards[board] == null) { return cb (new errors.MissingScore()); }
+	
+				const { order } = _domainDefinition.leaderboards[board];
+				const key = `${domain}:leaderboards:${board}`;
+				return this._getRank(key, score, order, cb);
+			})
+			.then(rank => cb(null, rank))
+			.catch(err => cb(err));
 	}
+	
 
 
 	deleteScore(domain, user_id, board, cb) {
@@ -266,12 +276,15 @@ class LeaderboardAPI extends AbstractAPI {
 		const delscore = {};
 		delscore[`lb.${board}`] = "";
 
-		return this.colldomains.updateOne({ domain, user_id }, { $unset: delscore }, { upsert: true }, (err, doc) => {
-			if (err != null) { return cb(err); }
+		return this.colldomains.updateOne({ domain, user_id }, { $unset: delscore }, { upsert: true }).then(doc => {
 			const key = `${domain}:leaderboards:${board}`;
-			return this.rc.zrem(key, user_id.toString(), (err, out) => {
-				return cb(err, { done: out === 1 });
+			return this.rc.zrem(key, user_id.toString()).then(out => {
+				return cb(null, { done: out === 1 });
+			}).catch(err => {
+				return cb(err);
 			});
+		}).catch(err => {
+			return cb(err);
 		});
 	}
 
@@ -316,10 +329,13 @@ class LeaderboardAPI extends AbstractAPI {
 				// 3) Remove the board from all players
 				const delscore = {};
 				delscore[`lb.${board}`] = "";
-				return this.colldomains.updateOne({ domain }, { $unset: delscore }, (err, result) => {
-					if (err != null) { return cb(err); }
-					return cb(null, { done: 1 });
-				});
+				return this.colldomains.updateOne({ domain }, { $unset: delscore })
+					.then(result => {
+						return cb(null, { done: 1 });
+					})
+					.catch(err => {
+						return cb(err);
+					});
 			});
 		});
 	}
@@ -364,9 +380,7 @@ class LeaderboardAPI extends AbstractAPI {
 			"count must be a postive": check.positive(count)
 		}));
 
-		return this.domainDefinition.findOne({ domain }, { projection: { "leaderboards": 1 } }, (err, _domainDefinition) => {
-			if (err != null) { return cb(err); }
-
+		return this.domainDefinition.findOne({ domain }, { projection: { "leaderboards": 1 } }).then((_domainDefinition) => {
 			if (_domainDefinition == null) { return cb(new errors.MissingScore); }
 			if (_domainDefinition.leaderboards == null) { return cb(new errors.MissingScore); }
 			if (_domainDefinition.leaderboards[board] == null) { return cb(new errors.MissingScore); }
@@ -410,6 +424,8 @@ class LeaderboardAPI extends AbstractAPI {
 					});
 				}
 			});
+		}).catch(err => {
+			cb(err)
 		});
 	}
 
@@ -429,56 +445,58 @@ class LeaderboardAPI extends AbstractAPI {
 		const resp = {};
 		resp[board] = [];
 
-		return this.domainDefinition.findOne({ domain }, { projection: { "leaderboards": 1 } }, (err, _domainDefinition) => {
-			if (err != null) { return cb(err); }
+		return this.domainDefinition.findOne({ domain }, { projection: { "leaderboards": 1 } })
+			.then(_domainDefinition => {
 
-			if (_domainDefinition == null) { return cb(new errors.MissingScore); }
-			if (_domainDefinition.leaderboards == null) { return cb(new errors.MissingScore); }
-			if (_domainDefinition.leaderboards[board] == null) { return cb(new errors.MissingScore); }
+				if (_domainDefinition == null) { return cb(new errors.MissingScore()); }
+				if (_domainDefinition.leaderboards == null) { return cb (new errors.MissingScore()); }
+				if (_domainDefinition.leaderboards[board] == null) { return cb (new errors.MissingScore()); }
 
-			({
-				order
-			} = _domainDefinition.leaderboards[board]);
+				({ order } = _domainDefinition.leaderboards[board]);
 
-			const field = {};
-			field[`lb.${board}`] = 1;
-			field["user_id"] = 1;
-			const query =
-				{ domain };
-			query[`lb.${board}.score`] = { "$exists": true };
-			query["$or"] = [{ "relations.friends": user_id }, { user_id }];
+				const field = {};
+				field[`lb.${board}`] = 1;
+				field["user_id"] = 1;
+				const query =
+					{ domain };
+				query[`lb.${board}.score`] = { "$exists": true };
+				query["$or"] = [{ "relations.friends": user_id }, { user_id }];
 
-			return this.colldomains.find(query, field).toArray((err, userscores) => {
+				return this.colldomains.find(query, field).toArray();
+			})
+			.then(userscores => {
 				let cmd, each;
-				if (err != null) { return cb(err); }
 				if (userscores == null) { return cb(null, resp); }
 
 				const key = `${domain}:leaderboards:${board}`;
 				if (order === "hightolow") { cmd = "zrevrank"; } else { cmd = "zrank"; }
 				const list = [];
 				for (each of Array.from(userscores)) { list.push([cmd, key, each.user_id.toString()]); }
-				return this.rc.multi(list).exec((err, replies) => {
-					if (err != null) { return cb(err); }
-					if (replies == null) { return cb(new errors.MissingScore); }
-					for (let i = 0; i < userscores.length; i++) { each = userscores[i]; each.rank = replies[i] + 1; }
-					return this.xtralifeapi.social.addProfile(context, domain, userscores, "user_id")
-						.then(function (scoreprofiles) {
-							//nicer response
-							_.each(scoreprofiles, function (item, index) {
-								item.score = item.lb[board];
-								item.gamer_id = item.user_id;
-								delete item._id;
-								delete item.lb;
-								return delete item.user_id;
-							});
 
-							resp[board] = _.sortBy(scoreprofiles, item => item.rank);
+				return this.rc.multi(list).exec()
+					.then(replies => {
+						if (replies == null) { return cb ( new errors.MissingScore()); }
 
-							return cb(null, resp);
-						}).catch(cb);
-				});
-			});
-		});
+						for (let i = 0; i < userscores.length; i++) { each = userscores[i]; each.rank = replies[i] + 1; }
+
+						return this.xtralifeapi.social.addProfile(context, domain, userscores, "user_id");
+					})
+					.then(scoreprofiles => {
+						// nicer response
+						_.each(scoreprofiles, function (item, index) {
+							item.score = item.lb[board];
+							item.gamer_id = item.user_id;
+							delete item._id;
+							delete item.lb;
+							return delete item.user_id;
+						});
+
+						resp[board] = _.sortBy(scoreprofiles, item => item.rank);
+
+						return cb(null, resp);
+					});
+			})
+			.catch(cb);
 	}
 
 
@@ -494,10 +512,9 @@ class LeaderboardAPI extends AbstractAPI {
 
 		const resp = {};
 		resp[board] = [];
-
-		return this.domainDefinition.findOne({ domain }, { projection: { "leaderboards": 1 } }, (err, _domainDefinition) => {
-			if (err != null) { return cb(err); }
-
+	
+		this.domainDefinition.findOne({ domain }, { projection: { "leaderboards": 1 } })
+		.then(_domainDefinition => {
 			if (_domainDefinition == null) { return cb(new errors.MissingScore); }
 			if (_domainDefinition.leaderboards == null) { return cb(new errors.MissingScore); }
 			if (_domainDefinition.leaderboards[board] == null) { return cb(new errors.MissingScore); }
@@ -513,20 +530,20 @@ class LeaderboardAPI extends AbstractAPI {
 				{ domain };
 			query[`lb.${board}.score`] = { "$exists": true };
 			query["user_id"] = { "$in": users };
-
-			return this.colldomains.find(query, field).toArray((err, userscores) => {
+	
+			return this.colldomains.find(query, field).toArray()
+			.then(userscores => {
 				let cmd, each;
-				if (err != null) { return cb(err); }
 				if (userscores == null) { return cb(null, resp); }
 
 				const key = `${domain}:leaderboards:${board}`;
 				if (order === "hightolow") { cmd = "zrevrank"; } else { cmd = "zrank"; }
 				const list = [];
 				for (each of Array.from(userscores)) { list.push([cmd, key, each.user_id.toString()]); }
-				return this.rc.multi(list).exec((err, replies) => {
-					if (err != null) { return cb(err); }
-					if (replies == null) { return cb(new errors.MissingScore); }
-
+				return this.rc.multi(list).exec()
+				.then(replies => {
+					if (replies == null) { return cb (new errors.MissingScore); }
+	
 					_.each(userscores, function (item, index) {
 						item.rank = replies[index] + 1;
 						item.score = item.lb[board];
@@ -535,14 +552,19 @@ class LeaderboardAPI extends AbstractAPI {
 						delete item.lb;
 						return delete item.user_id;
 					});
-
+	
 					resp[board] = _.sortBy(userscores, item => item.rank);
-
+	
 					return cb(null, resp);
-				});
-			});
-		});
+				})
+				.catch(cb);
+			})
+			.catch(cb);
+		})
+		.catch(cb);
 	}
+	
+
 
 
 	bestscores(domain, user_id, cb) {
@@ -551,13 +573,12 @@ class LeaderboardAPI extends AbstractAPI {
 			"user_id must be an ObjectID": check.objectid(user_id)
 		}));
 
-		return this.colldomains.findOne({ domain, user_id }, { projection: { lb: 1 } }, (err, doc) => {
-			if (err != null) { return cb(err); }
+		return this.colldomains.findOne({ domain, user_id }, { projection: { lb: 1 } }).then((doc) => {
 			if ((doc != null ? doc.lb : undefined) == null) { return cb(null, {}); }
 
-			return this.domainDefinition.findOne({ domain }, { projection: { "leaderboards": 1 } }, (err, gamelb) => {
-				if (err != null) { return cb(err); }
-				return async.forEach(Object.keys(doc.lb)
+			return this.domainDefinition.findOne({ domain }, { projection: { "leaderboards": 1 } })
+				.then((gamelb) => {
+					return async.forEach(Object.keys(doc.lb)
 					, (board, localcb) => {
 						const key = `${domain}:leaderboards:${board}`;
 						if (__guard__(gamelb != null ? gamelb.leaderboards : undefined, x => x[board]) == null) { return localcb(null); }
@@ -569,16 +590,22 @@ class LeaderboardAPI extends AbstractAPI {
 								return localcb(null);
 							});
 						} else {
-							return this.rc.zrank(key, user_id.toString(), (err, rankl) => {
-								if (err != null) { return localcb(err); }
-								doc.lb[board].order = "lowtohigh";
-								doc.lb[board].rank = rankl + 1;
-								return localcb(null);
-							});
-						}
-					}
-					, err => cb(err, doc.lb));
-			});
+							{
+								return this.rc.zrank(key, user_id.toString(), (err, rankl) => {
+									if (err != null) { return localcb(err); }
+									doc.lb[board].order = "lowtohigh";
+									doc.lb[board].rank = rankl + 1;
+									return localcb(null);
+								});
+							}
+					}});
+				})
+				.then(() => {
+					return cb(null, doc.lb);
+				})
+				.catch((err) => {
+					return cb(err, doc.lb);
+				});
 		});
 	}
 

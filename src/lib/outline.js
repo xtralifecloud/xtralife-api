@@ -55,28 +55,30 @@ class OutlineAPI extends AbstractAPI {
 		domains.push(privdom);
 
 		//TODO remove "gameRelated" section when new route available
-		return this.collusers().findOne({ _id: user_id }, (err, global) => {
-			if (err != null) { return cb(err); }
-			delete global._id;
-			delete global.networksecret;
-			const outline = global;
-			return this.colldomains().find({ domain: { "$in": domains }, user_id }).toArray((err, docs) => {
-				if (err != null) { return cb(err); }
-				for (let doc of Array.from(docs)) {
-					delete doc._id;
-					delete doc.user_id;
-					if (doc.domain === privdom) { doc.domain = "private"; }
-				}
+		return this.collusers().findOne({ _id: user_id })
+			.then(global => {
+				delete global._id;
+				delete global.networksecret;
+				const outline = global;
+				return this.colldomains().find({ domain: { "$in": domains }, user_id }).toArray().then((docs) => {
+					for (let doc of Array.from(docs)) {
+						delete doc._id;
+						delete doc.user_id;
+						if (doc.domain === privdom) { doc.domain = "private"; }
+					}
 
-				// TODO remove in next release !
-				//if doc.domain == "private"
-				//	outline.gameRelated = doc
-				//	delete outline.gameRelated.domain
+					// TODO remove in next release !
+					//if doc.domain == "private"
+					//	outline.gameRelated = doc
+					//	delete outline.gameRelated.domain
 
-				outline.domains = docs;
-				return cb(err, outline);
+					outline.domains = docs;
+					return cb(null, outline);
+				});
+			})
+			.catch(err => {
+				return cb(err);
 			});
-		});
 	}
 
 	get(game, user_id, domains, cb) {

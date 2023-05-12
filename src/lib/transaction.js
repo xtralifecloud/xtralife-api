@@ -27,23 +27,28 @@ class TransactionAPI extends AbstractAPI {
 		this.domainsColl = this.coll('domains');
 		this.txColl = this.coll('transactions');
 
-		return async.parallel([
-			cb => {
-				return this.domainsColl.createIndex({ domain: 1, user_id: 1 }, { unique: true }, cb);
-			},
-			cb => {
-				return this.txColl.createIndex({ domain: 1, userid: 1, ts: -1 }, cb);
-			}
-
-		], callback);
+		return Promise.all([
+			this.domainsColl.createIndex({ domain: 1, user_id: 1 }, { unique: true }),
+			this.txColl.createIndex({ domain: 1, userid: 1, ts: -1 })
+		])
+			.then(() => {
+				if (callback) callback(null);
+			})
+			.catch((err) => {
+				if (callback) callback(err);
+			});
 	}
 
 	// remove common data
 	onDeleteUser(userid, cb) {
-		return this.txColl.deleteMany({ userid }, (err, result) => {
-			logger.warn(`removed transactions ${userid} : ${result.modifiedCount} , ${err} `);
-			return cb(null);
-		});
+		return this.txColl.deleteMany({ userid })
+			.then(result => {
+				logger.warn(`removed transactions ${userid} : ${result.modifiedCount}`);
+				return cb(null);
+			})
+			.catch(err => {
+				return cb(err);
+			});
 	}
 
 	// transaction [{unit: amount}]
@@ -107,14 +112,15 @@ class TransactionAPI extends AbstractAPI {
 							return [adjustedBalance, []];
 						} else { // Check for achievements if requested to do so
 							return this.xtralifeapi.achievement.checkTriggeredAchievements(context, user_id, domain, updatedDomain, balance, adjustedBalance, user_achievements)
-								.spread((triggeredAchievements, updatedBalance) => {
+								.then((result) => {
+									const [triggeredAchievements, updatedBalance] = result;
 									if (updatedBalance != null) { adjustedBalance = updatedBalance; }
 									return [adjustedBalance, triggeredAchievements];
 								});
 						}
 					})
-
-					.spread((adjustedBalance, triggeredAchievements) => {
+					.then((result) => {
+						const [adjustedBalance, triggeredAchievements] = result;
 						return this.handleHook("after-transaction", context, domain, {
 							domain,
 							user_id,
@@ -141,13 +147,12 @@ class TransactionAPI extends AbstractAPI {
 			user_id
 		}).then(() => {
 			return this._getDomain(domain, user_id, { balance: 1 });
-		})
-			.spread(balance => {
-				return this.handleHook("after-balance", context, domain, {
-					domain,
-					user_id
-				}).return(balance);
-			});
+		}).then(([balance]) => {
+			return this.handleHook("after-balance", context, domain, {
+				domain,
+				user_id
+			}).return(balance);
+		});
 	}
 
 	_checkTransaction(transaction) {
@@ -189,28 +194,23 @@ class TransactionAPI extends AbstractAPI {
 
 		const cursor = this.txColl.find(query);
 		cursor.sort({ ts: -1 });
-		return cursor.count(function (err, count) {
-			if (err != null) {
-				logger.error(err, 'error in txHistory.find');
+
+		cursor.count().
+			then((count) => {
+				return cursor.skip(skip).limit(limit).toArray().then((transactions) => {
+					for (let each of Array.from(transactions)) {
+						(function (each) {
+							delete each._id;
+							return delete each.userid;
+						})(each);
+					}
+					return callback(null, { transactions, count });
+				});
+			})
+			.catch((err) => {
+				logger.error(err, 'error in txHistory.find or txHistory.find.toArray');
 				return callback(err);
-			}
-
-			return cursor.skip(skip).limit(limit).toArray(function (err, transactions) {
-				if (err != null) {
-					logger.error(err, 'error in txHistory.find.toArray');
-					return callback(err);
-				}
-
-				for (let each of Array.from(transactions)) {
-					(function (each) {
-						delete each._id;
-						return delete each.userid;
-					})(each);
-				}
-
-				return callback(null, { transactions, count });
 			});
-		});
 	}
 
 	// returns the units in balance where balance is not high enough for transaction

@@ -40,14 +40,13 @@ describe("Xtralife JWT token issuance", function () {
 		});
 	});
 
-	before('should create a new gamer', function (done) {
+	before('should create a new gamer', function () {
 		const profile = {
 			displayName: "Test user 1",
 			lang: "en"
 		};
 		return xtralife.api.connect.register(game, "anonymous", null, null, profile, function (err, user) {
 			user_id = user._id;
-			return done();
 		});
 	});
 

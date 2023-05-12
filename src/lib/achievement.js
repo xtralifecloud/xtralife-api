@@ -22,15 +22,14 @@ class AchievementAPI extends AbstractAPI {
 
 	configure(xtralifeApi, callback) {
 		this.xtralifeApi = xtralifeApi;
-		return async.parallel([
-			cb => {
-				return this.coll('achievements').createIndex({ domain: 1 }, { unique: true }, cb);
-			}
-		], function (err) {
-			if (err != null) { return callback(err); }
-			logger.info("Achievements initialized");
-			return callback();
-		});
+		return this.coll('achievements').createIndex({ domain: 1 }, { unique: true })
+			.then(() => {
+				logger.info("Achievements initialized");
+				if (callback) callback(null);
+			})
+			.catch((err) => {
+				if (callback) callback(err);
+			});
 	}
 
 	// remove common data
@@ -116,7 +115,7 @@ class AchievementAPI extends AbstractAPI {
 										})(tx);
 									}
 
-									return promiseChain.spread(latestBalance => {
+									return promiseChain.then(([latestBalance]) => {
 										return _postResults(triggeredAchievements, latestBalance);
 									});
 								} else {
@@ -144,6 +143,9 @@ class AchievementAPI extends AbstractAPI {
 						for (let name in achievements) { const ach = achievements[name]; resultAchievements[name] = this._enrichAchievementDefinitionForUser(name, ach, domain); }
 						return resultAchievements;
 					});
+			})
+			.catch(error => {
+				return error
 			});
 	}
 
@@ -206,7 +208,11 @@ class AchievementAPI extends AbstractAPI {
 		return achColl.findOneAndUpdate({ domain }, { $set: { definitions: achievements } }, { upsert: true, returnDocument: "after" })
 			.then(result => {
 				return result.value;
-			});
+			})
+			.catch(err => {
+				return err;
+			}
+			);
 	}
 
 	// Takes an achievement definition as well as a domain and makes something returnable to the user when querying the status of achievements

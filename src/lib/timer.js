@@ -102,6 +102,7 @@ class TimerAPI extends AbstractAPI {
 					this.timersColl = this.coll('timers');
 					return this.timersColl.createIndex({ domain: 1, user_id: 1 }, { unique: true })
 						.then(() => {
+							logger.info(`TIMER initialized`);
 							return callback(null);
 						});
 				}).catch(callback);
@@ -160,8 +161,8 @@ class TimerAPI extends AbstractAPI {
 		const toSet = { [timerId]: { baseTime, expirySeconds, description, customData, batchToRun, context: lightContext, alreadyScheduled: false } };
 
 		return this.timersColl.findOneAndUpdate({ domain, user_id }, { '$set': toSet }, { upsert: true, returnDocument: "after" })
-			.get('value')
-			.then(timers => {
+			.then(result => {
+				const timers = result.value;
 				// if the timer we're adding is the earliest, schedule one message delivery for it
 				if (getEarliestTimerId(timers) === timerId) {
 					//console.log "scheduling #{timerId} with delay = #{expirySeconds*1000}"
@@ -196,8 +197,10 @@ class TimerAPI extends AbstractAPI {
 		const toUnset = { [timerId]: null };
 
 		return this.timersColl.findOneAndUpdate({ domain, user_id }, { '$unset': toUnset }, { returnDocument: "after" })
-			.get('value')
-			.then(addExpiryInMs);
+			.then(result => {
+				const timers = result.value;
+				return addExpiryInMs(timers);
+			});
 	}
 
 	// retiming doesn't change base time, only expirySeconds
@@ -244,8 +247,8 @@ class TimerAPI extends AbstractAPI {
 			const toSet = { [`${timerId}.expirySeconds`]: expirySeconds, [`${timerId}.alreadyScheduled`]: false };
 
 			return this.timersColl.findOneAndUpdate({ domain, user_id }, { '$set': toSet }, { returnDocument: "after", upsert: false })
-				.get('value')
-				.then(timers => {
+				.then(result => {
+					const timers = result.value;
 					if (getEarliestTimerId(timers) === timerId) {
 						const timer = timers[timerId];
 						let newDelay = getExpiryTime(timer) - Date.now();

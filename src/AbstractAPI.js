@@ -12,7 +12,7 @@ const xtralifeerrors = require('./errors.js');
 const checktypes = require('check-types');
 
 // @ts-ignore
-checktypes.objectid = id => (id != null ? id._bsontype : undefined) === 'ObjectID';
+checktypes.objectid = id => (id != null ? id._bsontype || id._bsontype === 'ObjectID' || id._bsontype === 'ObjectId' : undefined);
 
 const shouldRunPreconditions = process.env.NODE_ENV !== "production";
 const _ = require('underscore');
