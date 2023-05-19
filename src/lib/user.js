@@ -545,7 +545,7 @@ class UserAPI extends AbstractAPI {
 			}
 		).skip(options.skip).limit(options.limit)
 
-		return res.toArray((err, docs) => cb(err, docs));
+		return res.toArray().then(docs => cb(null, docs)).catch(err => cb(err));
 	}
 
 	count(options, cb) {

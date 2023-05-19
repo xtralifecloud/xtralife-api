@@ -166,7 +166,7 @@ class GameAPI extends AbstractAPI {
 			domain = this.getPrivateDomain(appid);
 		}
 
-		return this.collusers().findOne({appid})
+		return this.collgame().findOne({appid})
 			.then(game => {
 				return this.collDomainDefinition.findOne({ domain }, { projection: { leaderboards: 1 } })
 					.then(domainDefinition => {
