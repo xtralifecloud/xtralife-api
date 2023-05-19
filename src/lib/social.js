@@ -224,7 +224,6 @@ class SocialAPI extends AbstractAPI {
 															}
 															return cb(null, result.modifiedCount);
 														}).catch(cb)
-														.done();
 												} else {
 													cb(null, result.modifiedCount);
 													if (result.modifiedCount === 1) {

@@ -336,7 +336,6 @@ class TimerAPI extends AbstractAPI {
 									// logger.debug(`Error during timer batch ${message.domain}.__${timer.batchToRun}`);
 									return logger.debug(err, { stack: err.stack });
 								})
-								.done();
 							return timers;
 						});
 				});

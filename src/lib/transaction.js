@@ -73,7 +73,7 @@ class TransactionAPI extends AbstractAPI {
 		return Promise.try(() => { // Check transaction is a valid tx object
 			if (!this._checkTransaction(transaction)) { throw new errors.PreconditionError(["transaction must be a valid transaction"]); }
 			return this._getDomain(domain, user_id, { balance: 1, lastTx: 1, achievements: 1 });
-		}).spread((balance, lastTx, user_achievements) => {
+		}).then(([balance, lastTx, user_achievements]) => {
 			let value;
 			for (let unit in transaction) { value = transaction[unit]; if (value === '-auto') { transaction[unit] = (-balance[unit] || 0); } }
 

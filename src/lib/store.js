@@ -184,7 +184,6 @@ class StoreAPI extends AbstractAPI {
 												callback(null, { ok: 1, repeated: 0, purchase })
 											})
 											.catch(callback)
-											.done();
 									};
 
 									// Check the domain if needed
