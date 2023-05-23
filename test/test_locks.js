@@ -108,7 +108,7 @@ describe("Xtralife batch with lock", function () {
 
 	it("should timeout after 200ms", function (done) {
 		xtralife.api.game.runBatchWithLock(context, domain, '__runWithLockTooLong', { counter: 1 }, "this is resource 1")
-			.catch(Promise.TimeoutError, function (err) {
+			.catch(function (err) {
 				err.name.should.eql("TimeoutError");
 				return done();
 			});
@@ -116,14 +116,14 @@ describe("Xtralife batch with lock", function () {
 	});
 
 	return it("should fail to acquire lock after 3 attempts", function (done) {
-		xtralife.api.game.redlock.lock(`${domain}.shared resource`, 1000).then(function (lock) {
+		xtralife.api.game.redlock.acquire(`${domain}.shared resource`, 1000).then(function (lock) {
 			xtralife.api.game.runBatchWithLock(context, domain, '__runWithLock', { counter: 1 }, "shared resource")
 				.then(result => done(new Error("should not happen"))).catch(function (err) {
-					err.name.should.eql('LockError');
+					err.name.should.eql('ExecutionError');
 					return done();
 				});
 
-			return setTimeout(() => lock.unlock()
+			return setTimeout(() => lock.release()
 				, 800);
 		});
 
