@@ -42,7 +42,6 @@ class IndexAPI extends AbstractAPI {
 		}).then(() => {
 			return this.elastic.index({
 				index: `${domain}.${indexName}`.toLowerCase(),
-				type: '_doc',
 				id: objectId,
 				body: document,
 				refresh: true
@@ -61,7 +60,6 @@ class IndexAPI extends AbstractAPI {
 		}).then(() => {
 			return this.elastic.get({
 				index: `${domain}.${indexName}`.toLowerCase(),
-				type: '_doc',
 				id: objectId
 			});
 		});
@@ -124,7 +122,6 @@ class IndexAPI extends AbstractAPI {
 		}).then(() => {
 			return this.elastic.delete({
 				index: domain.toLowerCase() + `.${indexName.toLowerCase()}`,
-				type: '_doc',
 				id: objectId
 			});
 		});
