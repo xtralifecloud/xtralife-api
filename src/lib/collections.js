@@ -37,11 +37,16 @@ class CollectionsAPI extends AbstractAPI {
 	}
 
 	onDeleteUser(userid, cb) {
-		return this.coll("domains").deleteOne({ user_id: userid }, (err, result) => {
-			logger.warn(`removed domains ${userid} : ${result.modifiedCount} , ${err} `);
-			return cb();
-		});
+		return this.coll("domains").deleteOne({ user_id: userid })
+			.then(result => {
+				logger.warn(`removed domains ${userid} : ${result.modifiedCount} `);
+				return cb();
+			})
+			.catch(err => {
+				return cb(err);
+			});
 	}
+	
 }
 
 module.exports = new CollectionsAPI();

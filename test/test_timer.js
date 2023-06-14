@@ -37,14 +37,13 @@ describe("Xtralife timer module", function () {
 		});
 	});
 
-	before('should create a new gamer', function (done) {
+	before('should create a new gamer', function () {
 		const profile = {
 			displayName: "Test timer user",
 			lang: "en"
 		};
 		return xtralife.api.connect.register(game, "anonymous", null, null, profile, function (err, user) {
 			user_id = user._id;
-			return done();
 		});
 	});
 
@@ -80,11 +79,10 @@ describe("Xtralife timer module", function () {
 		}));
 
 
-	it("should wait until messages are received (1 then 2)", done => {setTimeout(async () => {
+	it("should wait until messages are received (1 then 2)", () => {setTimeout(async () => {
 		const trigger1 = await xtralife.api.virtualfs.read(context, domain, user_id, "test-1-1");
 		const trigger2 = await xtralife.api.virtualfs.read(context, domain, user_id, "test-1-2");
-		trigger1["test-1-1"].should.be.below(trigger2['test-1-2']);
-		done();
+		return trigger1["test-1-1"].should.be.below(trigger2['test-1-2']);
 	}, 250)});
 
 	// Now messages are added in reverse order, so we'll have 2 timer messages in the queue
@@ -100,11 +98,10 @@ describe("Xtralife timer module", function () {
 			return timers.should.have.property("testTimer2");
 		}));
 
-	it("should wait until messages are received (2 then 1)",  (done) => {setTimeout(async () => {
+	it("should wait until messages are received (2 then 1)",  () => {setTimeout(async () => {
 		const trigger1 = await xtralife.api.virtualfs.read(context, domain, user_id, "test-2-1");
 		const trigger2 = await xtralife.api.virtualfs.read(context, domain, user_id, "test-2-2");
-		trigger2["test-2-2"].should.be.below(trigger1['test-2-1']);
-		done();
+		return trigger2["test-2-2"].should.be.below(trigger1['test-2-1']);
 	}, 250)});
 
 	// tests retiming of already scheduled timer in a further future
@@ -122,12 +119,11 @@ describe("Xtralife timer module", function () {
 			.then(timers => done()).catch(done)
 		, 50)); // there's a race condition here...
 
-	it("should wait until messages are received (1 then 2)", done => {
+	it("should wait until messages are received (1 then 2)", () => {
 		return setTimeout(async () => {
 			const trigger1 = await xtralife.api.virtualfs.read(context, domain, user_id, "test-3-1");
 			const trigger2 = await xtralife.api.virtualfs.read(context, domain, user_id, "test-3-2");
-			trigger1["test-3-1"].should.be.below(trigger2['test-3-2']);
-			done();
+			return trigger1["test-3-1"].should.be.below(trigger2['test-3-2']);
 		}, 250);
 	});
 
@@ -148,11 +144,10 @@ describe("Xtralife timer module", function () {
 			.then(timers => done()).catch(done)
 		, 50)); // there's a race condition here...
 
-	it("should wait until messages are received (2 then 1)", done => setTimeout(async () => {
+	it("should wait until messages are received (2 then 1)", () => setTimeout(async () => {
 		const trigger1 = await xtralife.api.virtualfs.read(context, domain, user_id, "test-4-1");
 		const trigger2 = await xtralife.api.virtualfs.read(context, domain, user_id, "test-4-2");
-		trigger2["test-4-2"].should.be.below(trigger1['test-4-1']);
-		done();
+		return trigger2["test-4-2"].should.be.below(trigger1['test-4-1']);
 	}, 250));
 
 	// tests relative proportional retiming of already scheduled timer in a closer future
@@ -170,15 +165,15 @@ describe("Xtralife timer module", function () {
 			.then(timers => done()).catch(done)
 		, 50)); // there's a race condition here...
 
-	it("should wait until messages are received (2 then 1)", function (done) {
+	it("should wait until messages are received (2 then 1)", function () {
 		this.timeout(5000);
 		return setTimeout(async () => {
 			const trigger1 = await xtralife.api.virtualfs.read(context, domain, user_id, "test-5-1");
 			const trigger2 = await xtralife.api.virtualfs.read(context, domain, user_id, "test-5-2");
-			trigger2["test-5-2"].should.be.below(trigger1['test-5-1']);
-			done();
+			return trigger2['test-5-2'].should.be.below(trigger1['test-5-1']);
 		}, 4500);
 	});
+	
 
 	it("should add timer from batch", function (done) {
 		this.timeout(5000);

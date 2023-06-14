@@ -70,32 +70,32 @@ class ConnectAPI extends AbstractAPI {
 		return xlenv.inject(["=redisClient"], (err, rc) => {
 			this.rc = rc;
 			if (err != null) { return callback(err); }
-			let iter = async.parallel;
-			if(xlenv.mongodb.aws_documentdb == true)
-				iter = async.series;
+			const iter = (xlenv.mongodb.aws_documentdb == true) ? Promise.mapSeries : Promise.all;
 			return iter([
-				// data related to user
-				cb => {
-					return this.collusers().createIndex({ network: 1, networkid: 1 }, { unique: true }, cb);
-				},
-				cb => {
-					return this.collusers().createIndex({ 'profile.displayName': 1 }, { unique: false }, cb);
-				},
-				cb => {
-					return this.collusers().createIndex({ 'profile.email': 1 }, { unique: false }, cb);
-				}
-			], err => {
-				logger.info("Connect initialized");
-				return callback(err);
-			});
+				this.collusers().createIndex({ network: 1, networkid: 1 }, { unique: true }),
+				this.collusers().createIndex({ 'profile.displayName': 1 }, { unique: false }),
+				this.collusers().createIndex({ 'profile.email': 1 }, { unique: false })
+			])
+				.then(() => {
+					logger.info("Connect initialized");
+					return callback();
+				})
+				.catch(err => {
+					return callback(err);
+				});
+
 		});
 	}
 
 	onDeleteUser(userid, cb) {
-		return this.collusers().deleteOne({ _id: userid }, function (err, result) {
-			logger.warn(`removed ${userid} : ${result.modifiedCount} , ${err} `);
-			return cb(err);
-		});
+		return this.collusers().deleteOne({ _id: userid })
+			.then(result => {
+				logger.warn(`removed ${userid} : ${result.modifiedCount}`);
+				return cb();
+			})
+			.catch(err => {
+				return cb(err);
+			});
 	}
 
 	exist(userid, cb) {
@@ -119,24 +119,45 @@ class ConnectAPI extends AbstractAPI {
 		}
 
 		const logtime = new Date(Math.floor(Date.now() / 86400000) * 86400000);
-		return this.collusers().findOne({ _id: id }, (err, user) => {
-			if ((err != null) || (user === null)) { return cb(err); }
 
-			const authg = _.find(user.games, g => g.appid === appid);
+		return this.collusers().findOne({ _id: id })
+			.then((user) => {
+				if (user === null) {
+					return cb(err);
+				}
 
-			if (__guard__(authg != null ? authg.lastlogin : undefined, x => x.getTime()) === logtime.getTime()) { return cb(err, user); }
-			return this.collusers().updateOne({ _id: id, "games.appid": appid }, { '$set': { "games.$.lastlogin": logtime } }, (err, result) => {
-				return cb(err, user);
+				const authg = _.find(user.games, g => g.appid === appid);
+
+				if (__guard__(authg != null ? authg.lastlogin : undefined, x => x.getTime()) === logtime.getTime()) {
+					return user;
+				}
+
+				return this.collusers().updateOne({ _id: id, "games.appid": appid }, { '$set': { "games.$.lastlogin": logtime } })
+					.then(() => {
+						return user;
+					});
+			})
+			.then((user) => {
+				return cb(null, user);
+			})
+			.catch((err) => {
+				return cb(err);
 			});
-		});
+
 	}
 
 
 	existInNetwork(network, id, cb) {
-		return this.collusers().findOne({ network, networkid: id }, function (err, user) {
-			if (user == null) { return cb(new errors.BadGamerID); }
-			return cb(err, user);
-		});
+		return this.collusers().findOne({ network, networkid: id })
+			.then(user => {
+				if (user == null) {
+					return cb(new errors.BadGamerID);
+				}
+				return cb(null, user);
+			})
+			.catch(err => {
+				return cb(err);
+			});
 	}
 
 
@@ -214,21 +235,29 @@ class ConnectAPI extends AbstractAPI {
 	}
 
 	changePassword(user_id, sha_pass, cb) {
-		return this.collusers().updateOne({ _id: user_id }, { $set: { networksecret: sha_pass } }, (err, result) => {
-			if (err == null) { logger.debug(`password changed for ${user_id}`); }
-			return cb(err, result.modifiedCount);
-		});
+		return this.collusers().updateOne({ _id: user_id }, { $set: { networksecret: sha_pass } })
+			.then(result => {
+				logger.debug(`password changed for ${user_id}`);
+				return cb(null, result.modifiedCount);
+			})
+			.catch(err => {
+				return cb(err);
+			});
 	}
 
 	changeEmail(user_id, email, cb) {
-		return this.collusers().findOne({ network: "email", networkid: email }, (err, user) => {
-			if (err != null) { return cb(err); }
-			if (user != null) { return cb(new errors.ConnectError("UserExists", `${email} already exists`)); }
-			return this.collusers().updateOne({ _id: user_id }, { $set: { networkid: email } }, (err, result) => {
-				if (err == null) { logger.debug(`email changed for ${user_id}`); }
-				return cb(err, result.modifiedCount);
+		return this.collusers().findOne({ network: "email", networkid: email })
+			.then(user => {
+				if (user != null) { return cb(new errors.ConnectError("UserExists", `${email} already exists`)); }
+				return this.collusers().updateOne({ _id: user_id }, { $set: { networkid: email } })
+			})
+			.then((result) => {
+				logger.debug(`email changed for ${user_id}`);
+				return cb(null, result.modifiedCount);
+			})
+			.catch(err => {
+				return cb(err);
 			});
-		});
 	}
 
 	register(game, network, networkid, networksecret, profile, cb) {
@@ -246,20 +275,20 @@ class ConnectAPI extends AbstractAPI {
 			}],
 			profile
 		};
-		return this.collusers().insertOne(newuser, err => {
-			if (err != null) {
+
+		return this.collusers().insertOne(newuser)
+			.then(() => {
+				logger.debug(`user ${newuser._id} registered!`);
+				return cb(null, newuser);
+			})
+			.catch(err => {
 				if (err.code === 11000) {
 					const key = err.keyValue[''];
 					return cb(new errors.ConnectError(`UserAlreadyExists: duplicate key '${key}'`));
 				} else {
 					return cb(err);
 				}
-			}
-
-			logger.debug(`user ${newuser._id} registered!`);
-
-			return cb(null, newuser);
-		});
+			});
 	}
 
 
@@ -271,11 +300,15 @@ class ConnectAPI extends AbstractAPI {
 			appid: game.appid,
 			ts: new Date()
 		};
-		return this.collusers().updateOne({ _id: user._id }, { $addToSet: { games: newgame } }, (err, result) => {
-			if (err == null) { logger.debug(`${game.appid} added to ${user.gamer_id}`); }
 
-			return cb(err, result.modifiedCount);
-		});
+		return this.collusers().updateOne({ _id: user._id }, { $addToSet: { games: newgame } })
+			.then(result => {
+				logger.debug(`${game.appid} added to ${user.gamer_id}`);
+				return cb(null, result.modifiedCount)
+			})
+			.catch(err => {
+				return cb(err);
+			});
 	}
 
 	loginExternal(game, external, credentials, options, cb) {
@@ -295,38 +328,51 @@ class ConnectAPI extends AbstractAPI {
 			if (!status) { return cb(new errors.BadUserCredentials); }
 			if (status.verified !== true) { return cb(new errors.BadUserCredentials); }
 			if (!status.id) { return cb(new errors.BadUserCredentials); }
-			return this.collusers().findOne({ network: external, networkid: status.id }, (err, user) => {
-				if (err != null) { return cb(err); }
-				if (user != null) { return cb(null, user, false); }
 
-				if (options != null ? options.preventRegistration : undefined) { return cb(new errors.PreventRegistration(status.id), null, false); }
-				// create account
-				return this.register(game, external, status.id, null, { displayName: status.id, lang: "en" }, (err, user) => cb(err, user, true));
-			});
+			return this.collusers().findOne({ network: external, networkid: status.id })
+				.then(user => {
+					if (user != null) {
+						return cb(null, user, false);
+					}
+
+					if (options != null ? options.preventRegistration : undefined) {
+						return cb(new errors.PreventRegistration(status.id), null, false);;
+					}
+
+					// create account
+					return this.register(game, external, status.id, null, { displayName: status.id, lang: "en" })
+						.then(user => { return cb(err, user, true) })
+				})
+				.catch(err => {
+					return cb(err);
+				});
 		});
-	
 	}
-
 
 	login(game, email, sha_pass, options, cb) {
 		if (email == null) { return cb(new errors.BadArgument); }
 		if (!/^[^@ ]+@[^\.@ ]+\.[^@ ]+$/.test(email)) { return cb(new errors.BadArgument); }
 
-		return this.collusers().findOne({ network: "email", networkid: email }, (err, user) => {
-			if (err != null) { return cb(err); }
-			if (user != null) {
-				if (user.networksecret === sha_pass) {
-					return cb(null, user, false);
-				} else {
-					return cb(new errors.BadUserCredentials);
+
+		return this.collusers().findOne({ network: "email", networkid: email })
+			.then(user => {
+				if (user != null) {
+					if (user.networksecret === sha_pass) {
+						return cb(null, user, false);
+					} else {
+						return cb(new errors.BadUserCredentials);
+					}
 				}
-			}
 
-			if (options != null ? options.preventRegistration : undefined) { return cb(new errors.PreventRegistration(email), null, false); }
+				if (options != null ? options.preventRegistration : undefined) { return cb(new errors.PreventRegistration(email), null, false); }
 
-			// create account
-			return this.register(game, "email", email, sha_pass, this._buildEmailProfile(email), (err, user) => cb(err, user, true));
-		});
+				// create account
+				return this.register(game, "email", email, sha_pass, this._buildEmailProfile(email))
+					.then(user => { return cb(err, user, true) })
+			})
+			.catch(err => {
+				return cb(err);
+			});
 	}
 
 	loginFacebook(game, facebookToken, options, cb) {
@@ -334,16 +380,22 @@ class ConnectAPI extends AbstractAPI {
 			facebookToken,
 			game.config.facebook != null ? game.config.facebook.useBusinessManager: null, 
 			(err, me) => {
-			if (err != null) { return cb(err); }
-			return this.collusers().findOne({ network: "facebook", networkid: me.id }, (err, user) => {
 				if (err != null) { return cb(err); }
-				if (user != null) { return cb(null, user, false); }
 
-				if (options != null ? options.preventRegistration : undefined) { return cb(new errors.PreventRegistration(me), null, false); }
 
-				return this.register(game, "facebook", me.id, null, this._buildFacebookProfile(me), (err, user) => cb(err, user, true));
+				return this.collusers().findOne({ network: "facebook", networkid: me.id })
+					.then(() => {
+						if (user != null) { return cb(null, user, false); }
+						if (options != null ? options.preventRegistration : undefined) { return cb(new errors.PreventRegistration(me), null, false); }
+						return this.register(game, "facebook", me.id, null, this._buildFacebookProfile(me))
+							.then((user) => {
+								return cb(null, user, true);
+							})
+					})
+					.catch(err => {
+						return cb(err);
+					});
 			});
-		});
 	}
 
 	loginGoogle(game, googleToken, options, cb) {
@@ -355,18 +407,21 @@ class ConnectAPI extends AbstractAPI {
 			googleToken,
 			clientID,
 			(err, me) => {
-			if (err != null) { return cb(err); }
-			return this.collusers().findOne({ network: "google", networkid: me.sub }, (err, user) => {
 				if (err != null) { return cb(err); }
-				if (user != null) { return cb(null, user, false); }
-				if (options != null ? options.preventRegistration : undefined) { return cb(new errors.PreventRegistration(me), null, false); }
 
-				// create account
-				return this.register(game, "google", me.sub, null, this._buildGoogleProfile(me), (err, user) => {
-					return cb(err, user, true);
-				});
+				return this.collusers().findOne({ network: "google", networkid: me.sub })
+					.then(user => {
+						if (user != null) { return cb(null, user, false); }
+						if (options != null ? options.preventRegistration : undefined) {
+							return cb(new errors.PreventRegistration(me), null, false);
+						}
+
+						return this.register(game, "google", me.sub, null, this._buildGoogleProfile(me))
+							.then(user => cb(null, user, true))
+							.catch(err => cb(err));
+					})
+					.catch(err => cb(err));
 			});
-		});
 	}
 
 	loginFirebase(game, firebaseToken, options, cb) {
@@ -376,20 +431,23 @@ class ConnectAPI extends AbstractAPI {
 			firebaseToken,
 			this.firebaseApps[game.appid],
 			(err, me) => {
-			if (err != null) { return cb(err); }
-			return this.collusers().findOne({ network: "firebase", networkid: me.uid }, (err, user) => {
 				if (err != null) { return cb(err); }
-				if (user != null) { return cb(null, user, false); }
-				if (options != null ? options.preventRegistration : undefined) { return cb(new errors.PreventRegistration(me), null, false); }
-				
-				// create account
-				return this.register(game, "firebase", me.uid, null, this._buildFirebaseProfile(me), (err, user) => {
-					return cb(err, user, true);
-				});
+
+				return this.collusers().findOne({ network: "firebase", networkid: me.uid })
+					.then(user => {
+						if (user != null) { return cb(null, user, false); }
+						if (options != null ? options.preventRegistration : undefined) {
+							return cb(new errors.PreventRegistration(me), null, false);
+						}
+
+						return this.register(game, "firebase", me.uid, null, this._buildFirebaseProfile(me))
+							.then(user => cb(null, user, true))
+							.catch(err => cb(err));
+					})
+					.catch(err => cb(err));
 			});
-		});
 	}
-	
+
 	loginApple(game, appleToken, options, cb) {
 		let bundleID = null;
 		if(game.config.apple && game.config.apple.bundleID) bundleID = game.config.apple.bundleID
@@ -399,20 +457,23 @@ class ConnectAPI extends AbstractAPI {
 			appleToken,
 			bundleID,
 			(err, me) => {
-			if (err != null) { return cb(err); }
-			return this.collusers().findOne({ network: "apple", networkid: me.sub }, (err, user) => {
 				if (err != null) { return cb(err); }
-				if (user != null) { return cb(null, user, false); }
-				if (options != null ? options.preventRegistration : undefined) { return cb(new errors.PreventRegistration(me), null, false); }
 
-				// create account
-				return this.register(game, "apple", me.sub, null, this._buildAppleProfile(me), (err, user) => {
-					return cb(err, user, true);
-				});
+				return this.collusers().findOne({ network: "apple", networkid: me.sub })
+					.then(user => {
+						if (user != null) { return cb(null, user, false); }
+						if (options != null ? options.preventRegistration : undefined) {
+							return cb(new errors.PreventRegistration(me), null, false);
+						}
+
+						return this.register(game, "apple", me.sub, null, this._buildAppleProfile(me))
+							.then(user => cb(null, user, true))
+							.catch(err => cb(err));
+					})
+					.catch(err => cb(err));
 			});
-		});
 	}
-	
+
 	loginSteam(game, steamToken, options, cb) {
 		let webApiKey, appId = null;
 
@@ -425,33 +486,43 @@ class ConnectAPI extends AbstractAPI {
 			webApiKey,
 			appId,
 			(err, me) => {
-			if (err != null) { return cb(err); }
-			return this.collusers().findOne({ network: "steam", networkid: me.steamid }, (err, user) => {
 				if (err != null) { return cb(err); }
-				if (user != null) { return cb(null, user, false); }
-				if (options != null ? options.preventRegistration : undefined) { return cb(new errors.PreventRegistration(me), null, false); }
 
-				// create account
-				return this.register(game, "steam", me.steamid, null, {lang: "en"}, (err, user) => cb(err, user, true));
+				return this.collusers().findOne({ network: "steam", networkid: me.steamid })
+					.then(user => {
+						if (user != null) { return cb(null, user, false); }
+						if (options != null ? options.preventRegistration : undefined) {
+							return cb(new errors.PreventRegistration(me), null, false);
+						}
+
+						return this.register(game, "steam", me.steamid, null, { lang: "en" })
+							.then(user => cb(null, user, true))
+							.catch(err => cb(err));
+					})
+					.catch(err => cb(err));
 			});
-		});
 	}
 
 	loginEpic(game, epicToken, options, cb) {
-	
+
 		return epic.validToken(
 			epicToken,
 			(err, me) => {
-			if (err != null) { return cb(err); }
-			return this.collusers().findOne({ network: "epic", networkid: me.account_id }, (err, user) => {
 				if (err != null) { return cb(err); }
-				if (user != null) { return cb(null, user, false); }
-				if (options != null ? options.preventRegistration : undefined) { return cb(new errors.PreventRegistration(me), null, false); }
 
-				// create account
-				return this.register(game, "epic", me.account_id, null, {lang: "en"}, (err, user) => cb(err, user, true));
+				return this.collusers().findOne({ network: "epic", networkid: me.account_id })
+					.then(user => {
+						if (user != null) { return cb(null, user, false); }
+						if (options != null ? options.preventRegistration : undefined) {
+							return cb(new errors.PreventRegistration(me), null, false);
+						}
+
+						return this.register(game, "epic", me.account_id, null, { lang: "en" })
+							.then(user => cb(null, user, true))
+							.catch(err => cb(err));
+					})
+					.catch(err => cb(err));
 			});
-		});
 	}
 
 	loginGameCenter(game, credentials, options, cb) {
@@ -465,16 +536,16 @@ class ConnectAPI extends AbstractAPI {
 		return gamecenter.verify(credentials, (err, me) => {
 			if (err != null) { return cb(new errors.GameCenterError(err.message)); }
 
-			return this.collusers().findOne({ network: "gamecenter", networkid: me.id }, (err, user) => {
-				if (err != null) { return cb(err); }
-				if (user != null) { return cb(null, user, false); }
-				if (options != null ? options.preventRegistration : undefined) { return cb(new errors.PreventRegistration((options != null ? options.gamecenter : undefined) || {}), null, false); }
+			return this.collusers().findOne({ network: "gamecenter", networkid: me.id })
+				.then(user => {
+					if (user != null) { return cb(null, user, false); }
+					if (options != null ? options.preventRegistration : undefined) { return cb(new errors.PreventRegistration((options != null ? options.gamecenter : undefined) || {}), null, false); }
 
-				// create account
-				return this.register(game, "gamecenter", me.id, null, {lang: "en"}, (err, user) => {
-					return cb(err, user, true);
-				});
-			});
+					return this.register(game, "gamecenter", me.id, null, { lang: "en" })
+						.then(user => cb(null, user, true))
+						.catch(err => cb(err));
+				})
+				.catch(err => cb(err));
 		});
 	}
 
@@ -682,50 +753,68 @@ class ConnectAPI extends AbstractAPI {
 	linkAccountWithFacebook(user, token, cb) {
 		return facebook.validToken(token, (err, me) => {
 			if (err != null) { return cb(err); }
-			return this.collusers().findOne({ _id: user._id }, (err, user) => {
-				if (err != null) { return cb(err); }
-				if (user == null) { return cb(new errors.ConnectError("Gamer not found!")); }
-				if ((user.links != null ? user.links.facebook : undefined) != null) { return cb(new errors.ConnectError("Already linked to facebook")); }
-				const updated = {};
-				updated["links.facebook"] = me.id;
-				if (user.profile.displayName == null) { updated["profile.displayName"] = me.name; }
-				if ((xlenv.options.profileFields == null)) {
-					if (user.profile.email == null) { updated["profile.email"] = me.email; }
-					if (user.profile.firstName == null) { updated["profile.firstName"] = me.first_name; }
-					if (user.profile.lastName == null) { updated["profile.lastName"] = me.last_name; }
-					if (user.profile.avatar == null) { updated["profile.avatar"] = me.avatar; }
-					if (user.profile.lang == null) { updated["profile.lang"] = me.locale.substr(0, 2); }
-				}
 
-				return this.collusers().updateOne({ _id: user._id }, { $set: updated }, (err, result) => {
-					return cb(err, { done: result.modifiedCount });
+			return this.collusers().findOne({ _id: user._id })
+				.then(user => {
+					if (user == null) {
+						return cb(new errors.ConnectError("Gamer not found!"));
+					}
+					if ((user.links != null ? user.links.facebook : undefined) != null) {
+						return cb(new errors.ConnectError("Already linked to facebook"));
+					}
+					const updated = {};
+					updated["links.facebook"] = me.id;
+					if (user.profile.displayName == null) { updated["profile.displayName"] = me.name; }
+					if ((xlenv.options.profileFields == null)) {
+						if (user.profile.email == null) { updated["profile.email"] = me.email; }
+						if (user.profile.firstName == null) { updated["profile.firstName"] = me.first_name; }
+						if (user.profile.lastName == null) { updated["profile.lastName"] = me.last_name; }
+						if (user.profile.avatar == null) { updated["profile.avatar"] = me.avatar; }
+						if (user.profile.lang == null) { updated["profile.lang"] = me.locale.substr(0, 2); }
+					}
+
+					return this.collusers().updateOne({ _id: user._id }, { $set: updated })
+						.then(result => {
+							return cb(null, { done: result.modifiedCount });
+						});
+				})
+				.catch(err => {
+					return cb(err);
 				});
-			});
 		});
 	}
 
 	linkAccountWithGoogle(user, token, cb) {
 		return google.validToken(token, (err, me) => {
 			if (err != null) { return cb(err); }
-			return this.collusers().findOne({ _id: user._id }, (err, user) => {
-				if (err != null) { return cb(err); }
-				if (user == null) { return cb(new errors.ConnectError("Gamer not found!")); }
-				if ((user.links != null ? user.links.googleplus : undefined) != null) { return cb(new errors.ConnectError("Already linked to googleplus")); }
-				const updated = {};
-				updated["links.googleplus"] = me.id;
-				if (user.profile.displayName == null) { updated["profile.displayName"] = me.displayName; }
-				if ((xlenv.options.profileFields == null)) {
-					if (user.profile.lang == null) { updated["profile.lang"] = me.language; }
-					if ((me.image != null) && (user.profile.avatar == null)) { updated["profile.avatar"] = me.image.url; }
-					if (((me.emails != null ? me.emails[0].value : undefined) != null) && (user.profile.email == null)) { updated["profile.email"] = me.emails[0].value; }
-					if ((me.name != null) && (user.profile.firstName == null)) { updated["profile.firstName"] = me.name.givenName; }
-					if ((me.name != null) && (user.profile.lastName == null)) { updated["profile.lastName"] = me.name.familyName; }
-				}
+			return this.collusers().findOne({ _id: user._id })
+				.then(user => {
+					if (user == null) {
+						return cb(new errors.ConnectError("Gamer not found!"));
+					}
+					if ((user.links != null ? user.links.googleplus : undefined) != null) {
+						return cb(new errors.ConnectError("Already linked to googleplus"));
+					}
 
-				return this.collusers().updateOne({ _id: user._id }, { $set: updated }, (err, result) => {
-					return cb(err, { done: result.modifiedCount });
+					const updated = {};
+					updated["links.googleplus"] = me.id;
+					if (user.profile.displayName == null) { updated["profile.displayName"] = me.displayName; }
+					if ((xlenv.options.profileFields == null)) {
+						if (user.profile.lang == null) { updated["profile.lang"] = me.language; }
+						if ((me.image != null) && (user.profile.avatar == null)) { updated["profile.avatar"] = me.image.url; }
+						if (((me.emails != null ? me.emails[0].value : undefined) != null) && (user.profile.email == null)) { updated["profile.email"] = me.emails[0].value; }
+						if ((me.name != null) && (user.profile.firstName == null)) { updated["profile.firstName"] = me.name.givenName; }
+						if ((me.name != null) && (user.profile.lastName == null)) { updated["profile.lastName"] = me.name.familyName; }
+					}
+
+					return this.collusers().updateOne({ _id: user._id }, { $set: updated })
+						.then(result => {
+							return cb(null, { done: result.modifiedCount });
+						});
+				})
+				.catch(err => {
+					return cb(err);
 				});
-			});
 		});
 	}
 
@@ -733,40 +822,43 @@ class ConnectAPI extends AbstractAPI {
 		if ((user.links != null ? user.links[network] : undefined) == null) { return cb(new errors.ConnectError(`Not linked to ${network}`)); }
 		const unset = {};
 		unset[`links.${network}`] = "";
-		return this.collusers().updateOne({ _id: user._id }, { $unset: unset }, (err, result) => {
-			return cb(err, { done: result.modifiedCount });
-		});
+		return this.collusers().updateOne({ _id: user._id }, { $unset: unset })
+			.then(result => {
+				return cb(null, { done: result.modifiedCount });
+			})
+			.catch(err => {
+				return cb(err);
+			});
 	}
 
 	trackDevice(user_id, device) {
 		if ((device != null ? device.id : undefined) == null) { return; }
 
-		return this.collusers().findOne({ _id: user_id, "devices.id": device.id }, { projection: { _id: 1, devices: 1 } }, (err, user) => {
-			if (err != null) { return logger.error(err.message, { stack: err.stack }); }
-			if ((user != null) && (user.devices != null)) {
-				let deviceExists;
-				for (let each of Array.from(user.devices)) { if (each.id === device.id) { deviceExists = each; } }
+		return this.collusers().findOne({ _id: user_id, "devices.id": device.id }, { projection: { _id: 1, devices: 1 } })
+			.then((user) => {
+				if ((user != null) && (user.devices != null)) {
+					let deviceExists;
+					for (let each of Array.from(user.devices)) { if (each.id === device.id) { deviceExists = each; } }
 
-				if (deviceExists != null) {
-					if (((deviceExists != null ? deviceExists.version : undefined) || 0) >= device.version) { return; }
+					if (deviceExists != null) {
+						if (((deviceExists != null ? deviceExists.version : undefined) || 0) >= device.version) { return; }
 
-					logger.debug(`user ${user_id} update device ${JSON.stringify(device)}`);
-					return this.collusers().updateOne({ _id: user_id, "devices.id": device.id }, { $set: { "devices.$": device } }, (err, result) => {
-						if (err != null) { return logger.error(err.message, { stack: err.stack }); }
-					});
+						logger.debug(`user ${user_id} update device ${JSON.stringify(device)}`);
+						return this.collusers().updateOne({ _id: user_id, "devices.id": device.id }, { $set: { "devices.$": device } });
+					} else {
+						logger.debug(`user ${user_id} adding device ${JSON.stringify(device)}`);
+						return this.collusers().updateOne({ _id: user_id }, { $push: { "devices": device } });
+					}
 				} else {
-					logger.debug(`user ${user_id} adding device ${JSON.stringify(device)}`);
-					return this.collusers().updateOne({ _id: user_id }, { $push: { "devices": device } }, (err, result) => {
-						if (err != null) { return logger.error(err.message, { stack: err.stack }); }
-					});
+					logger.debug(`user ${user_id} owns ${JSON.stringify(device)}`);
+					return this.collusers().updateOne({ _id: user_id }, { $addToSet: { devices: device } });
 				}
-			} else {
-				logger.debug(`user ${user_id} owns ${JSON.stringify(device)}`);
-				return this.collusers().updateOne({ _id: user_id }, { $addToSet: { devices: device } }, (err, result) => {
-					if (err != null) { return logger.error(err.message, { stack: err.stack }); }
-				});
-			}
-		});
+			})
+			.catch((err) => {
+				logger.error(err.message, { stack: err.stack });
+			});
+
+
 	}
 
 	registerToken(user, os, token, domain, cb) {
@@ -776,17 +868,23 @@ class ConnectAPI extends AbstractAPI {
 			domain,
 			creationTime: new Date(),
 		};
-		return this.collusers().findOne({ _id: user._id},(err, user) => {
-			if (err != null) { return cb(err); }
-			if(user.tokens?.some(e => e.token === token)){
-				return cb(null, 0);
-			}
-			return this.collusers().updateOne({ _id: user._id }, { $addToSet: { tokens: device } }, (err, result) => {
-				if (err != null) { return cb(err); }
-				//logger.info "user: #{user._id}, token: #{token}, count : #{count}"
-				return cb(null, result.modifiedCount);
+		return this.collusers().findOne({ _id: user._id })
+			.then(user => {
+				if (user.tokens?.some(e => e.token === token)) {
+					return cb(null, 0);
+				}
+				return this.collusers().updateOne({ _id: user._id }, { $addToSet: { tokens: device } })
+					.then(result => {
+						//logger.info "user: #{user._id}, token: #{token}, count : #{count}"
+						return cb(null, result.modifiedCount);
+					})
+					.catch(err => {
+						return cb(err);
+					});
+			})
+			.catch(err => {
+				return cb(err);
 			});
-		});
 	}
 
 	unregisterToken(user, os, token, domain, cb) {
@@ -795,24 +893,25 @@ class ConnectAPI extends AbstractAPI {
 			token,
 			domain,
 		};
-		return this.collusers().updateOne({ _id: user._id}, { $pull: { tokens: device } }, (err, result) => {
-				if (err != null) { return cb(err); }
+		return this.collusers().updateOne({ _id: user._id }, { $pull: { tokens: device } })
+			.then(result => {
 				return cb(null, result.modifiedCount);
-		});
+			})
+			.catch(err => cb(err));
 	}
 
 	devicesToNotify(domain, user_id, cb) {
 		this.pre(check => ({
 			"domain must be a valid domain": check.nonEmptyString(domain)
 		}));
-		return this.collusers().findOne({ _id: new ObjectId(user_id) }, { projection: { "profile.lang": 1, tokens: 1 } }, (err, user) => {
-			if (err != null) { return cb(err); }
-			if ((user != null ? user.tokens : undefined) == null) { return cb(null, null); }
 
-			const tokens = _.filter(user.tokens, t => t.domain === domain);
-
-			return cb(null, tokens, user.profile.lang != null ? user.profile.lang.substring(0, 2) : undefined);
-		});
+		return this.collusers().findOne({ _id: new ObjectId(user_id) }, { projection: { "profile.lang": 1, tokens: 1 } })
+			.then(user => {
+				if ((user != null ? user.tokens : undefined) == null) { return cb(null, null); }
+				const tokens = _.filter(user.tokens, t => t.domain === domain);
+				return cb(null, tokens, user.profile.lang != null ? user.profile.lang.substring(0, 2) : undefined);
+			})
+			.catch(err => cb(err));
 	}
 
 	readProfileAsync(user_id, fields) {

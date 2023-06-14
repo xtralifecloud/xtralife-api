@@ -29,16 +29,15 @@ class StoreAPI extends AbstractAPI {
 
 	configure(xtralifeApi, callback) {
 		this.xtralifeApi = xtralifeApi;
-		async.parallel([
-			cb => {
-				return this.coll('productDefinition').createIndex({ appid: 1 }, { unique: true }, cb);
-			}
-		], function (err) {
-			if (err != null) { return callback(err); }
-			logger.info(`${moduleName} initialized`);
-			return callback();
-		});
-		return this.IAP = require('iap');
+		return this.coll('productDefinition').createIndex({ appid: 1 }, { unique: true })
+			.then(() => {
+				if (callback) callback(null, {});
+				logger.info(`${moduleName} initialized`);
+				return this.IAP = require('iap');
+			})
+			.catch((err) => {
+				if (callback) callback(err);
+			});
 	}
 
 	// remove common data
@@ -57,25 +56,35 @@ class StoreAPI extends AbstractAPI {
 			}
 
 			// Add the new entry
-			return this.coll('productDefinition').updateOne({ appid: game.appid }, { $push: { products: product } }, { upsert: true }, function (err, result) {
-				if (err != null) { return cb(err); }
-				return cb(null, result.modifiedCount);
-			});
+			return this.coll('productDefinition').updateOne({ appid: game.appid }, { $push: { products: product } }, { upsert: true })
+				.then(result => {
+					return cb(null, result.modifiedCount);
+				})
+				.catch(err => {
+					return cb(err);
+				});
 		});
 	}
 
 	// BO only
 	deleteProduct(game, productId, cb) {
-		return this.coll('productDefinition').updateOne({ appid: game.appid }, { $pull: { products: { productId } } }, function (err, result) {
-			if (err != null) { return cb(err); }
-			return cb(null, result.modifiedCount);
-		});
+		return this.coll('productDefinition').updateOne({ appid: game.appid }, { $pull: { products: { productId } } })
+			.then(result => {
+				return cb(null, result.modifiedCount);
+			})
+			.catch(err => {
+				return cb(err);
+			});
 	}
 
 	getPurchaseHistory(game, user_id, cb) {
-		return this.coll('domains').findOne({ domain: privateDomain(game), user_id }, { projection: { purchases: 1 } }, (err, doc) => {
-			return cb(err, doc != null ? doc.purchases : undefined);
-		});
+		return this.coll('domains').findOne({ domain: privateDomain(game), user_id }, { projection: { purchases: 1 } })
+			.then(doc => {
+				return cb(null, doc != null ? doc.purchases : undefined);
+			})
+			.catch(err => {
+				return cb(err);
+			});
 	}
 
 	listProducts(game, skip, limit, cb) {
@@ -86,19 +95,26 @@ class StoreAPI extends AbstractAPI {
 	}
 
 	setProducts(game, products, cb) {
-		return this.coll('productDefinition').updateOne({ appid: game.appid }, { $set: { products } }, { upsert: true }, function (err, result) {
-			if (err != null) { return cb(err); }
-			return cb(null, result.modifiedCount);
-		});
+		return this.coll('productDefinition').updateOne({ appid: game.appid }, { $set: { products } }, { upsert: true })
+			.then(result => {
+				return cb(null, result.modifiedCount);
+			})
+			.catch(err => {
+				return cb(err);
+			});
 	}
 
 	// Only for tests
 	TEST_clearStoreTransaction(storeTransaction, cb) {
-		return this.coll('storeTransaction').deleteOne({ _id: storeTransaction }, (err, result) => cb(err));
+		return this.coll('storeTransaction').deleteOne({ _id: storeTransaction })
+			.then(() => cb(null))
+			.catch(err => cb(err));
 	}
 
 	TEST_setProductDefinitions(appid, productDefinitions, cb) {
-		return this.coll('productDefinition').updateOne({ appid }, { $set: { products: productDefinitions } }, { upsert: true }, (err, result) => cb(err));
+		return this.coll('productDefinition').updateOne({ appid }, { $set: { products: productDefinitions } }, { upsert: true })
+			.then(() => cb(null))
+			.catch(err => cb(err));
 	}
 
 	// BO only
@@ -120,10 +136,9 @@ class StoreAPI extends AbstractAPI {
 			}
 
 			return this.coll('productDefinition').updateOne({ appid: game.appid, "products.productId": productId }
-				, { $set: { "products.$": product } }, function (err, result) {
-					if (err != null) { return cb(err); }
-					return cb(null, result.modifiedCount);
-				});
+				, { $set: { "products.$": product } })
+				.then((result) => cb(null, result.modifiedCount))
+				.catch(err => cb(err));
 		});
 	}
 
@@ -141,64 +156,64 @@ class StoreAPI extends AbstractAPI {
 			// Store the fact that the transaction was denied
 			if (err != null) {
 				if (err instanceof errors.PurchaseNotConfirmed || err instanceof errors.ExternalStoreEnvironmentError) {
-					return this.coll('domains').updateOne({ domain: privateDomain(game), user_id }, { $push: { deniedPurchases: purchase } }, { upsert: true }, (callerr, doc) => callback(err));
+					return this.coll('domains').updateOne({ domain: privateDomain(game), user_id }, { $push: { deniedPurchases: purchase } }, { upsert: true })
+						.then((callerr, doc) => callback(err))
 				} else {
 					return callback(err);
 				}
 			}
-
 			// Check that the transaction wasn't already processed in storeTransaction
 			// Note that processing a transaction twice is not eliminatory, as the customer might simply not have received
 			// the notification required to consume the product. Thus we simply won't play the transaction again.
 			purchase.storeTransactionId = `${transactionId}`;
 			const txId = `${storeType}.${transactionId}`;
-			return this.coll('storeTransaction').updateOne({ _id: txId }, { $set: { storeResponse: storeResponseJson } }, { upsert: true }, (err, result) => {
-				if (err != null) { return callback(err); }
 
-				// Needs process the transaction
-				if ((result.modifiedCount > 0) || (result.upsertedCount > 0)) {
-					// Store in purchase history
-					return this.coll('domains').updateOne({ domain: privateDomain(game), user_id }, { $push: { purchases: purchase } }, { upsert: true }, (err, doc) => {
-						if (err != null) { return callback(err); }
+			return this.coll('storeTransaction').updateOne({ _id: txId }, { $set: { storeResponse: storeResponseJson } }, { upsert: true })
+				.then((result) => {
+					if ((result.modifiedCount > 0) || (result.upsertedCount > 0)) {
+						// Store in purchase history
+						return this.coll('domains').updateOne({ domain: privateDomain(game), user_id }, { $push: { purchases: purchase } }, { upsert: true })
+							.then((doc) => {
+								// Run the actual transaction
+								if (((product.reward != null ? product.reward.tx : undefined) != null) && (Object.keys(product.reward.tx).length > 0)) {
+									const runTransaction = domain => {
+										const description = product.reward.description || `Triggered by purchase of ${productId}`;
+										return this.xtralifeApi.transaction.transaction(context, domain, user_id, product.reward.tx, description, false)
+											.then((result) => {
+												const { balance, achievements } = result;
+												callback(null, { ok: 1, repeated: 0, purchase })
+											})
+											.catch(callback)
+									};
 
-						// Run the actual transaction
-						if (((product.reward != null ? product.reward.tx : undefined) != null) && (Object.keys(product.reward.tx).length > 0)) {
-							const runTransaction = domain => {
-								const description = product.reward.description || `Triggered by purchase of ${productId}`;
-								return this.xtralifeApi.transaction.transaction(context, domain, user_id, product.reward.tx, description, false)
-									.spread((balance, achievements) => callback(null, { ok: 1, repeated: 0, purchase }))
-									.catch(callback)
-									.done();
-							};
-
-							// Check the domain if needed
-							if (product.reward.domain !== "private") {
-								const {
-									domain
-								} = product.reward;
-								return this.xtralifeApi.game.checkDomain(game, domain, (err, isOk) => {
-									if (err != null) { return callback(err); }
-									if (!isOk) { return callback(new errors.RestrictedDomain); }
-									return runTransaction(domain);
-								});
-							} else {
-								return runTransaction(privateDomain(game));
-							}
-						} else {
-							// No transaction to run
-							return callback(null, { ok: 1, repeated: 0, purchase });
-						}
-					});
-				} else {
-					logger.info(`Transaction ${transactionId} for store ${storeType} already played`);
-					// Enrich with previous transaction info
-					return this._findPurchase(game, user_id, transactionId, function (err, purchase) {
-						result = { ok: 1, repeated: 1 };
-						if (purchase != null) { result.purchase = purchase; }
-						return callback(null, result);
-					});
-				}
-			});
+									// Check the domain if needed
+									if (product.reward.domain !== "private") {
+										const {
+											domain
+										} = product.reward;
+										return this.xtralifeApi.game.checkDomain(game, domain, (err, isOk) => {
+											if (err != null) { return callback(err); }
+											if (!isOk) { return callback(new errors.RestrictedDomain); }
+											return runTransaction(domain);
+										});
+									} else {
+										return runTransaction(privateDomain(game));
+									}
+								} else {
+									// No transaction to run
+									return callback(null, { ok: 1, repeated: 0, purchase });
+								}
+							});
+					} else {
+						logger.info(`Transaction ${transactionId} for store ${storeType} already played`);
+						// Enrich with previous transaction info
+						return this._findPurchase(game, user_id, transactionId, function (err, purchase) {
+							result = { ok: 1, repeated: 1 };
+							if (purchase != null) { result.purchase = purchase; }
+							return callback(null, result);
+						});
+					}
+				});
 		};
 
 		// Launch the validation
@@ -222,24 +237,24 @@ class StoreAPI extends AbstractAPI {
 	}
 
 	_fetchProducts(appid, cb) {
-		return this.coll('productDefinition').findOne({ appid }, { projection: { products: 1 } }, (err, result) => {
-			if (err != null) { return cb(err); }
-			return cb(null, (result != null ? result.products : undefined) || []);
-		});
+		return this.coll('productDefinition').findOne({ appid }, { projection: { products: 1 } })
+			.then((result) => cb(null, (result != null ? result.products : undefined) || []))
+			.catch(err => cb(err));
 	}
 
 	_findPurchase(game, user_id, storeTransactionId, cb) {
-		return this.coll('domains').findOne({ domain: privateDomain(game), user_id }, (err, domain) => {
-			if (err != null) { return cb(err); }
 
-			const getPurchase = function () {
-				if (domain != null) {
-					for (let p of Array.from((domain.purchases || []))) { if (p.storeTransactionId === storeTransactionId) { return p; } }
-				}
-				return null;
-			};
-			return cb(null, getPurchase());
-		});
+		return this.coll('domains').findOne({ domain: privateDomain(game), user_id })
+			.then((domain) => {
+				const getPurchase = function () {
+					if (domain != null) {
+						for (let p of Array.from((domain.purchases || []))) { if (p.storeTransactionId === storeTransactionId) { return p; } }
+					}
+					return null;
+				};
+				return cb(null, getPurchase());
+			})
+			.catch(err => cb(err));
 	}
 
 	_hasProductDuplicate(toInsert, products) {

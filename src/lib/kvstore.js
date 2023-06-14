@@ -21,7 +21,13 @@ class KVStoreAPI extends AbstractAPI {
 		this.xtralifeapi = xtralifeapi;
 		this.kvColl = this.coll('kvstore');
 
-		return this.kvColl.createIndex({ domain: 1, key: 1 }, { unique: true }, callback);
+		return this.kvColl.createIndex({ domain: 1, key: 1 }, { unique: true })
+			.then(() => {
+				if (callback) callback(null, {});
+			})
+			.catch((err) => {
+				if (callback) callback(err);
+			});
 	}
 
 	onDeleteUser(userid, cb) {
@@ -77,7 +83,10 @@ class KVStoreAPI extends AbstractAPI {
 		if (user_id != null) { query['$or'] = [{ 'acl.a': '*' }, { 'acl.a': user_id }]; }
 		const udate = Date.now();
 		return this.kvColl.updateOne(query, { $set: { acl, udate } })
-			.get('result');
+			.then(result => result.modifiedCount)
+			.catch(err => {
+				return err
+			})
 	}
 
 	// set the value of a key (must have 'w' right to do so)
@@ -101,6 +110,8 @@ class KVStoreAPI extends AbstractAPI {
 				result.acknowledged ? result.ok = 1 : result.ok = 0
 				result.nModified = result.modifiedCount
 				return result
+			}).catch(err => {
+				return err
 			})
 	}
 
@@ -123,7 +134,10 @@ class KVStoreAPI extends AbstractAPI {
 		const set = { udate: Date.now() };
 		for (let k in value) { const v = value[k]; set[`value.${k}`] = v; }
 		return this.kvColl.updateOne(query, { $set: set })
-			.get('result');
+			.then(result => result.modifiedCount).catch(err => {
+				return err
+			})
+
 	}
 
 
@@ -140,7 +154,9 @@ class KVStoreAPI extends AbstractAPI {
 
 		const query = { domain, key };
 		if (user_id != null) { query['$or'] = [{ 'acl.r': '*' }, { 'acl.r': user_id }]; }
-		return this.kvColl.findOne(query);
+		return this.kvColl.findOne(query).catch(err => {
+			return err
+		})
 	}
 
 	// delete a key (must have 'a' right to do so)
@@ -162,6 +178,8 @@ class KVStoreAPI extends AbstractAPI {
 				res.n = result.deletedCount
 				result.acknowledged ? res.ok = 1 : res.ok = 0
 				return res
+			}).catch(err => {
+				return err
 			})
 	}
 
@@ -193,7 +211,7 @@ class KVStoreAPI extends AbstractAPI {
 		const { r, w, d } = acl; // read, write, delete
 
 		const _checkIDsOrStar = function (value) {
-			const _isArrayOfIDs = array => array.filter(each => each._bsontype !== 'ObjectID')
+			const _isArrayOfIDs = array => array.filter(each => each._bsontype !== 'ObjectID' && each._bsontype !== 'ObjectId')
 				.length === 0;
 
 			return (value === '*') || (Array.isArray(value) && _isArrayOfIDs(value));

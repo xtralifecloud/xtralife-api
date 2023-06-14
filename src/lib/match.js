@@ -23,27 +23,21 @@ class MatchAPI extends AbstractAPI {
 
 	configure(xtralifeApi, callback) {
 		this.xtralifeApi = xtralifeApi;
-		logger.info("Matches initialized");
-		let iter = async.parallel;
-		if(xlenv.mongodb.aws_documentdb == true)
-			iter = async.series;
+		const iter = (xlenv.mongodb.aws_documentdb == true) ? Promise.mapSeries : Promise.all;
 		return iter([
-			cb => {
-				return this.coll('matches').createIndex({ domain: 1 }, { unique: false }, cb);
-			},
-			cb => {
-				return this.coll('matches').createIndex({ status: 1 }, { unique: false }, cb);
-			},
-			cb => {
-				return this.coll('matches').createIndex({ players: 1 }, { unique: false }, cb);
-			},
-			cb => {
-				return this.coll('matches').createIndex({ invitees: 1 }, { unique: false }, cb);
-			},
-			cb => {
-				return this.coll('matches').createIndex({ full: 1 }, { unique: false }, cb);
-			}
-		], err => callback(err));
+			this.coll('matches').createIndex({ domain: 1 }, { unique: false }),
+			this.coll('matches').createIndex({ status: 1 }, { unique: false }),
+			this.coll('matches').createIndex({ players: 1 }, { unique: false }),
+			this.coll('matches').createIndex({ invitees: 1 }, { unique: false }),
+			this.coll('matches').createIndex({ full: 1 }, { unique: false }),
+		])
+			.then(() => {
+				if (callback) callback(null);
+				logger.info("Matches initialized");
+			})
+			.catch((err) => {
+				if (callback) callback(err);
+			});
 	}
 
 	// remove common data (only in sandbox, no need to be too picky) - called from api.onDeleteUser
@@ -51,36 +45,35 @@ class MatchAPI extends AbstractAPI {
 		logger.debug(`delete user ${userid} for matches`);
 		const matchColl = this.coll('matches');
 		// Leave all matches to which the user belongs
-		return matchColl.find({ players: userid }).toArray((err, matches) => {
-			let match;
-			if (err != null) { return callback(err); }
+		matchColl.find({ players: userid }).toArray()
+			.then(matches => {
+				const tasks = matches.map(match => {
+					return () => {
+						return this._leaveMatchSilently(match._id, userid);
+					};
+				});
 
-			// We'll execute all these in parallel
-			const tasks = [];
-			for (match of Array.from(matches)) {
-				(match => {
-					return tasks.push(cb => {
-						return this._leaveMatchSilently(match._id, userid)
-							.then(() => cb());
-					});
-				})(match);
-			}
+				return Promise.all(tasks.map(task => task()));
+			})
+			.then(() => {
+				return matchColl.find({ creator: userid }).toArray();
+			})
+			.then(matches => {
+				const tasks = matches.map(match => {
+					return () => {
+						return this._forceDeleteMatch(match._id, callback);
+					};
+				});
 
-			// Plus delete all matches created by that person as well
-			return matchColl.find({ creator: userid }).toArray((err, matches) => {
-				if (err != null) { return callback(err); }
-
-				for (match of Array.from(matches)) {
-					(match => {
-						return tasks.push(cb => this._forceDeleteMatch(match._id, cb));
-					})(match);
-				}
-
-				return async.series(tasks, (err, results) => callback(err));
+				return Promise.all(tasks.map(task => task()));
+			})
+			.then(() => {
+				return callback(null);
+			})
+			.catch(err => {
+				return callback(err);
 			});
-		});
 	}
-
 
 	// remove game specific data data
 	onDeleteUserForGame(appId, userid, callback) {
@@ -126,13 +119,13 @@ class MatchAPI extends AbstractAPI {
 						if (!result.acknowledged) { throw new errors.BadArgument; }
 						// Success
 						return this._enrichMatchForReturningAsync(toInsert)
-							.tap(match => {
-								return this.handleHook("after-match-create", context, domain, {
+							.then(match => {
+								this.handleHook("after-match-create", context, domain, {
 									domain,
 									user_id,
 									match
-								}
-								);
+								});
+								return match;
 							});
 					});
 			});
@@ -620,11 +613,15 @@ class MatchAPI extends AbstractAPI {
 	}
 
 	_forceDeleteMatch(match_id, callback) {
-		return this.coll('matches').deleteOne({ _id: match_id }, function (err, writeResult) {
-			if (err != null) { return callback(err); }
-			if (writeResult.modifiedCount === 0) { return callback(new errors.BadMatchID); }
+		return this.coll('matches').deleteOne({ _id: match_id }).then((writeResult) => {
+			if (writeResult.modifiedCount === 0) {
+				return callback(new errors.BadMatchID());
+			}
 			return callback(null);
+		}).catch((err) => {
+			return callback(err);
 		});
+
 	}
 
 	_leaveMatchSilently(match_id, gamer_id, optional_event) {
@@ -686,7 +683,7 @@ class MatchAPI extends AbstractAPI {
 	list(domain, skip, limit, hideFinished, withGamer_id, customProperties) {
 		const filter = { domain };
 		if (hideFinished === "true") { filter.status = { $ne: 'finished' }; }
-		if (withGamer_id && (withGamer_id.length === 24)) { filter.players = ObjectId(withGamer_id); }
+		if (withGamer_id && (withGamer_id.length === 24)) { filter.players = new ObjectId(withGamer_id); }
 		// https://github.com/clutchski/coffeelint/issues/189
 		try {
 			if (customProperties) { filter.customProperties = JSON.parse(customProperties); }
@@ -710,13 +707,13 @@ class MatchAPI extends AbstractAPI {
 	count(domain, hideFinished, withGamer_id, customProperties) {
 		const filter = { domain };
 		if (hideFinished === "true") { filter.status = { $ne: 'finished' }; }
-		if (withGamer_id != null && withGamer_id.length === 24) { filter.players = ObjectId(withGamer_id); }
+		if (withGamer_id != null && withGamer_id.length === 24) { filter.players = new ObjectId(withGamer_id); }
 		try {
 			if (customProperties) { filter.customProperties = JSON.parse(customProperties); }
 		} catch (err) {
 			return err;
 		}
-		
+
 		return this.coll('matches').count(filter)
 		.then(count => {
 			return count;

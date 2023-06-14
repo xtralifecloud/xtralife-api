@@ -43,30 +43,20 @@ class SocialAPI extends AbstractAPI {
 		this.getFriendsAsync = Promise.promisify(this.getFriends);
 
 		if (xlenv.options.removeUser) {
-			let iter = async.parallel;
-			if(xlenv.mongodb.aws_documentdb == true)
-				iter = async.series;
+			const iter = (xlenv.mongodb.aws_documentdb == true) ? Promise.mapSeries : Promise.all;
 			return iter([
-				cb => {
-					return this.colldomains.createIndex({ "relations.friends": 1 }, cb);
-				},
-				cb => {
-					return this.colldomains.createIndex({ "relations.blacklist": 1 }, cb);
-				},
-				cb => {
-					return this.colldomains.createIndex({ godchildren: 1 }, cb);
-				},
-				cb => {
-					return this.colldomains.createIndex({ godfather: 1 }, cb);
-				}
-			], function (err) {
-				if (err != null) { return callback(err); }
-				logger.info("Social initialized");
-				return callback(null);
-			});
-		} else {
-			logger.info("Social initialized");
-			return callback(null);
+				this.colldomains.createIndex({ "relations.friends": 1 }),
+				this.colldomains.createIndex({ "relations.blacklist": 1 }),
+				this.colldomains.createIndex({ godchildren: 1 }),
+				this.colldomains.createIndex({ godfather: 1 }),
+			])
+				.then(() => {
+					if (callback) callback(null);
+					logger.info("Social initialized");
+				})
+				.catch((err) => {
+					if (callback) callback(err);
+				});
 		}
 	}
 
@@ -79,20 +69,14 @@ class SocialAPI extends AbstractAPI {
 	onDeleteUser(userid, cb) {
 		logger.debug(`delete user ${userid} for social`);
 		// remove references to user ALL DOMAINS affected !
-		return this.colldomains.updateMany({ "relations.friends": userid }, { $pull: { "relations.friends": userid } }, err => {
-			if (err != null) { return cb(err); }
-			return this.colldomains.updateMany({ "relations.blacklist": userid }, { $pull: { "relations.blacklist": userid } }, err => {
-				if (err != null) { return cb(err); }
-				return this.colldomains.updateMany({ "relations.godchildren": userid }, { $pull: { "relations.godchildren": userid } }, err => {
-					if (err != null) { return cb(err); }
-					return this.colldomains.updateMany({ "relations.godfather": userid }, { $unset: { "relations.godfather": null } }, err => {
-						if (err != null) { return cb(err); }
-						return cb(null);
-					});
-				});
-			});
-		});
+		return this.colldomains.updateMany({ "relations.friends": userid }, { $pull: { "relations.friends": userid } })
+			.then(() => this.colldomains.updateMany({ "relations.blacklist": userid }, { $pull: { "relations.blacklist": userid } }))
+			.then(() => this.colldomains.updateMany({ "relations.godchildren": userid }, { $pull: { "relations.godchildren": userid } }))
+			.then(() => this.colldomains.updateMany({ "relations.godfather": userid }, { $unset: { "relations.godfather": null } }))
+			.then(() => cb(null))
+			.catch(err => cb(err));
 	}
+
 
 	addProfile(context, domain, users, key) {
 		const ids = _.pluck(users, key);
@@ -141,7 +125,10 @@ class SocialAPI extends AbstractAPI {
 		return this.addProfile(context, domain, users, "gamer_id")
 			.then(profiles => {
 				return cb(null, profiles);
-			}).catch(cb);
+			})
+			.catch(err => {
+				cb(err)
+			})
 	}
 
 	_indexOfId(ids, id0) {
@@ -158,14 +145,19 @@ class SocialAPI extends AbstractAPI {
 			"domain must be a valid domain": check.nonEmptyString(domain)
 		}));
 
-		return this.colldomains.findOne({ domain, user_id }, { projection: { "relations.godfather": 1 } }, (err, doc) => {
-			if (err != null) { return cb(err); }
-			//return cb new errors.gamerDoesntHaveGodfather unless doc?.godfather?
-			if (__guard__(doc != null ? doc.relations : undefined, x => x.godfather) == null) { return cb(null, null); }
-			return this.describeUsersList(context, domain, [doc.relations.godfather], (err, arr) => {
-				return cb(err, arr[0]);
+		return this.colldomains.findOne({ domain, user_id }, { projection: { "relations.godfather": 1 } })
+			.then(doc => {
+				if (__guard__(doc != null ? doc.relations : undefined, x => x.godfather) == null) {
+					return cb(null, null)
+				} else {
+					return this.describeUsersList(context, domain, [doc.relations.godfather], (err, arr) => {
+						return cb(err, arr[0]);
+					});
+				}
+			})
+			.catch(err => {
+				return cb(err);
 			});
-		});
 	}
 
 	findGodfatherFromCode(context, domain, godfatherCode) {
@@ -184,87 +176,99 @@ class SocialAPI extends AbstractAPI {
 			"domain must be a valid domain": check.nonEmptyString(domain)
 		}));
 
-		return this.colldomains.findOne({ domain, "relations.godfatherCode": godfather }, (err, user) => {
-			if (err != null) { return cb(err); }
-			if (user == null) { return cb(new errors.unknownGodfatherCode); }
-			if (user.user_id.toString() === user_id.toString()) { return cb(new errors.cantBeSelfGodchild); }
-
-			return this.collusers.findOne({ _id: user_id }, { projection: { games: 1, profile: 1 } }, (err, usergames) => {
-				if (err != null) { return cb(err); }
-
-				return this.colldomains.findOne({ domain, user_id }, { projection: { "relations.godfather": 1 } }, (err, doc) => {
-					if (err != null) { return cb(err); }
-					if (__guard__(doc != null ? doc.relations : undefined, x => x.godfather) != null) { return cb(new errors.alreadyGodchild); }
-
-					return this.handleHook("setGodfather-override-reward", context, domain, {
-						domain,
-						godfather: user.user_id,
-						godchild: user_id,
-						reward: options.reward
-					}).then(afterData => {
-						logger.debug(afterData);
-						if ((afterData != null ? afterData.accepted : undefined) === false) { return cb(new errors.SponsorshipRefusedByHook); }
-						// sponsoring is acceted or there is no hook !
-						const reward = (afterData != null ? afterData.reward : undefined) || options.reward;
-						logger.debug(reward);
-						return this.colldomains.updateOne({ domain, user_id }, { $set: { "relations.godfather": user.user_id } }, { upsert: true }, (err, result) => {
-							if (err != null) { return cb(err); }
-							return this.colldomains.updateOne({ domain, user_id: user.user_id }, { $addToSet: { "relations.godchildren": user_id } }, { upsert: true }, (err, result) => {
-								if (err != null) { return cb(err); }
-								if ((reward != null) && (reward.transaction != null)) {
-									return this.xtralifeapi.transaction.transaction(context, domain, user.user_id, reward.transaction, reward.description)
-										.spread((balance, achievements) => {
-											if (result.modifiedCount === 1) {
-												const message = {
-													type: "godchildren",
-													event: {
-														godchildren: { gamer_id: user_id, profile: usergames.profile },
-														reward: { balance, achievements }
-													}
-												};
-												if (options.osn != null) { message.osn = options.osn; }
-												if (this.xtralifeapi.game.hasListener(domain)) { xlenv.broker.send(domain, user.user_id.toString(), message); }
-											}
-											return cb(null, result.modifiedCount);
-										}).catch(cb)
-										.done();
-								} else {
-									cb(err, result.modifiedCount);
-									if (result.modifiedCount === 1) {
-										const message = {
-											type: "godchildren",
-											event: {
-												godchildren: { gamer_id: user_id, profile: usergames.profile }
-											}
-										};
-										if (options.osn != null) { message.osn = options.osn; }
-										if (this.xtralifeapi.game.hasListener(domain)) { xlenv.broker.send(domain, user.user_id.toString(), message); }
-									}
-									return;
+		return this.colldomains.findOne({ domain, "relations.godfatherCode": godfather })
+			.then(user => {
+				if (user == null) {
+					return cb(new errors.unknownGodfatherCode);
+				}
+				if (user.user_id.toString() === user_id.toString()) {
+					return cb(new errors.cantBeSelfGodchild);
+				}
+				return this.collusers.findOne({ _id: user_id }, { projection: { games: 1, profile: 1 } })
+					.then(usergames => {
+						return this.colldomains.findOne({ domain, user_id }, { projection: { "relations.godfather": 1 } })
+							.then(doc => {
+								if (__guard__(doc != null ? doc.relations : undefined, x => x.godfather) != null) {
+									return cb(new errors.alreadyGodchild);
 								}
+								return this.handleHook("setGodfather-override-reward", context, domain, {
+									domain,
+									godfather: user.user_id,
+									godchild: user_id,
+									reward: options.reward
+								})
+									.then(afterData => {
+										logger.debug(afterData);
+										if ((afterData != null ? afterData.accepted : undefined) === false) {
+											return cb(new errors.SponsorshipRefusedByHook);
+										}
+										const reward = (afterData != null ? afterData.reward : undefined) || options.reward;
+										logger.debug(reward);
+										return this.colldomains.updateOne({ domain, user_id }, { $set: { "relations.godfather": user.user_id } }, { upsert: true }).then(() => {
+											return this.colldomains.updateOne({ domain, user_id: user.user_id }, { $addToSet: { "relations.godchildren": user_id } }, { upsert: true }).then((result) => {
+												if ((reward != null) && (reward.transaction != null)) {
+													return this.xtralifeapi.transaction.transaction(context, domain, user.user_id, reward.transaction, reward.description)
+														.then(([balance, achievements]) => {
+															if (result.modifiedCount === 1) {
+																const message = {
+																	type: "godchildren",
+																	event: {
+																		godchildren: { gamer_id: user_id, profile: usergames.profile },
+																		reward: { balance, achievements }
+																	}
+																};
+																if (options.osn != null) { message.osn = options.osn; }
+																if (this.xtralifeapi.game.hasListener(domain)) {
+																	xlenv.broker.send(domain, user.user_id.toString(), message);
+																}
+															}
+															return cb(null, result.modifiedCount);
+														}).catch(cb)
+												} else {
+													cb(null, result.modifiedCount);
+													if (result.modifiedCount === 1) {
+														const message = {
+															type: "godchildren",
+															event: {
+																godchildren: { gamer_id: user_id, profile: usergames.profile }
+															}
+														};
+														if (options.osn != null) {
+															message.osn = options.osn;
+														}
+														if (this.xtralifeapi.game.hasListener(domain)) {
+															xlenv.broker.send(domain, user.user_id.toString(), message);
+														}
+														return;
+													}
+												}
+											});
+										})
+									})
+									.catch(cb);
 							});
-						});
-					}).catch(cb);
-				});
+					});
 			});
-		});
 	}
+
 
 	godfatherCode(domain, user_id, cb) {
 		this.pre(check => ({
 			"domain must be a valid domain": check.nonEmptyString(domain)
 		}));
 
-		return this.colldomains.findOne({ domain, user_id }, { projection: { "relations.godfatherCode": 1 } }, (err, doc) => {
-			if (err != null) { return cb(err); }
-			if (__guard__(doc != null ? doc.relations : undefined, x => x.godfatherCode) != null) { return cb(null, doc.relations.godfatherCode); }
+		return this.colldomains.findOne({ domain, user_id }, { projection: { "relations.godchildren": 1 } })
+			.then((doc) => {
+				if (__guard__(doc != null ? doc.relations : undefined, x => x.godfatherCode) != null) { return cb(null, doc.relations.godfatherCode); }
 
-			const code = rs.generate(8);
-			return this.colldomains.updateOne({ domain, user_id }, { $set: { "relations.godfatherCode": code } }, { upsert: true }, (err, result) => {
-				//console.log err
-				return cb(err, code);
+				const code = rs.generate(8);
+				return this.colldomains.updateOne({ domain, user_id }, { $set: { "relations.godfatherCode": code } }, { upsert: true }).then((result) => {
+					return cb(null, code);
+				});
+			})
+			.catch((err) => {
+				return cb(err);
 			});
-		});
 	}
 
 	getGodchildren(context, domain, user_id, cb) {
@@ -272,11 +276,14 @@ class SocialAPI extends AbstractAPI {
 			"domain must be a valid domain": check.nonEmptyString(domain)
 		}));
 
-		return this.colldomains.findOne({ domain, user_id }, { projection: { "relations.godchildren": 1 } }, (err, doc) => {
-			if (err != null) { return cb(err); }
-			if (__guard__(doc != null ? doc.relations : undefined, x => x.godchildren) == null) { return cb(null, []); }
-			return this.describeUsersList(context, domain, doc.relations.godchildren, cb);
-		});
+		return this.colldomains.findOne({ domain, user_id }, { projection: { "relations.godchildren": 1 } })
+			.then((doc) => {
+				if (__guard__(doc != null ? doc.relations : undefined, x => x.godchildren) == null) { return cb(null, []); }
+				return this.describeUsersList(context, domain, doc.relations.godchildren, cb);
+			})
+			.catch((err) => {
+				return cb(err);
+			});
 	}
 
 
@@ -285,55 +292,78 @@ class SocialAPI extends AbstractAPI {
 			"domain must be a valid domain": check.nonEmptyString(domain)
 		}));
 
-		return this.colldomains.findOne({ domain, user_id }, { projection: { "relations.friends": 1 } }, (err, user) => {
-			if (err != null) { return cb(err); }
-			if (__guard__(user != null ? user.relations : undefined, x => x.friends) == null) { return cb(null, []); }
-			return this.describeUsersList(context, domain, user.relations.friends, cb);
-		});
+		return this.colldomains.findOne({ domain, user_id }, { projection: { "relations.friends": 1 } })
+			.then(user => {
+				if (__guard__(user != null ? user.relations : undefined, x => x.friends) == null) {
+					return cb(null, []);
+				}
+				return this.describeUsersList(context, domain, user.relations.friends, cb);
+			})
+			.catch(err => cb(err));
 	}
 
 	getBlacklistedUsers(context, domain, user_id, cb) {
 		this.pre(check => ({
 			"domain must be a valid domain": check.nonEmptyString(domain)
 		}));
-
-		return this.colldomains.findOne({ domain, user_id }, { projection: { "relations.blacklist": 1 } }, (err, user) => {
-			if (err != null) { return cb(err); }
-			if (__guard__(user != null ? user.relations : undefined, x => x.blacklist) == null) { return cb(null, []); }
-			return this.describeUsersList(context, domain, user.relations.blacklist, cb);
-		});
+		return this.colldomains.findOne({ domain, user_id }, { projection: { "relations.blacklist": 1 } })
+			.then(user => {
+				if (__guard__(user != null ? user.relations : undefined, x => x.blacklist) == null) {
+					return cb(null, []);
+				}
+				return this.describeUsersList(context, domain, user.relations.blacklist, cb);
+			})
+			.catch(err => cb(err));
 	}
 
 	_setStatus(domain, user_id, friend_id, status, cb) {
 		switch (status) {
 			case "add":
-				return this.colldomains.findOne({ domain, user_id, "relations.blacklist": friend_id }, { projection: { user_id: 1 } }, (err, blacklisted) => {
-					if (err != null) { return cb(err); }
-					if (blacklisted != null) { return cb(null, { done: 0 }); }
-					return this.colldomains.updateOne({ domain, user_id }, { $addToSet: { "relations.friends": friend_id } }, { upsert: true }, (err, result) => {
-						return cb(err, { done: result.upsertedCount });
+				return this.colldomains.findOne({ domain, user_id, "relations.blacklist": friend_id }, { projection: { user_id: 1 } })
+					.then((blacklisted) => {
+						if (blacklisted != null) { return cb(null, { done: 0 }); }
+						return this.colldomains.updateOne({ domain, user_id }, { $addToSet: { "relations.friends": friend_id } }, { upsert: true })
+							.then((result) => {
+								return cb(null, { done: result.upsertedCount });
+							})
+							.catch((err) => {
+								return cb(err);
+							});
+					})
+					.catch((err) => {
+						return cb(err);
 					});
-				});
 
 			case "forget":
 				// TODO a single update can pull from both friends and blacklist at once
 				// it will change the semantics of the return value...
-				return this.colldomains.updateOne({ domain, user_id }, { $pull: { "relations.blacklist": friend_id } }, { upsert: true }, (err, result) => {
-					if (err != null) { return cb(err); }
-					return this.colldomains.updateOne({ domain, user_id }, { $pull: { "relations.friends": friend_id } }, { upsert: true }, (err, other) => {
-						return cb(err, { done: result.modifiedCount || other.modifiedCount });
+
+				return this.colldomains.updateOne({ domain, user_id }, { $pull: { "relations.blacklist": friend_id } }, { upsert: true })
+					.then((result) => {
+						return this.colldomains.updateOne({ domain, user_id }, { $pull: { "relations.friends": friend_id } }, { upsert: true })
+							.then((other) => {
+								return cb(null, { done: result.modifiedCount || other.modifiedCount });
+							});
+					})
+					.catch((err) => {
+						return cb(err);
 					});
-				});
+
 
 			case "blacklist":
 				// TODO a single update can add/pull from both friends and blacklist at once
 				// it will change the semantics of the return value...
-				return this.colldomains.updateOne({ domain, user_id }, { $addToSet: { "relations.blacklist": friend_id } }, { upsert: true }, (err, result) => {
-					if (err != null) { return cb(err); }
-					return this.colldomains.updateOne({ domain, user_id }, { $pull: { "relations.friends": friend_id } }, { upsert: true }, (err, other) => {
-						return cb(err, { done: result.modifiedCount });
+				return this.colldomains.updateOne({ domain, user_id }, { $addToSet: { "relations.blacklist": friend_id } }, { upsert: true })
+					.then((result) => {
+						return this.colldomains.updateOne({ domain, user_id }, { $pull: { "relations.friends": friend_id } }, { upsert: true })
+							.then((other) => {
+								return cb(null, { done: result.modifiedCount });
+							});
+					})
+					.catch((err) => {
+						return cb(err);
 					});
-				});
+
 		}
 	}
 
@@ -374,18 +404,23 @@ class SocialAPI extends AbstractAPI {
 		return check(friends_initial, options, (err, friends) => {
 			if (err != null) { return cb(err); }
 			const query = { "network": network, "networkid": { "$in": Object.keys(friends) } };
-			return this.collusers.find(query).toArray((err, doc) => {
-				return this.colldomains.findOne({ domain, user_id }, { projection: { relations: 1 } }, (err, r) => {
-					if (err != null) { return cb(err); }
-					for (let f of Array.from(doc)) {
-						if ((__guard__(r != null ? r.relations : undefined, x => x.friends) != null) && (this._indexOfId(r.relations.friends, f._id) !== -1)) { f.relation = "friend"; }
-						if ((__guard__(r != null ? r.relations : undefined, x1 => x1.blacklisted) != null) && (this._indexOfId(r.relations.blacklisted, f._id) !== -1)) { f.relation = "blacklisted"; }
-						friends[f.networkid].clan = _.omit(f, ["networksecret", "devices"]);
-					}
-					if (network === "facebook") { friends = _.indexBy(friends, "id"); }
-					return cb(null, friends);
+			return this.collusers.find(query).toArray()
+				.then(doc => {
+					return this.colldomains.findOne({ domain, user_id }, { projection: { relations: 1 } }).then((r) => {
+						for (let f of Array.from(doc)) {
+							if ((__guard__(r != null ? r.relations : undefined, x => x.friends) != null) && (this._indexOfId(r.relations.friends, f._id) !== -1)) { f.relation = "friend"; }
+							if ((__guard__(r != null ? r.relations : undefined, x1 => x1.blacklisted) != null) && (this._indexOfId(r.relations.blacklisted, f._id) !== -1)) { f.relation = "blacklisted"; }
+							friends[f.networkid].clan = _.omit(f, ["networksecret", "devices"]);
+						}
+						if (network === "facebook") { friends = _.indexBy(friends, "id"); }
+						return cb(null, friends);
+					})
+						.catch(err => {
+							return cb(err)
+						});
+				}).catch(err => {
+					return cb(err);
 				});
-			});
 		});
 	}
 
@@ -413,32 +448,34 @@ class SocialAPI extends AbstractAPI {
 			const query1 = { "network": network, "networkid": { "$in": Object.keys(friends) } };
 			const query2 = { [`links.${network}`]: { "$in": Object.keys(friends) } };
 			const query = { "$or": [query1, query2] };
-			return this.collusers.find(query).toArray((err, doc) => {
-				if (err != null) { return cb(err); }
-				return this.colldomains.findOne({ domain, user_id }, { projection: { relations: 1 } }, (err, r) => {
-					if (err != null) { return cb(err); }
-					//console.log "-------------- doc :"
-					//console.log doc
-					for (var f of Array.from(doc)) {
-						if ((__guard__(r != null ? r.relations : undefined, x => x.friends) != null) && (this._indexOfId(r.relations.friends, f._id) !== -1)) { f.relation = "friend"; }
-						if ((__guard__(r != null ? r.relations : undefined, x1 => x1.blacklisted) != null) && (this._indexOfId(r.relations.blacklisted, f._id) !== -1)) { f.relation = "blacklisted"; }
-						if ((config.automatching === true) && (f.relation === undefined)) {
-							console.log("adding friend !");
-							f.relation = "new friend";
-							this.setFriendStatus(domain, user_id, f._id, "add", {}, err => logger.debug(`automatching : ${user_id} became friend of ${f._id}.`));
-						}
-						if (friends[f.networkid] != null) {
-							friends[f.networkid].clan = _.omit(f, ["networksecret", "devices"]);
-						} else if (friends[f.links[network]] != null) {
-							friends[f.links[network]].clan = _.omit(f, ["networksecret", "devices"]);
-						}
-					}
-					if (network === "facebook") { friends = _.indexBy(friends, "id"); }
-					return cb(null, friends);
-				});
-			});
+
+			return this.collusers.find(query).toArray()
+				.then((doc) => {
+					return this.colldomains.findOne({ domain, user_id }, { projection: { relations: 1 } })
+						.then((r) => {
+							if (r == null) { return cb(null, {}); }
+							for (var f of Array.from(doc)) {
+								if ((__guard__(r != null ? r.relations : undefined, x => x.friends) != null) && (this._indexOfId(r.relations.friends, f._id) !== -1)) { f.relation = "friend"; }
+								if ((__guard__(r != null ? r.relations : undefined, x1 => x1.blacklisted) != null) && (this._indexOfId(r.relations.blacklisted, f._id) !== -1)) { f.relation = "blacklisted"; }
+								if ((config.automatching === true) && (f.relation === undefined)) {
+									console.log("adding friend !");
+									f.relation = "new friend";
+									this.setFriendStatus(domain, user_id, f._id, "add", {}, err => logger.debug(`automatching : ${user_id} became friend of ${f._id}.`));
+								}
+								if (friends[f.networkid] != null) {
+									friends[f.networkid].clan = _.omit(f, ["networksecret", "devices"]);
+								} else if (friends[f.links[network]] != null) {
+									friends[f.links[network]].clan = _.omit(f, ["networksecret", "devices"]);
+								}
+							}
+							if (network === "facebook") { friends = _.indexBy(friends, "id"); }
+							return cb(null, friends);
+						})
+						.catch((err) => cb(err));
+				})
+				.catch((err) => cb(err));
 		});
-	}
+	};
 }
 
 
