@@ -6,13 +6,13 @@ global.xlenv = require("xtralife-env");
 
 describe('After tests disposal', function () {
 	return it('should close all running instances', function () {
-		xlenv.inject(['=redisClient', '=redisChannel', '=mongoCx', '=elastic'], function (err, rcl, rch, mongoCx, elastic) {
+		xlenv.inject(['=redisClient', '=redisChannel', '=mongoCx', '=elasticClient'], function (err, rcl, rch, mongoCx, elasticClient) {
 			xlenv.broker.stop(); // TimeoutBroker must be stopped (to stop checking for timeouts)
 			// Redis connections must be stopped in order to prevent from the test to keep stuck
 			rcl.disconnect();
 			rch.disconnect();
 			mongoCx.close();
-			elastic.close();
+			elasticClient.close();
 		});
 	});
 });

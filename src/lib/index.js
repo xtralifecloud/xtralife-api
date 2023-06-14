@@ -10,15 +10,15 @@ const errors = require("../errors.js");
 class IndexAPI extends AbstractAPI {
 	constructor() {
 		super();
-		this.elastic = null;
+		this.elasticClient = null;
 	}
 
 	configure(parent, callback) {
-
+		this.isElasticDriverBelow8 = parseInt(xlenv.elastic.driver.version.split('.')[0]) < 8;
 		this.parent = parent;
-		return xlenv.inject(["=elastic"], (err, elastic) => {
+		return xlenv.inject(["=elasticClient"], (err, elasticClient) => {
 
-			this.elastic = elastic;
+			this.elasticClient = elasticClient;
 			logger.info("ES Index initialized");
 
 			return callback(err, {});
@@ -40,12 +40,12 @@ class IndexAPI extends AbstractAPI {
 			properties,
 			contents
 		}).then(() => {
-			return this.elastic.index({
+			return this.elasticClient.index({
 				index: `${domain}.${indexName}`.toLowerCase(),
-				type: '_doc',
 				id: objectId,
 				body: document,
-				refresh: true
+				refresh: true,
+				...(this.isElasticDriverBelow8 ? { type: '_doc' } : {})
 			});
 		});
 	}
@@ -59,10 +59,10 @@ class IndexAPI extends AbstractAPI {
 			indexName,
 			objectId
 		}).then(() => {
-			return this.elastic.get({
+			return this.elasticClient.get({
 				index: `${domain}.${indexName}`.toLowerCase(),
-				type: '_doc',
-				id: objectId
+				id: objectId,
+				...(this.isElasticDriverBelow8 ? { type: '_doc' } : {})
 			});
 		});
 	}
@@ -81,7 +81,7 @@ class IndexAPI extends AbstractAPI {
 			from,
 			max
 		}).then(() => {
-			return this.elastic.search({
+			return this.elasticClient.search({
 				index: `${domain}.${indexName}`.toLowerCase(),
 				q,
 				sort,
@@ -104,7 +104,7 @@ class IndexAPI extends AbstractAPI {
 			from,
 			max
 		}).then(() => {
-			return this.elastic.search({
+			return this.elasticClient.search({
 				index: `${domain}.${indexName}`.toLowerCase(),
 				body: query,
 				from,
@@ -122,10 +122,10 @@ class IndexAPI extends AbstractAPI {
 			indexName,
 			objectId
 		}).then(() => {
-			return this.elastic.delete({
+			return this.elasticClient.delete({
 				index: domain.toLowerCase() + `.${indexName.toLowerCase()}`,
-				type: '_doc',
-				id: objectId
+				id: objectId,
+				...(this.isElasticDriverBelow8 ? { type: '_doc' } : {})
 			});
 		});
 	}
@@ -183,7 +183,7 @@ class IndexAPI extends AbstractAPI {
 			},
 
 			getClient: () => { // OpenSource version ONLY, not available in the hosted edition
-				return this.elastic;
+				return this.elasticClient;
 			}
 		};
 	}
