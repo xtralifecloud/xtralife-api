@@ -18,7 +18,7 @@ const Promise = require('bluebird');
 const errors = require('../errors.js');
 const util = require('util');
 
-const Redlock = require('redlock');
+const { default: Redlock } = require("redlock");
 
 const superagent = require('superagent');
 const jwt = require('jsonwebtoken');
@@ -227,6 +227,7 @@ class GameAPI extends AbstractAPI {
 
 	runBatchWithLock(context, domain, hookName, params, resource = null) {
 		let timeout = 200;
+		let lock;
 		if(xlenv.options.redlock != null) {
 			if(xlenv.options.redlock.timeout) timeout = xlenv.options.redlock.timeout;
 			if(xlenv.options.redlock.overrideTimeoutViaParams && params.timeout) timeout = params.timeout;
@@ -236,16 +237,20 @@ class GameAPI extends AbstractAPI {
 		if (resource == null) { resource = hookName; }
 		const lockName = `${domain}.${resource}`;
 
-		return this.redlock.lock(lockName, timeout).then(lock => {
-			return this.handleHook(hookName, context, domain, params)
-				.timeout(timeout)
-				.tap(result => {
-					return lock.unlock();
-				}).catch(err => {
-					lock.unlock();
-					throw err;
-				});
-		});
+		return this.redlock.acquire(lockName, timeout)
+			.then(acquiredLock => {
+				lock = acquiredLock;
+				return this.handleHook(hookName, context, domain, params)
+					.timeout(timeout);
+			})
+			.catch(err => {
+				throw err;
+			})
+			.finally(() => {
+				if (lock) {
+					lock.release();
+				}
+			});
 	}
 
 	sendEvent(context, domain, user_id, message) {
