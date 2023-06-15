@@ -367,8 +367,8 @@ class ConnectAPI extends AbstractAPI {
 				if (options != null ? options.preventRegistration : undefined) { return cb(new errors.PreventRegistration(email), null, false); }
 
 				// create account
-				return this.register(game, "email", email, sha_pass, this._buildEmailProfile(email))
-					.then(user => { return cb(err, user, true) })
+				return this.register(game, "email", email, sha_pass, this._buildEmailProfile(email),
+						(err, user) => { return cb(err, user, true); })
 			})
 			.catch(err => {
 				return cb(err);
@@ -387,10 +387,8 @@ class ConnectAPI extends AbstractAPI {
 					.then(() => {
 						if (user != null) { return cb(null, user, false); }
 						if (options != null ? options.preventRegistration : undefined) { return cb(new errors.PreventRegistration(me), null, false); }
-						return this.register(game, "facebook", me.id, null, this._buildFacebookProfile(me))
-							.then((user) => {
-								return cb(null, user, true);
-							})
+						return this.register(game, "facebook", me.id, null, this._buildFacebookProfile(me),
+								(err, user) => { return cb(err, user, true); })
 					})
 					.catch(err => {
 						return cb(err);
@@ -416,9 +414,8 @@ class ConnectAPI extends AbstractAPI {
 							return cb(new errors.PreventRegistration(me), null, false);
 						}
 
-						return this.register(game, "google", me.sub, null, this._buildGoogleProfile(me))
-							.then(user => cb(null, user, true))
-							.catch(err => cb(err));
+						return this.register(game, "google", me.sub, null, this._buildGoogleProfile(me),
+								(err, user) => { return cb(err, user, true); })
 					})
 					.catch(err => cb(err));
 			});
@@ -440,9 +437,8 @@ class ConnectAPI extends AbstractAPI {
 							return cb(new errors.PreventRegistration(me), null, false);
 						}
 
-						return this.register(game, "firebase", me.uid, null, this._buildFirebaseProfile(me))
-							.then(user => cb(null, user, true))
-							.catch(err => cb(err));
+						return this.register(game, "firebase", me.uid, null, this._buildFirebaseProfile(me),
+								(err, user) => { return cb(err, user, true); })
 					})
 					.catch(err => cb(err));
 			});
@@ -466,9 +462,8 @@ class ConnectAPI extends AbstractAPI {
 							return cb(new errors.PreventRegistration(me), null, false);
 						}
 
-						return this.register(game, "apple", me.sub, null, this._buildAppleProfile(me))
-							.then(user => cb(null, user, true))
-							.catch(err => cb(err));
+						return this.register(game, "apple", me.sub, null, this._buildAppleProfile(me),
+								(err, user) => { return cb(err, user, true); })
 					})
 					.catch(err => cb(err));
 			});
@@ -495,9 +490,8 @@ class ConnectAPI extends AbstractAPI {
 							return cb(new errors.PreventRegistration(me), null, false);
 						}
 
-						return this.register(game, "steam", me.steamid, null, { lang: "en" })
-							.then(user => cb(null, user, true))
-							.catch(err => cb(err));
+						return this.register(game, "steam", me.steamid, null, { lang: "en" },
+								(err, user) => { return cb(err, user, true); })
 					})
 					.catch(err => cb(err));
 			});
@@ -517,9 +511,8 @@ class ConnectAPI extends AbstractAPI {
 							return cb(new errors.PreventRegistration(me), null, false);
 						}
 
-						return this.register(game, "epic", me.account_id, null, { lang: "en" })
-							.then(user => cb(null, user, true))
-							.catch(err => cb(err));
+						return this.register(game, "epic", me.account_id, null, { lang: "en" },
+								(err, user) => { return cb(err, user, true); })
 					})
 					.catch(err => cb(err));
 			});
@@ -541,9 +534,8 @@ class ConnectAPI extends AbstractAPI {
 					if (user != null) { return cb(null, user, false); }
 					if (options != null ? options.preventRegistration : undefined) { return cb(new errors.PreventRegistration((options != null ? options.gamecenter : undefined) || {}), null, false); }
 
-					return this.register(game, "gamecenter", me.id, null, { lang: "en" })
-						.then(user => cb(null, user, true))
-						.catch(err => cb(err));
+					return this.register(game, "gamecenter", me.id, null, { lang: "en" },
+							(err, user) => { return cb(err, user, true); })
 				})
 				.catch(err => cb(err));
 		});
