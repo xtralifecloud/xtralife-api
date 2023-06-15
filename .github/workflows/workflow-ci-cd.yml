@@ -13,11 +13,11 @@ jobs:
       redis:
         image: redis:6.2.11
         ports:
-          - 6378:6379
+          - 6379:6379
       mongo:
         image: mongo:4.0.28
         ports:
-          - 27018:27017
+          - 27017:27017
       elasticsearch:
         image: elasticsearch:8.8.0
         ports:
