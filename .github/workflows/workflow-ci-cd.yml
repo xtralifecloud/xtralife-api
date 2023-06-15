@@ -19,7 +19,7 @@ jobs:
         ports:
           - 27018:27017
       elasticsearch:
-        image: elasticsearch:7.10.1
+        image: elasticsearch:8.8.0
         ports:
           - 9200:9200
         env:
