@@ -336,12 +336,12 @@ class ConnectAPI extends AbstractAPI {
 					}
 
 					if (options != null ? options.preventRegistration : undefined) {
-						return cb(new errors.PreventRegistration(status.id), null, false);;
+						return cb(new errors.PreventRegistration(status.id), null, false);
 					}
 
 					// create account
-					return this.register(game, external, status.id, null, { displayName: status.id, lang: "en" })
-						.then(user => { return cb(err, user, true) })
+					return this.register(game, external, status.id, null, { displayName: status.id, lang: "en" },
+							(err, user) => { return cb(err, user, true); })
 				})
 				.catch(err => {
 					return cb(err);
