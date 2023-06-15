@@ -43,7 +43,7 @@ describe("Xtralife external network", function () {
 
     it('should connect with a id==token', () => xtralife.api.connect.loginExternal(game, "customNetwork", {id: "good", secret: "good"}, {}, (err, user, created) => {
         user.network.should.eql("customNetwork");
-        return user.networkid.should.eql("good");;
+        return user.networkid.should.eql("good");
     }));
 
     it('should not connect with a bad network', () => xtralife.api.connect.loginExternal(game, "Unknown", {id: "good", secret: "good"}, {}, (err, user, created) => {
