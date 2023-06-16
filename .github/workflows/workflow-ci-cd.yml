@@ -10,14 +10,6 @@ jobs:
     name: Npm - Install & Test
     runs-on: ubuntu-latest
     services:
-      redis:
-        image: redis:6.2.11
-        ports:
-          - 6379:6379
-      mongo:
-        image: mongo:4.0.28
-        ports:
-          - 27017:27017
       elasticsearch:
         image: elasticsearch:8.8.0
         ports:
@@ -30,6 +22,14 @@ jobs:
           - elasticsearchdata:/usr/share/elasticsearch/data
           - elasticsearchconfig:/usr/share/elasticsearch/config
           - elasticsearchlogs:/usr/share/elasticsearch/logs
+      redis:
+        image: redis:6.2.11
+        ports:
+          - 6379:6379
+      mongo:
+        image: mongo:4.0.28
+        ports:
+          - 27017:27017
     steps:
       - name: Checking out repository
         uses: actions/checkout@v3
