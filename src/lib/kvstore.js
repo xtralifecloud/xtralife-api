@@ -8,6 +8,7 @@ const extend = require('util')._extend;
 const api = require("../api.js");
 const AbstractAPI = require("../AbstractAPI.js");
 const errors = require("../errors.js");
+const Promise = require('bluebird');
 const {
 	ObjectId
 } = require('mongodb');
@@ -58,7 +59,7 @@ class KVStoreAPI extends AbstractAPI {
 		});
 
 		const cdate = Date.now();
-		return this.kvColl.insertOne({ domain, key, value, acl, cdate, udate: cdate })
+		return Promise.resolve(this.kvColl.insertOne({ domain, key, value, acl, cdate, udate: cdate }))
 			.then(result => {
 				result.acknowledged ? result.ok = 1 : result.ok = 0
 				return result
@@ -82,7 +83,7 @@ class KVStoreAPI extends AbstractAPI {
 		const query = { domain, key };
 		if (user_id != null) { query['$or'] = [{ 'acl.a': '*' }, { 'acl.a': user_id }]; }
 		const udate = Date.now();
-		return this.kvColl.updateOne(query, { $set: { acl, udate } })
+		return Promise.resolve(this.kvColl.updateOne(query, { $set: { acl, udate } }))
 			.then(result => result.modifiedCount)
 			.catch(err => {
 				return err
@@ -105,7 +106,7 @@ class KVStoreAPI extends AbstractAPI {
 		if (user_id != null) { query['$or'] = [{ 'acl.w': '*' }, { 'acl.w': user_id }]; }
 		if (udate != null) { query.udate = udate; }
 
-		return this.kvColl.updateOne(query, { $set: { value, udate: Date.now() } })
+		return Promise.resolve(this.kvColl.updateOne(query, { $set: { value, udate: Date.now() } }))
 			.then(result => {
 				result.acknowledged ? result.ok = 1 : result.ok = 0
 				result.nModified = result.modifiedCount
@@ -133,7 +134,7 @@ class KVStoreAPI extends AbstractAPI {
 
 		const set = { udate: Date.now() };
 		for (let k in value) { const v = value[k]; set[`value.${k}`] = v; }
-		return this.kvColl.updateOne(query, { $set: set })
+		return Promise.resolve(this.kvColl.updateOne(query, { $set: set }))
 			.then(result => result.modifiedCount).catch(err => {
 				return err
 			})
@@ -154,7 +155,7 @@ class KVStoreAPI extends AbstractAPI {
 
 		const query = { domain, key };
 		if (user_id != null) { query['$or'] = [{ 'acl.r': '*' }, { 'acl.r': user_id }]; }
-		return this.kvColl.findOne(query).catch(err => {
+		return Promise.resolve(this.kvColl.findOne(query)).catch(err => {
 			return err
 		})
 	}
@@ -172,7 +173,7 @@ class KVStoreAPI extends AbstractAPI {
 
 		const query = { domain, key };
 		if (user_id != null) { query['$or'] = [{ 'acl.a': '*' }, { 'acl.a': user_id }]; }
-		return this.kvColl.deleteOne({ domain, key, $or: [{ 'acl.a': '*' }, { 'acl.a': user_id }] })
+		return Promise.resolve(this.kvColl.deleteOne({ domain, key, $or: [{ 'acl.a': '*' }, { 'acl.a': user_id }] }))
 			.then(result => {
 				var res = {}
 				res.n = result.deletedCount
