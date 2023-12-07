@@ -285,28 +285,25 @@ class TransactionAPI extends AbstractAPI {
 
 		const cursor = this.txColl.find(query);
 		cursor.sort({ ts: -1 });
-		return cursor.count(function (err, count) {
-			if (err != null) {
+		cursor.count()
+			.then(count => {
+				cursor.skip(skip).limit(limit).toArray()
+					.then(transactions => {
+						transactions.forEach(each => {
+							delete each._id;
+							delete each.userid;
+						});
+						callback(null, { transactions, count });
+					})
+					.catch(err => {
+						logger.error(err, 'error in txHistory.find.toArray');
+						callback(err);
+					});
+			})
+			.catch(err => {
 				logger.error(err, 'error in txHistory.find');
-				return callback(err);
-			}
-
-			return cursor.skip(skip).limit(limit).toArray(function (err, transactions) {
-				if (err != null) {
-					logger.error(err, 'error in txHistory.find.toArray');
-					return callback(err);
-				}
-
-				for (let each of Array.from(transactions)) {
-					(function (each) {
-						delete each._id;
-						return delete each.userid;
-					})(each);
-				}
-
-				return callback(null, { transactions, count });
+				callback(err);
 			});
-		});
 	}
 }
 
