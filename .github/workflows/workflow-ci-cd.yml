@@ -38,7 +38,7 @@ jobs:
         with:
           cache: npm
           cache-dependency-path: package-lock.json
-          node-version: 18.13.0
+          node-version: 18.20.4
       - name: Installing dependencies
         run: npm ci
       - name: Testing package
@@ -57,7 +57,7 @@ jobs:
           always-auth: true
           cache: npm
           cache-dependency-path: package-lock.json
-          node-version: 18.13.0
+          node-version: 18.20.4
           registry-url: https://registry.npmjs.org
       - name: Package registry login + publish
         run: npm publish   # will also login before publishing, using the config in .npmrc
