@@ -469,12 +469,44 @@ class ConnectAPI extends AbstractAPI {
 			});
 	}
 
-	loginSteam(game, steamToken, options, cb) {
-		let webApiKey, appId = null;
+	getSteamCredentials(game, options) {
+		let appId = null, webApiKey = null;
+	
+		if (game.config.steam) {
+			let variantConfig;
+	
+			// check for format 2 (new), given variant from login options
+			if (options && options.gameVariant) {
+				variantConfig = game.config.steam[options.gameVariant];
+				if (!variantConfig) {
+					throw new errors.MissingSteamCredentials("Missing steam credentials in config file");
+				}
+			} else {
+				// check for format 2 (new), default variant from game config
+				variantConfig = Object.values(game.config.steam).find(variant => variant.default === true);
+			}
+	
+			// fetch the required fields from the found variant format 2 if any, fetch from format 1 (old) otherwise
+			if (variantConfig) {
+				appId = variantConfig.appId;
+				webApiKey = variantConfig.webApiKey;
+			} else {
+				// check format 1 (old)
+				appId = game.config.steam.appId;
+				webApiKey = game.config.steam.webApiKey;
+			}
+		}
+	
+		if (!appId || !webApiKey) {
+			throw new errors.MissingSteamCredentials("Missing steam credentials in config file");
+		}
+	
+		return { appId, webApiKey };
+	}
+	
 
-		if(game.config.steam && game.config.steam.webApiKey) webApiKey = game.config.steam.webApiKey
-		if(game.config.steam && game.config.steam.appId) appId = game.config.steam.appId
-		if(!webApiKey || !appId) return cb(new errors.MissingSteamCredentials("Missing steam credentials in config file"))
+	loginSteam(game, steamToken, options, cb) {
+		const { appId, webApiKey } = this.getSteamCredentials(game, options);
 	
 		return steam.validToken(
 			steamToken,
@@ -639,12 +671,8 @@ class ConnectAPI extends AbstractAPI {
 			});
 	}
 
-	convertAccountToSteam(game, user_id, SteamToken) {
-		let webApiKey, appId = null;
-
-		if(game.config.steam && game.config.steam.webApiKey) webApiKey = game.config.steam.webApiKey
-		if(game.config.steam && game.config.steam.appId) appId = game.config.steam.appId
-		if(!webApiKey || !appId) throw new errors.MissingSteamCredentials("Missing steam credentials in config file")
+	convertAccountToSteam(game, user_id, SteamToken, options) {
+		const { appId, webApiKey } = this.getSteamCredentials(game, options);
 
 		return this.steamValidTokenAsync(SteamToken, webApiKey, appId)
 			.then(me => {
