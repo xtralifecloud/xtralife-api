@@ -479,7 +479,7 @@ class ConnectAPI extends AbstractAPI {
 			if (options && options.gameVariant) {
 				variantConfig = game.config.steam[options.gameVariant];
 				if (!variantConfig) {
-					throw new errors.MissingSteamCredentials("Missing steam credentials in config file");
+					return {};
 				}
 			} else {
 				// check for format 2 (new), default variant from game config
@@ -497,16 +497,13 @@ class ConnectAPI extends AbstractAPI {
 			}
 		}
 	
-		if (!appId || !webApiKey) {
-			throw new errors.MissingSteamCredentials("Missing steam credentials in config file");
-		}
-	
 		return { appId, webApiKey };
-	}
+	};
 	
 
 	loginSteam(game, steamToken, options, cb) {
 		const { appId, webApiKey } = this.getSteamCredentials(game, options);
+		if(!webApiKey || !appId) return cb(new errors.MissingSteamCredentials("Missing steam credentials in config file"))
 	
 		return steam.validToken(
 			steamToken,
@@ -673,6 +670,7 @@ class ConnectAPI extends AbstractAPI {
 
 	convertAccountToSteam(game, user_id, SteamToken, options) {
 		const { appId, webApiKey } = this.getSteamCredentials(game, options);
+		if(!webApiKey || !appId) throw new errors.MissingSteamCredentials("Missing steam credentials in config file")
 
 		return this.steamValidTokenAsync(SteamToken, webApiKey, appId)
 			.then(me => {
