@@ -63,13 +63,13 @@ xlenv.override(null, {
 			.catch(err => cb(err));
 	},
 
-	elastic: {
+	elasticConfig: {
 		driver: {
-			version: "8.7.0",
+			version: "8.8.0",
 		}
 	},
 
-	elasticClient(cb) {
+	elastic(cb) {
 		const { Client } = require('@elastic/elasticsearch');
 		const client = new Client({
 			node: 'http://localhost:9200'
@@ -78,6 +78,7 @@ xlenv.override(null, {
 	},
 
 	options: {
+		disableIndexModule: false,
 
 		useMongodbPushall: false,
 

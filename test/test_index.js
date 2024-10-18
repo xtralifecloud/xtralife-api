@@ -18,9 +18,12 @@ const indexName = "test";
 
 let context = null;
 
-const isElasticDriverBelow8 = parseInt(xlenv.elastic.driver.version.split('.')[0]) < 8;
-
 describe("Xtralife Index module", function () {
+
+	if (xlenv.options.disableIndexModule === true)
+		return it.skip("SKIPPED (xlenv.options.disableIndexModule === true)");
+
+	const isElasticDriverBelow8 = parseInt(xlenv.elasticConfig.driver.version.split('.')[0]) < 8;
 
 	before('configure Xtralife', function (done) {
 		this.timeout(5000);

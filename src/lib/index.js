@@ -10,15 +10,15 @@ const errors = require("../errors.js");
 class IndexAPI extends AbstractAPI {
 	constructor() {
 		super();
-		this.elasticClient = null;
+		this.elastic = null;
 	}
 
 	configure(parent, callback) {
-		this.isElasticDriverBelow8 = parseInt(xlenv.elastic.driver.version.split('.')[0]) < 8;
+		this.isElasticDriverBelow8 = parseInt(xlenv.elasticConfig.driver.version.split('.')[0]) < 8;
 		this.parent = parent;
-		return xlenv.inject(["=elasticClient"], (err, elasticClient) => {
+		return xlenv.inject(["=elastic"], (err, elastic) => {
 
-			this.elasticClient = elasticClient;
+			this.elastic = elastic;
 			logger.info("ES Index initialized");
 
 			return callback(err, {});
@@ -40,7 +40,7 @@ class IndexAPI extends AbstractAPI {
 			properties,
 			contents
 		}).then(() => {
-			return this.elasticClient.index({
+			return this.elastic.index({
 				index: `${domain}.${indexName}`.toLowerCase(),
 				id: objectId,
 				body: document,
@@ -59,7 +59,7 @@ class IndexAPI extends AbstractAPI {
 			indexName,
 			objectId
 		}).then(() => {
-			return this.elasticClient.get({
+			return this.elastic.get({
 				index: `${domain}.${indexName}`.toLowerCase(),
 				id: objectId,
 				...(this.isElasticDriverBelow8 ? { type: '_doc' } : {})
@@ -81,7 +81,7 @@ class IndexAPI extends AbstractAPI {
 			from,
 			max
 		}).then(() => {
-			return this.elasticClient.search({
+			return this.elastic.search({
 				index: `${domain}.${indexName}`.toLowerCase(),
 				q,
 				sort,
@@ -104,7 +104,7 @@ class IndexAPI extends AbstractAPI {
 			from,
 			max
 		}).then(() => {
-			return this.elasticClient.search({
+			return this.elastic.search({
 				index: `${domain}.${indexName}`.toLowerCase(),
 				body: query,
 				from,
@@ -122,7 +122,7 @@ class IndexAPI extends AbstractAPI {
 			indexName,
 			objectId
 		}).then(() => {
-			return this.elasticClient.delete({
+			return this.elastic.delete({
 				index: domain.toLowerCase() + `.${indexName.toLowerCase()}`,
 				id: objectId,
 				...(this.isElasticDriverBelow8 ? { type: '_doc' } : {})
@@ -183,7 +183,7 @@ class IndexAPI extends AbstractAPI {
 			},
 
 			getClient: () => { // OpenSource version ONLY, not available in the hosted edition
-				return this.elasticClient;
+				return this.elastic;
 			}
 		};
 	}
