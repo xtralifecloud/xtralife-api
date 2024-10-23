@@ -29,27 +29,25 @@ class LeaderboardAPI extends AbstractAPI {
 		this.domainDefinition = this.coll('domainDefinition');
 		this.colldomains = this.coll('domains');
 		this.scoreAsync = Promise.promisify(this.score, { context: this });
-
-		return Promise.all([
-			this.domainDefinition.createIndex({ domain: 1 }, { unique: true }),
-			new Promise((resolve, reject) => {
-				xlenv.inject(["=redisClient"], (err, rc) => {
-					if (err) {
-						reject(err);
-					} else {
-						this.rc = rc;
-						resolve();
-					}
+	
+		return async.parallel([
+			cb => {
+				return this.domainDefinition.createIndex({ domain: 1 }, { unique: true })
+					.then(() => cb())
+					.catch(cb);
+			},
+			cb => {
+				return xlenv.inject(["=redisClient"], (err, rc) => {
+					this.rc = rc;
+					if (err != null) { return cb(err); }
+					return cb(null);
 				});
-			})
-		])
-			.then(() => {
-				logger.info("Leaderboard initialized");
-				if (callback) return callback();
-			})
-			.catch((err) => {
-				if (callback) return callback(err);
-			});
+			}
+		], function (err) {
+			if (err != null) { return callback(err); }
+			logger.info("Leaderboard initialized");
+			return callback();
+		});
 	}
 
 	afterConfigure(_xtralifeapi, cb) {

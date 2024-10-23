@@ -29,16 +29,21 @@ class StoreAPI extends AbstractAPI {
 
 	configure(xtralifeApi, callback) {
 		this.xtralifeApi = xtralifeApi;
-		return this.coll('productDefinition').createIndex({ appid: 1 }, { unique: true })
-			.then(() => {
-				if (callback) callback(null, {});
-				logger.info(`${moduleName} initialized`);
-				return this.IAP = require('iap');
-			})
-			.catch((err) => {
-				if (callback) callback(err);
-			});
+		async.parallel([
+			cb => {
+				return this.coll('productDefinition').createIndex({ appid: 1 }, { unique: true })
+					.then(() => cb())
+					.catch(cb);
+			}
+		], function (err) {
+			if (err != null) { return callback(err); }
+			logger.info(`${moduleName} initialized`);
+			return callback();
+		});
+	
+		return this.IAP = require('iap');
 	}
+	
 
 	// remove common data
 	onDeleteUser(userid, callback) {

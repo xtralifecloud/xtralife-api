@@ -70,20 +70,33 @@ class ConnectAPI extends AbstractAPI {
 		return xlenv.inject(["=redisClient"], (err, rc) => {
 			this.rc = rc;
 			if (err != null) { return callback(err); }
-			const iter = (xlenv.mongodb.aws_documentdb == true) ? Promise.mapSeries : Promise.all;
+		
+			let iter = async.parallel;
+			if(xlenv.mongodb.aws_documentdb == true)
+				iter = async.series;
+		
 			return iter([
-				this.collusers().createIndex({ network: 1, networkid: 1 }, { unique: true }),
-				this.collusers().createIndex({ 'profile.displayName': 1 }, { unique: false }),
-				this.collusers().createIndex({ 'profile.email': 1 }, { unique: false })
-			])
-				.then(() => {
-					logger.info("Connect initialized");
-					return callback();
-				})
-				.catch(err => {
-					return callback(err);
-				});
+				// data related to user
 
+				cb => {
+					return this.collusers().createIndex({ network: 1, networkid: 1 }, { unique: true })
+						.then(() => cb())
+						.catch(cb);
+				},
+				cb => {
+					return this.collusers().createIndex({ 'profile.displayName': 1 }, { unique: false })
+						.then(() => cb())
+						.catch(cb);
+				},
+				cb => {
+					return this.collusers().createIndex({ 'profile.email': 1 }, { unique: false })
+						.then(() => cb())
+						.catch(cb);
+				}
+			], err => {
+				logger.info("Connect initialized");
+				return callback(err);
+			});
 		});
 	}
 

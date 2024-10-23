@@ -43,22 +43,41 @@ class SocialAPI extends AbstractAPI {
 		this.getFriendsAsync = Promise.promisify(this.getFriends);
 
 		if (xlenv.options.removeUser) {
-			const iter = (xlenv.mongodb.aws_documentdb == true) ? Promise.mapSeries : Promise.all;
+			let iter = async.parallel;
+			if(xlenv.mongodb.aws_documentdb == true)
+				iter = async.series;
+	
 			return iter([
-				this.colldomains.createIndex({ "relations.friends": 1 }),
-				this.colldomains.createIndex({ "relations.blacklist": 1 }),
-				this.colldomains.createIndex({ godchildren: 1 }),
-				this.colldomains.createIndex({ godfather: 1 }),
-			])
-				.then(() => {
-					if (callback) callback(null);
-					logger.info("Social initialized");
-				})
-				.catch((err) => {
-					if (callback) callback(err);
-				});
+				cb => {
+					return this.colldomains.createIndex({ "relations.friends": 1 })
+						.then(() => cb())
+						.catch(cb);
+				},
+				cb => {
+					return this.colldomains.createIndex({ "relations.blacklist": 1 })
+						.then(() => cb())
+						.catch(cb);
+				},
+				cb => {
+					return this.colldomains.createIndex({ godchildren: 1 })
+						.then(() => cb())
+						.catch(cb);
+				},
+				cb => {
+					return this.colldomains.createIndex({ godfather: 1 })
+						.then(() => cb())
+						.catch(cb);
+				}
+			], function (err) {
+				if (err != null) { return callback(err); }
+				logger.info("Social initialized");
+				return callback(null);
+			});
+		} else {
+			logger.info("Social initialized");
+			return callback(null);
 		}
-	}
+	}	
 
 	configureGame(appid, callback) {
 		return callback();

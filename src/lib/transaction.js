@@ -26,18 +26,20 @@ class TransactionAPI extends AbstractAPI {
 		this.xtralifeapi = xtralifeapi;
 		this.domainsColl = this.coll('domains');
 		this.txColl = this.coll('transactions');
-
-		return Promise.all([
-			this.domainsColl.createIndex({ domain: 1, user_id: 1 }, { unique: true }),
-			this.txColl.createIndex({ domain: 1, userid: 1, ts: -1 })
-		])
-			.then(() => {
-				if (callback) callback(null);
-			})
-			.catch((err) => {
-				if (callback) callback(err);
-			});
+		return async.parallel([
+			cb => {
+				return this.domainsColl.createIndex({ domain: 1, user_id: 1 }, { unique: true })
+					.then(() => cb())
+					.catch(cb);
+			},
+			cb => {
+				return this.txColl.createIndex({ domain: 1, userid: 1, ts: -1 })
+					.then(() => cb())
+					.catch(cb);
+			}
+		], callback);
 	}
+	
 
 	// remove common data
 	onDeleteUser(userid, cb) {

@@ -23,57 +23,59 @@ class MatchAPI extends AbstractAPI {
 
 	configure(xtralifeApi, callback) {
 		this.xtralifeApi = xtralifeApi;
-		const iter = (xlenv.mongodb.aws_documentdb == true) ? Promise.mapSeries : Promise.all;
+		logger.info("Matches initialized");
+		let iter = async.parallel;
+		if(xlenv.mongodb.aws_documentdb == true)
+			iter = async.series;
 		return iter([
-			this.coll('matches').createIndex({ domain: 1 }, { unique: false }),
-			this.coll('matches').createIndex({ status: 1 }, { unique: false }),
-			this.coll('matches').createIndex({ players: 1 }, { unique: false }),
-			this.coll('matches').createIndex({ invitees: 1 }, { unique: false }),
-			this.coll('matches').createIndex({ full: 1 }, { unique: false }),
-		])
-			.then(() => {
-				if (callback) callback(null);
-				logger.info("Matches initialized");
-			})
-			.catch((err) => {
-				if (callback) callback(err);
-			});
+			cb => {
+				return this.coll('matches').createIndex({ domain: 1 }, { unique: false }).then(() => cb()).catch(cb);
+			},
+			cb => {
+				return this.coll('matches').createIndex({ status: 1 }, { unique: false }).then(() => cb()).catch(cb);
+			},
+			cb => {
+				return this.coll('matches').createIndex({ players: 1 }, { unique: false }).then(() => cb()).catch(cb);
+			},
+			cb => {
+				return this.coll('matches').createIndex({ invitees: 1 }, { unique: false }).then(() => cb()).catch(cb);
+			},
+			cb => {
+				return this.coll('matches').createIndex({ full: 1 }, { unique: false }).then(() => cb()).catch(cb);
+			}
+		], err => callback(err));
 	}
 
 	// remove common data (only in sandbox, no need to be too picky) - called from api.onDeleteUser
 	onDeleteUser(userid, callback) {
 		logger.debug(`delete user ${userid} for matches`);
 		const matchColl = this.coll('matches');
+		
 		// Leave all matches to which the user belongs
-		matchColl.find({ players: userid }).toArray()
+		return matchColl.find({ players: userid }).toArray()
 			.then(matches => {
-				const tasks = matches.map(match => {
-					return () => {
-						return this._leaveMatchSilently(match._id, userid);
-					};
+				const tasks = [];
+	
+				matches.forEach(match => {
+					tasks.push(cb => {
+						return this._leaveMatchSilently(match._id, userid)
+							.then(() => cb())
+							.catch(cb);
+					});
 				});
-
-				return Promise.all(tasks.map(task => task()));
+	
+				return matchColl.find({ creator: userid }).toArray()
+					.then(matches => {
+						matches.forEach(match => {
+							tasks.push(cb => this._forceDeleteMatch(match._id, cb));
+						});
+	
+						return async.series(tasks, callback);
+					})
+					.catch(err => callback(err));
 			})
-			.then(() => {
-				return matchColl.find({ creator: userid }).toArray();
-			})
-			.then(matches => {
-				const tasks = matches.map(match => {
-					return () => {
-						return this._forceDeleteMatch(match._id, callback);
-					};
-				});
-
-				return Promise.all(tasks.map(task => task()));
-			})
-			.then(() => {
-				return callback(null);
-			})
-			.catch(err => {
-				return callback(err);
-			});
-	}
+			.catch(err => callback(err));
+	}	
 
 	// remove game specific data data
 	onDeleteUserForGame(appId, userid, callback) {

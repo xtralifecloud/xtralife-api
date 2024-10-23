@@ -22,15 +22,19 @@ class AchievementAPI extends AbstractAPI {
 
 	configure(xtralifeApi, callback) {
 		this.xtralifeApi = xtralifeApi;
-		return this.coll('achievements').createIndex({ domain: 1 }, { unique: true })
-			.then(() => {
-				logger.info("Achievements initialized");
-				if (callback) callback(null);
-			})
-			.catch((err) => {
-				if (callback) callback(err);
-			});
+		return async.parallel([
+			cb => {
+				return this.coll('achievements').createIndex({ domain: 1 }, { unique: true })
+					.then(() => cb())
+					.catch(cb);
+			}
+		], function (err) {
+			if (err != null) { return callback(err); }
+			logger.info("Achievements initialized");
+			return callback();
+		});
 	}
+	
 
 	// remove common data
 	onDeleteUser(userid, callback) {
